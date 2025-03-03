@@ -41,7 +41,7 @@ const blogData = [
   {
     id: 4,
     title: 'Networking Tips for Introverts in the Workplace',
-    excerpt: 'Effective strategies for building professional relationships when networking doesn't come naturally.',
+    excerpt: 'Effective strategies for building professional relationships when networking doesn\'t come naturally.',
     category: 'Networking',
     author: 'Sarah Parker',
     date: 'March 18, 2023',

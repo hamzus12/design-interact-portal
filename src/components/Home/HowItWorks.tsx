@@ -6,7 +6,7 @@ const steps = [
   {
     id: 1,
     title: 'Create Account',
-    description: 'Post a job to tell us about your project. We'll quickly match you with the right freelancers.',
+    description: 'Post a job to tell us about your project. We\'ll quickly match you with the right freelancers.',
     icon: FileCheck,
     color: 'bg-purple-100 text-purple-600',
   },
