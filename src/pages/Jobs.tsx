@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout/Layout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   Search, 
   MapPin, 
@@ -14,7 +14,7 @@ import {
   ChevronDown 
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { useLocation } from 'react-router-dom';
+import { useDatabase } from '@/context/DatabaseContext';
 
 // Sample job data
 const jobsData = [
@@ -147,6 +147,7 @@ const Jobs = () => {
   const initialKeyword = query.get('keyword') || '';
   const initialLocation = query.get('location') || '';
   
+  const { jobs, loading, error, fetchJobsByFilters } = useDatabase();
   const [favorites, setFavorites] = useState<number[]>([]);
   const [filters, setFilters] = useState({
     category: [] as string[],
@@ -190,41 +191,29 @@ const Jobs = () => {
   };
 
   useEffect(() => {
-    // This effect runs when the component mounts or when URL parameters change
-    if (initialLocation) {
-      console.log("Setting initial location filter:", initialLocation);
-    }
+    // Initial load with URL parameters
+    const urlFilters: any = {};
+    
     if (initialKeyword) {
-      console.log("Setting initial keyword:", initialKeyword);
+      urlFilters.keyword = initialKeyword;
     }
-  }, [initialKeyword, initialLocation]);
+    
+    if (initialLocation) {
+      urlFilters.location = [initialLocation];
+    }
+    
+    fetchJobsByFilters(urlFilters);
+  }, [initialKeyword, initialLocation, fetchJobsByFilters]);
 
-  // Filter jobs based on selected filters
-  const filteredJobs = jobsData.filter(job => {
-    // Filter by keyword
-    if (keyword && !job.title.toLowerCase().includes(keyword.toLowerCase()) && 
-        !job.company.toLowerCase().includes(keyword.toLowerCase())) {
-      return false;
+  const handleSearch = () => {
+    const searchFilters: any = { ...filters };
+    
+    if (keyword) {
+      searchFilters.keyword = keyword;
     }
     
-    // Filter by category
-    if (filters.category.length > 0 && !filters.category.includes(job.category)) {
-      return false;
-    }
-    
-    // Filter by job type
-    if (filters.jobType.length > 0 && !filters.jobType.includes(job.jobType)) {
-      return false;
-    }
-    
-    // Filter by location
-    if (filters.location.length > 0 && 
-        !filters.location.some(loc => job.location.toLowerCase().includes(loc.toLowerCase()))) {
-      return false;
-    }
-    
-    return true;
-  });
+    fetchJobsByFilters(searchFilters);
+  };
 
   return (
     <Layout>
@@ -253,7 +242,7 @@ const Jobs = () => {
                 <span>Filters</span>
                 <ChevronDown className={`h-4 w-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
               </Button>
-              <Button className="bg-red text-white hover:bg-red/90">
+              <Button onClick={handleSearch} className="bg-red text-white hover:bg-red/90">
                 Search
               </Button>
             </div>
@@ -344,83 +333,109 @@ const Jobs = () => {
           
           {/* Jobs grid */}
           <div className="mt-8">
-            <p className="mb-4 text-gray-600">Showing {filteredJobs.length} jobs</p>
-            
-            {filteredJobs.length === 0 ? (
-              <div className="rounded-lg bg-white p-8 text-center shadow-md">
-                <p className="text-gray-600">No jobs found matching your criteria.</p>
-              </div>
-            ) : (
+            {loading ? (
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filteredJobs.map((job, index) => (
-                  <div
-                    key={job.id}
-                    className="job-card overflow-hidden rounded-lg border border-gray-100 bg-white transition-all hover:border-red animate-fade-in"
-                    style={{ animationDelay: `${0.1 + index * 0.05}s` }}
-                  >
-                    <div className="bg-red-50 p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center">
-                          <div className={`mr-3 flex h-10 w-10 items-center justify-center rounded-full ${job.logoColor} text-white`}>
-                            {job.companyLogo}
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900">
-                              <a href={`/job/${job.id}`} className="hover:text-red transition-colors">
-                                {job.title}
-                              </a>
-                            </h3>
-                            <p className="text-sm text-gray-600">via {job.company}</p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => toggleFavorite(job.id)}
-                          className="rounded-full p-1 transition-colors hover:bg-gray-100"
-                        >
-                          <Heart
-                            className={`h-5 w-5 ${
-                              favorites.includes(job.id) ? 'fill-red text-red' : 'text-gray-400'
-                            } transition-colors`}
-                          />
-                        </button>
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="animate-pulse rounded-lg border border-gray-100 bg-white p-6">
+                    <div className="mb-4 flex items-center">
+                      <div className="mr-3 h-10 w-10 rounded-full bg-gray-200"></div>
+                      <div className="flex-1">
+                        <div className="mb-2 h-4 w-3/4 rounded bg-gray-200"></div>
+                        <div className="h-3 w-1/2 rounded bg-gray-200"></div>
                       </div>
                     </div>
-
-                    <div className="p-4">
-                      {job.jobType && (
-                        <div className="mb-3">
-                          <Badge variant="outline" className="border-red text-red">
-                            {job.jobType}
-                          </Badge>
-                        </div>
-                      )}
-                      
-                      <div className="mb-3 flex items-center text-sm text-gray-600">
-                        <MapPin className="mr-1 h-4 w-4 text-gray-400" />
-                        {job.location}
-                      </div>
-                      
-                      <div className="mb-3 flex items-center text-sm text-gray-600">
-                        <Building className="mr-1 h-4 w-4 text-gray-400" />
-                        {job.category}
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="text-sm text-gray-600">
-                          <Badge variant="secondary" className="font-normal">
-                            {job.type}
-                          </Badge>
-                        </div>
-                        
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Clock className="mr-1 h-4 w-4 text-gray-400" />
-                          {job.timeAgo}
-                        </div>
-                      </div>
+                    <div className="mb-4 h-3 w-1/4 rounded bg-gray-200"></div>
+                    <div className="mb-3 h-3 w-full rounded bg-gray-200"></div>
+                    <div className="mb-3 h-3 w-2/3 rounded bg-gray-200"></div>
+                    <div className="flex justify-between">
+                      <div className="h-3 w-1/4 rounded bg-gray-200"></div>
+                      <div className="h-3 w-1/4 rounded bg-gray-200"></div>
                     </div>
                   </div>
                 ))}
               </div>
+            ) : error ? (
+              <div className="rounded-lg bg-white p-8 text-center shadow-md">
+                <p className="text-gray-600">Error loading jobs. Please try again.</p>
+              </div>
+            ) : jobs.length === 0 ? (
+              <div className="rounded-lg bg-white p-8 text-center shadow-md">
+                <p className="text-gray-600">No jobs found matching your criteria.</p>
+              </div>
+            ) : (
+              <>
+                <p className="mb-4 text-gray-600">Showing {jobs.length} jobs</p>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {jobs.map((job, index) => (
+                    <div
+                      key={job.id}
+                      className="job-card overflow-hidden rounded-lg border border-gray-100 bg-white transition-all hover:border-red animate-fade-in"
+                      style={{ animationDelay: `${0.1 + index * 0.05}s` }}
+                    >
+                      <div className="bg-red-50 p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center">
+                            <div className={`mr-3 flex h-10 w-10 items-center justify-center rounded-full ${job.logoColor} text-white`}>
+                              {job.companyLogo}
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900">
+                                <Link to={`/job/${job.id}`} className="hover:text-red transition-colors">
+                                  {job.title}
+                                </Link>
+                              </h3>
+                              <p className="text-sm text-gray-600">via {job.company}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => toggleFavorite(job.id)}
+                            className="rounded-full p-1 transition-colors hover:bg-gray-100"
+                          >
+                            <Heart
+                              className={`h-5 w-5 ${
+                                favorites.includes(job.id) ? 'fill-red text-red' : 'text-gray-400'
+                              } transition-colors`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="p-4">
+                        {job.jobType && (
+                          <div className="mb-3">
+                            <Badge variant="outline" className="border-red text-red">
+                              {job.jobType}
+                            </Badge>
+                          </div>
+                        )}
+                        
+                        <div className="mb-3 flex items-center text-sm text-gray-600">
+                          <MapPin className="mr-1 h-4 w-4 text-gray-400" />
+                          {job.location}
+                        </div>
+                        
+                        <div className="mb-3 flex items-center text-sm text-gray-600">
+                          <Building className="mr-1 h-4 w-4 text-gray-400" />
+                          {job.category}
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-gray-600">
+                            <Badge variant="secondary" className="font-normal">
+                              {job.type}
+                            </Badge>
+                          </div>
+                          
+                          <div className="flex items-center text-sm text-gray-600">
+                            <Clock className="mr-1 h-4 w-4 text-gray-400" />
+                            {job.timeAgo}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>

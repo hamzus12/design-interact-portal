@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { DatabaseProvider } from "./context/DatabaseContext";
 import Index from "./pages/Index";
 import Jobs from "./pages/Jobs";
+import JobDetail from "./pages/JobDetail";
 import Candidates from "./pages/Candidates";
 import About from "./pages/About";
 import Blog from "./pages/Blog";
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/about" element={<About />} />
             <Route path="/jobs" element={<Jobs />} />
+            <Route path="/job/:id" element={<JobDetail />} />
             <Route path="/candidates" element={<Candidates />} />
             <Route path="/blog" element={<Blog />} />
             <Route path="/contact" element={<Contact />} />
