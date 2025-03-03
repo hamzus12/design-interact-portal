@@ -107,7 +107,7 @@ const Blog = () => {
                   className="border-0 pl-10 focus-visible:ring-0 focus-visible:ring-transparent"
                 />
               </div>
-              <Button className="rounded-l-none bg-red text-white hover:bg-red/90">
+              <Button className="rounded-l-none bg-red-600 text-white hover:bg-red-700">
                 Search
               </Button>
             </div>
@@ -121,8 +121,8 @@ const Blog = () => {
                 variant={activeCategory === category ? 'default' : 'outline'}
                 className={
                   activeCategory === category
-                    ? 'bg-red text-white hover:bg-red/90'
-                    : 'hover:border-red hover:text-red'
+                    ? 'bg-red-600 text-white hover:bg-red-700'
+                    : 'hover:border-red-600 hover:text-red-600'
                 }
                 onClick={() => setActiveCategory(category)}
               >
@@ -152,12 +152,12 @@ const Blog = () => {
                   
                   <div className="p-6">
                     <div className="mb-3">
-                      <Badge className="bg-red/10 text-red hover:bg-red/20">
+                      <Badge className="bg-red-600/10 text-red-600 hover:bg-red-600/20">
                         {blog.category}
                       </Badge>
                     </div>
                     
-                    <h3 className="mb-3 text-xl font-semibold text-gray-900 transition-colors hover:text-red">
+                    <h3 className="mb-3 text-xl font-semibold text-gray-900 transition-colors hover:text-red-600">
                       <a href={`/blog/${blog.id}`}>{blog.title}</a>
                     </h3>
                     

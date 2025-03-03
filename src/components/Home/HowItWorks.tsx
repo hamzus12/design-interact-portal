@@ -57,7 +57,7 @@ const HowItWorks = () => {
               </div>
               <h3 className="mb-2 text-xl font-bold">{step.title}</h3>
               <p className="text-white/80">{step.description}</p>
-              <div className="absolute -right-3 -top-3 flex h-8 w-8 items-center justify-center rounded-full bg-red text-lg font-bold">
+              <div className="absolute -right-3 -top-3 flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-lg font-bold">
                 {step.id}
               </div>
             </div>
