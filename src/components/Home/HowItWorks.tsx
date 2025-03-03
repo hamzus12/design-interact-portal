@@ -22,7 +22,7 @@ const steps = [
     title: 'Save & Apply',
     description: 'Use the Jovie platform to chat, share files, and collaborate from your desktop or on the go.',
     icon: UserCheck,
-    color: 'bg-red-100 text-red',
+    color: 'bg-red-100 text-red-600',
   },
 ];
 
