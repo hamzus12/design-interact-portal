@@ -1,9 +1,27 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const HeroSection: React.FC = () => {
+  const [keyword, setKeyword] = useState('');
+  const [location, setLocation] = useState('');
+  const navigate = useNavigate();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!keyword && !location) {
+      toast.warning("Please enter a keyword or location to search");
+      return;
+    }
+    
+    // Navigate to jobs page with search parameters
+    navigate(`/jobs?keyword=${encodeURIComponent(keyword)}&location=${encodeURIComponent(location)}`);
+  };
+
   return (
     <div className="relative bg-navy pb-10 text-white">
       {/* Background image with overlay */}
@@ -27,7 +45,7 @@ const HeroSection: React.FC = () => {
           
           {/* Search Box */}
           <div className="mt-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            <div className="mx-auto max-w-3xl overflow-hidden rounded-md bg-white shadow-lg">
+            <form onSubmit={handleSearch} className="mx-auto max-w-3xl overflow-hidden rounded-md bg-white shadow-lg">
               <div className="grid grid-cols-1 md:grid-cols-7">
                 {/* Keyword Search */}
                 <div className="col-span-3 p-4">
@@ -38,6 +56,8 @@ const HeroSection: React.FC = () => {
                     type="text"
                     id="keyword"
                     placeholder="Job Title"
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-red focus:outline-none"
                   />
                 </div>
@@ -51,19 +71,21 @@ const HeroSection: React.FC = () => {
                     type="text"
                     id="location"
                     placeholder="City or State"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-red focus:outline-none"
                   />
                 </div>
                 
                 {/* Search Button */}
                 <div className="col-span-1 flex items-end p-4">
-                  <Button type="button" className="w-full bg-red text-white hover:bg-red/90">
+                  <Button type="submit" className="w-full bg-red-600 text-white hover:bg-red-700">
                     <Search className="mr-2 h-4 w-4" />
                     <span className="hidden sm:inline">FIND A JOB</span>
                   </Button>
                 </div>
               </div>
-            </div>
+            </form>
           </div>
           
           {/* Trending Keywords */}
@@ -71,10 +93,10 @@ const HeroSection: React.FC = () => {
             <p className="text-white/80">
               Trending Keywords: 
               <span className="ml-2 space-x-2">
-                <a href="#" className="text-white underline decoration-dotted hover:text-red">Automotive</a>,
-                <a href="#" className="text-white underline decoration-dotted hover:text-red">Education</a>,
-                <a href="#" className="text-white underline decoration-dotted hover:text-red">Health</a> and
-                <a href="#" className="text-white underline decoration-dotted hover:text-red">Care Engineering</a>
+                <a href="#" className="text-white underline decoration-dotted hover:text-red-600">Automotive</a>,
+                <a href="#" className="text-white underline decoration-dotted hover:text-red-600">Education</a>,
+                <a href="#" className="text-white underline decoration-dotted hover:text-red-600">Health</a> and
+                <a href="#" className="text-white underline decoration-dotted hover:text-red-600">Care Engineering</a>
               </span>
             </p>
           </div>

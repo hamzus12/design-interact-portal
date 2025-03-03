@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout/Layout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import {
   ChevronDown 
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useLocation } from 'react-router-dom';
 
 // Sample job data
 const jobsData = [
@@ -136,14 +137,23 @@ const locations = [
   'London', 'New York', 'San Francisco', 'Berlin', 'Paris', 'Tokyo'
 ];
 
+// Helper function to get URL parameters
+function useQuery() {
+  return new URLSearchParams(useLocation().search);
+}
+
 const Jobs = () => {
+  const query = useQuery();
+  const initialKeyword = query.get('keyword') || '';
+  const initialLocation = query.get('location') || '';
+  
   const [favorites, setFavorites] = useState<number[]>([]);
   const [filters, setFilters] = useState({
     category: [] as string[],
     jobType: [] as string[],
-    location: [] as string[],
+    location: initialLocation ? [initialLocation] : [] as string[],
   });
-  const [keyword, setKeyword] = useState('');
+  const [keyword, setKeyword] = useState(initialKeyword);
   const [showFilters, setShowFilters] = useState(false);
 
   const toggleFavorite = (jobId: number) => {
@@ -179,6 +189,16 @@ const Jobs = () => {
     setKeyword('');
   };
 
+  useEffect(() => {
+    // This effect runs when the component mounts or when URL parameters change
+    if (initialLocation) {
+      console.log("Setting initial location filter:", initialLocation);
+    }
+    if (initialKeyword) {
+      console.log("Setting initial keyword:", initialKeyword);
+    }
+  }, [initialKeyword, initialLocation]);
+
   // Filter jobs based on selected filters
   const filteredJobs = jobsData.filter(job => {
     // Filter by keyword
@@ -199,7 +219,7 @@ const Jobs = () => {
     
     // Filter by location
     if (filters.location.length > 0 && 
-        !filters.location.some(loc => job.location.includes(loc))) {
+        !filters.location.some(loc => job.location.toLowerCase().includes(loc.toLowerCase()))) {
       return false;
     }
     
