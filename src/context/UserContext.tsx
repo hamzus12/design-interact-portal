@@ -32,8 +32,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       
       // Here you would normally fetch the role from your database
-      // For now, we'll get it from public metadata or use a default
-      const userRole = user?.publicMetadata?.role as UserRole || 'candidate';
+      // For now, we'll get it from metadata or use a default
+      const userRole = user?.unsafeMetadata?.role as UserRole || 'candidate';
       setRole(userRole);
       setIsLoading(false);
     };
@@ -46,7 +46,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (user) {
       try {
         await user.update({
-          publicMetadata: { ...user.publicMetadata, role: newRole },
+          unsafeMetadata: { ...user.unsafeMetadata, role: newRole },
         });
         setRole(newRole);
       } catch (error) {

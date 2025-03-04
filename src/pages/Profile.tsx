@@ -1,175 +1,206 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useUserRole } from '@/context/UserContext';
 import Layout from '@/components/Layout/Layout';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { UserRoundCog, BookMarked, BriefcaseBusiness } from 'lucide-react';
-import { toast } from 'sonner';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { toast } from '@/components/ui/use-toast';
 
 const Profile = () => {
   const { user } = useUser();
   const { role, setRole } = useUserRole();
-  
-  const [bio, setBio] = useState(user?.publicMetadata?.bio as string || '');
-  const [skills, setSkills] = useState(user?.publicMetadata?.skills as string || '');
-  
-  const handleSaveProfile = async () => {
-    try {
-      await user?.update({
-        publicMetadata: {
-          ...user.publicMetadata,
-          bio,
-          skills
-        }
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    bio: '',
+    skills: '',
+    role: role
+  });
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.primaryEmailAddress?.emailAddress || '',
+        bio: user.unsafeMetadata?.bio as string || '',
+        skills: user.unsafeMetadata?.skills as string || '',
+        role: role
       });
-      toast.success('Profile updated successfully');
+    }
+  }, [user, role]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRoleChange = (value: string) => {
+    setFormData(prev => ({ ...prev, role: value as typeof role }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      // Update role if changed
+      if (formData.role !== role) {
+        await setRole(formData.role);
+      }
+
+      // Update user profile data
+      if (user) {
+        await user.update({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          unsafeMetadata: {
+            ...user.unsafeMetadata,
+            bio: formData.bio,
+            skills: formData.skills
+          }
+        });
+      }
+
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been successfully updated."
+      });
+      setIsEditing(false);
     } catch (error) {
       console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
+      toast({
+        title: "Update failed",
+        description: "There was an error updating your profile.",
+        variant: "destructive"
+      });
     }
   };
 
-  const handleRoleChange = async (newRole: 'candidate' | 'recruiter' | 'admin') => {
-    await setRole(newRole);
-    toast.success(`Your role has been updated to ${newRole}`);
+  const getInitials = () => {
+    return ((user?.firstName || '')[0] || '') + ((user?.lastName || '')[0] || '');
   };
-
-  if (!user) return null;
 
   return (
     <Layout>
-      <div className="bg-gray-50 py-16">
-        <div className="container mx-auto px-4">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
-            <p className="text-gray-600">Manage your profile information and preferences</p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-            {/* Left sidebar with user photo and basic info */}
-            <div className="md:col-span-1">
-              <div className="rounded-lg bg-white p-6 shadow-md">
-                <div className="mb-6 flex flex-col items-center">
-                  <div className="mb-4 overflow-hidden rounded-full">
-                    <img
-                      src={user.imageUrl}
-                      alt={user.fullName || 'User'}
-                      className="h-32 w-32 rounded-full object-cover"
-                    />
-                  </div>
-                  <h2 className="text-xl font-semibold">{user.fullName}</h2>
-                  <p className="text-gray-600">{user.primaryEmailAddress?.emailAddress}</p>
-                  <div className="mt-2 rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red capitalize">
-                    {role}
-                  </div>
-                </div>
-
-                <div className="mb-6">
-                  <h3 className="mb-3 font-semibold">Account Type</h3>
-                  <RadioGroup defaultValue={role} className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem 
-                        value="candidate" 
-                        id="candidate"
-                        onClick={() => handleRoleChange('candidate')}
-                      />
-                      <Label htmlFor="candidate" className="flex items-center gap-2">
-                        <BookMarked className="h-4 w-4" /> Candidate
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem 
-                        value="recruiter" 
-                        id="recruiter"
-                        onClick={() => handleRoleChange('recruiter')}
-                      />
-                      <Label htmlFor="recruiter" className="flex items-center gap-2">
-                        <BriefcaseBusiness className="h-4 w-4" /> Recruiter
-                      </Label>
-                    </div>
-                    {role === 'admin' && (
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="admin" id="admin" />
-                        <Label htmlFor="admin" className="flex items-center gap-2">
-                          <UserRoundCog className="h-4 w-4" /> Administrator
-                        </Label>
-                      </div>
-                    )}
-                  </RadioGroup>
-                </div>
-
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => user.update({ imageUrl: undefined })}
-                >
-                  Update Profile Picture
-                </Button>
+      <div className="container mx-auto py-12">
+        <div className="max-w-4xl mx-auto">
+          <Card>
+            <CardHeader className="flex flex-row items-center gap-4">
+              <Avatar className="h-20 w-20">
+                <AvatarImage src={user?.imageUrl} alt={user?.fullName || 'User'} />
+                <AvatarFallback className="text-xl">{getInitials()}</AvatarFallback>
+              </Avatar>
+              <div>
+                <CardTitle className="text-2xl">{isEditing ? 'Edit Profile' : 'Profile'}</CardTitle>
+                <p className="text-muted-foreground">
+                  Manage your account details and preferences
+                </p>
               </div>
-            </div>
-
-            {/* Main profile content */}
-            <div className="md:col-span-2">
-              <div className="rounded-lg bg-white p-6 shadow-md">
-                <h2 className="mb-6 text-xl font-semibold">Profile Information</h2>
-
-                <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
                     <Input
                       id="firstName"
-                      defaultValue={user.firstName || ''}
-                      className="mt-1"
+                      name="firstName"
+                      value={formData.firstName}
+                      onChange={handleInputChange}
+                      disabled={!isEditing}
                     />
                   </div>
-                  <div>
+                  <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
                     <Input
                       id="lastName"
-                      defaultValue={user.lastName || ''}
-                      className="mt-1"
+                      name="lastName"
+                      value={formData.lastName}
+                      onChange={handleInputChange}
+                      disabled={!isEditing}
                     />
                   </div>
                 </div>
 
-                <div className="mb-6">
-                  <Label htmlFor="bio">Professional Bio</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    disabled={true} // Email should not be editable here
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select
+                    disabled={!isEditing}
+                    value={formData.role}
+                    onValueChange={handleRoleChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="candidate">Candidate</SelectItem>
+                      <SelectItem value="recruiter">Recruiter</SelectItem>
+                      <SelectItem value="admin">Administrator</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio</Label>
                   <Textarea
                     id="bio"
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    className="mt-1 min-h-32"
-                    placeholder="Tell us about your professional experience, education, and career goals"
+                    name="bio"
+                    value={formData.bio}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
+                    rows={4}
                   />
                 </div>
 
-                <div className="mb-6">
-                  <Label htmlFor="skills">Skills & Expertise</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="skills">Skills (comma separated)</Label>
                   <Textarea
                     id="skills"
-                    value={skills}
-                    onChange={(e) => setSkills(e.target.value)}
-                    className="mt-1"
-                    placeholder="List your key skills, separated by commas (e.g., JavaScript, React, Project Management)"
+                    name="skills"
+                    value={formData.skills}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
+                    rows={3}
                   />
                 </div>
 
-                <div className="flex justify-end">
-                  <Button
-                    onClick={handleSaveProfile}
-                    className="bg-red text-white hover:bg-red/90"
-                  >
-                    Save Changes
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
+                {isEditing && (
+                  <div className="flex justify-end space-x-4">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => setIsEditing(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit">Save Changes</Button>
+                  </div>
+                )}
+              </form>
+            </CardContent>
+            {!isEditing && (
+              <CardFooter className="flex justify-end">
+                <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
+              </CardFooter>
+            )}
+          </Card>
         </div>
       </div>
     </Layout>
