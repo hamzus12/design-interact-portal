@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Mail } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { useSignIn } from '@clerk/clerk-react';
+import { useSignUp } from '@clerk/clerk-react';
 
 const VerifyEmail = () => {
   const navigate = useNavigate();
   const [verificationCode, setVerificationCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { signIn, setActive } = useSignIn();
+  const { signUp, setActive } = useSignUp();
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +30,7 @@ const VerifyEmail = () => {
     
     try {
       // Attempt to verify the code
-      const result = await signIn?.attemptEmailAddressVerification({
+      const result = await signUp?.attemptEmailAddressVerification({
         code: verificationCode,
       });
       

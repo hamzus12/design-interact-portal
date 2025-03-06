@@ -2,11 +2,18 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, User } from 'lucide-react';
+import { 
+  SignedIn, 
+  SignedOut, 
+  UserButton, 
+  useUser 
+} from '@clerk/clerk-react';
 
 // Navbar component
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useUser();
 
   const navItems = [
     { name: 'Home', path: '/' },
@@ -68,14 +75,27 @@ const Navbar: React.FC = () => {
           ))}
         </div>
 
-        {/* Sign In / Sign Up */}
-        <div className="hidden items-center space-x-2 md:flex">
-          <Button className="border border-white bg-transparent text-white hover:bg-white/10" variant="outline" asChild>
-            <Link to="/signin">Sign In</Link>
-          </Button>
-          <Button className="bg-red text-white hover:bg-red/90" asChild>
-            <Link to="/signup">Sign Up</Link>
-          </Button>
+        {/* Sign In / Sign Up OR User Profile */}
+        <div className="hidden items-center space-x-3 md:flex">
+          <SignedIn>
+            <div className="flex items-center gap-3">
+              <Link to="/dashboard" className="text-white hover:text-gray-300 text-sm">
+                Dashboard
+              </Link>
+              <Link to="/profile" className="text-white hover:text-gray-300 text-sm">
+                Profile
+              </Link>
+              <UserButton afterSignOutUrl="/" />
+            </div>
+          </SignedIn>
+          <SignedOut>
+            <Button className="border border-white bg-transparent text-white hover:bg-white/10" variant="outline" asChild>
+              <Link to="/signin">Sign In</Link>
+            </Button>
+            <Button className="bg-red text-white hover:bg-red/90" asChild>
+              <Link to="/signup">Sign Up</Link>
+            </Button>
+          </SignedOut>
         </div>
       </div>
 
@@ -92,14 +112,38 @@ const Navbar: React.FC = () => {
               {item.name}
             </Link>
           ))}
-          <div className="mt-4 flex flex-col space-y-2 px-3">
-            <Button className="w-full justify-center border border-white bg-transparent text-white hover:bg-white/10" variant="outline" asChild>
-              <Link to="/signin">Sign In</Link>
-            </Button>
-            <Button className="w-full justify-center bg-red text-white hover:bg-red/90" asChild>
-              <Link to="/signup">Sign Up</Link>
-            </Button>
-          </div>
+          
+          <SignedIn>
+            <div className="mt-3 space-y-1 border-t border-gray-700 pt-3">
+              <Link 
+                to="/dashboard" 
+                className="block rounded-md px-3 py-2 text-base font-medium text-white hover:bg-navy-light"
+                onClick={() => setIsOpen(false)}
+              >
+                Dashboard
+              </Link>
+              <Link 
+                to="/profile" 
+                className="block rounded-md px-3 py-2 text-base font-medium text-white hover:bg-navy-light"
+                onClick={() => setIsOpen(false)}
+              >
+                Profile
+              </Link>
+              <div className="px-3 py-2">
+                <UserButton afterSignOutUrl="/" />
+              </div>
+            </div>
+          </SignedIn>
+          <SignedOut>
+            <div className="mt-4 flex flex-col space-y-2 px-3">
+              <Button className="w-full justify-center border border-white bg-transparent text-white hover:bg-white/10" variant="outline" asChild>
+                <Link to="/signin">Sign In</Link>
+              </Button>
+              <Button className="w-full justify-center bg-red text-white hover:bg-red/90" asChild>
+                <Link to="/signup">Sign Up</Link>
+              </Button>
+            </div>
+          </SignedOut>
         </div>
       </div>
     </nav>
