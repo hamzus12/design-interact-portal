@@ -3,10 +3,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DatabaseProvider } from "./context/DatabaseContext";
-import { UserProvider } from "./context/UserContext";
-import { SignedIn, SignedOut, RedirectToSignIn, ClerkLoaded } from "@clerk/clerk-react";
+import { UserProvider, useUserRole } from "./context/UserContext";
 import Index from "./pages/Index";
 import Jobs from "./pages/Jobs";
 import JobDetail from "./pages/JobDetail";
@@ -20,19 +19,24 @@ import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import VerifyEmail from "./pages/VerifyEmail";
+import AddJob from "./pages/AddJob";
+import { ReactNode } from "react";
 
 const queryClient = new QueryClient();
 
 // Protected route component
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <>
-      <SignedIn>{children}</SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
-  );
+const ProtectedRoute = ({ children }: { children: ReactNode }) => {
+  const { user, isLoading } = useUserRole();
+  
+  if (isLoading) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  }
+  
+  if (!user) {
+    return <Navigate to="/signin" replace />;
+  }
+  
+  return <>{children}</>;
 };
 
 const App = () => (
@@ -51,12 +55,11 @@ const App = () => (
               <Route path="/candidates" element={<Candidates />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/contact" element={<Contact />} />
-              <Route path="/signin/*" element={<SignIn />} />
-              <Route path="/signup/*" element={<SignUp />} />
+              <Route path="/signin" element={<SignIn />} />
+              <Route path="/signup" element={<SignUp />} />
               
-              {/* Add Clerk verification routes */}
+              {/* Add Verification routes */}
               <Route path="/signup/verify-email-address" element={<VerifyEmail />} />
-              <Route path="/signup/verify-email-address/*" element={<VerifyEmail />} />
               
               {/* Protected routes */}
               <Route 
@@ -72,6 +75,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <Profile />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/add-job" 
+                element={
+                  <ProtectedRoute>
+                    <AddJob />
                   </ProtectedRoute>
                 } 
               />

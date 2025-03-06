@@ -1,19 +1,23 @@
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, User } from 'lucide-react';
-import { 
-  SignedIn, 
-  SignedOut, 
-  UserButton, 
-  useUser 
-} from '@clerk/clerk-react';
+import { ChevronDown, User, LogOut } from 'lucide-react';
+import { useUserRole } from '@/context/UserContext';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // Navbar component
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { user } = useUser();
+  const { user, role, isLoading, signOut } = useUserRole();
+  const navigate = useNavigate();
 
   const navItems = [
     { name: 'Home', path: '/' },
@@ -24,6 +28,16 @@ const Navbar: React.FC = () => {
     { name: 'Blog', path: '/blog' },
     { name: 'Contact Us', path: '/contact' },
   ];
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
+
+  const getInitials = () => {
+    if (!user) return 'U';
+    return ((user.firstName || '')[0] || '') + ((user.lastName || '')[0] || '');
+  };
 
   return (
     <nav className="fixed top-0 z-50 w-full bg-navy shadow-md">
@@ -77,25 +91,56 @@ const Navbar: React.FC = () => {
 
         {/* Sign In / Sign Up OR User Profile */}
         <div className="hidden items-center space-x-3 md:flex">
-          <SignedIn>
+          {!isLoading && user ? (
             <div className="flex items-center gap-3">
               <Link to="/dashboard" className="text-white hover:text-gray-300 text-sm">
                 Dashboard
               </Link>
-              <Link to="/profile" className="text-white hover:text-gray-300 text-sm">
-                Profile
-              </Link>
-              <UserButton afterSignOutUrl="/" />
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user.profileImage} alt={user.firstName} />
+                      <AvatarFallback className="bg-primary text-white">{getInitials()}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <div className="flex flex-col space-y-1 p-2">
+                    <p className="text-sm font-medium leading-none">{user.firstName} {user.lastName}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user.email}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground mt-1 capitalize">
+                      Role: {role}
+                    </p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="cursor-pointer">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-          </SignedIn>
-          <SignedOut>
-            <Button className="border border-white bg-transparent text-white hover:bg-white/10" variant="outline" asChild>
-              <Link to="/signin">Sign In</Link>
-            </Button>
-            <Button className="bg-red text-white hover:bg-red/90" asChild>
-              <Link to="/signup">Sign Up</Link>
-            </Button>
-          </SignedOut>
+          ) : (
+            <>
+              <Button className="border border-white bg-transparent text-white hover:bg-white/10" variant="outline" asChild>
+                <Link to="/signin">Sign In</Link>
+              </Button>
+              <Button className="bg-red text-white hover:bg-red/90" asChild>
+                <Link to="/signup">Sign Up</Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -113,7 +158,7 @@ const Navbar: React.FC = () => {
             </Link>
           ))}
           
-          <SignedIn>
+          {!isLoading && user ? (
             <div className="mt-3 space-y-1 border-t border-gray-700 pt-3">
               <Link 
                 to="/dashboard" 
@@ -129,12 +174,14 @@ const Navbar: React.FC = () => {
               >
                 Profile
               </Link>
-              <div className="px-3 py-2">
-                <UserButton afterSignOutUrl="/" />
-              </div>
+              <button 
+                className="block w-full text-left rounded-md px-3 py-2 text-base font-medium text-red-400 hover:bg-navy-light"
+                onClick={handleSignOut}
+              >
+                Sign Out
+              </button>
             </div>
-          </SignedIn>
-          <SignedOut>
+          ) : (
             <div className="mt-4 flex flex-col space-y-2 px-3">
               <Button className="w-full justify-center border border-white bg-transparent text-white hover:bg-white/10" variant="outline" asChild>
                 <Link to="/signin">Sign In</Link>
@@ -143,7 +190,7 @@ const Navbar: React.FC = () => {
                 <Link to="/signup">Sign Up</Link>
               </Button>
             </div>
-          </SignedOut>
+          )}
         </div>
       </div>
     </nav>

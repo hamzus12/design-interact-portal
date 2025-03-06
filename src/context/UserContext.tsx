@@ -1,62 +1,154 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useUser, useClerk } from '@clerk/clerk-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/use-toast';
 
 // Define the possible user roles
 export type UserRole = 'candidate' | 'recruiter' | 'admin' | 'guest';
 
-interface UserContextType {
+export interface UserProfile {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
   role: UserRole;
-  setRole: (role: UserRole) => void;
+  profileImage?: string;
+  bio?: string;
+  resumeUrl?: string;
+}
+
+interface UserContextType {
+  user: UserProfile | null;
+  role: UserRole;
+  setRole: (role: UserRole) => Promise<void>;
   isLoading: boolean;
+  signOut: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { isLoaded, isSignedIn, user } = useUser();
-  const [role, setRole] = useState<UserRole>('guest');
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [role, setRoleState] = useState<UserRole>('guest');
   const [isLoading, setIsLoading] = useState(true);
-  const { session } = useClerk();
 
-  useEffect(() => {
-    if (!isLoaded) return;
-
-    const fetchUserRole = async () => {
-      setIsLoading(true);
+  // Function to fetch user profile from our public.users table
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
       
-      if (!isSignedIn) {
-        setRole('guest');
-        setIsLoading(false);
-        return;
-      }
+      if (error) throw error;
       
-      // Here you would normally fetch the role from your database
-      // For now, we'll get it from metadata or use a default
-      const userRole = user?.unsafeMetadata?.role as UserRole || 'candidate';
-      setRole(userRole);
-      setIsLoading(false);
-    };
-
-    fetchUserRole();
-  }, [isLoaded, isSignedIn, user]);
-
-  // Function to update the role in Clerk's metadata
-  const updateRole = async (newRole: UserRole) => {
-    if (user) {
-      try {
-        await user.update({
-          unsafeMetadata: { ...user.unsafeMetadata, role: newRole },
+      if (data) {
+        setUser({
+          id: data.id,
+          email: data.email || '',
+          firstName: data.first_name || '',
+          lastName: data.last_name || '',
+          role: (data.role as UserRole) || 'candidate',
+          profileImage: data.profile_image,
+          bio: data.bio,
+          resumeUrl: data.resume_url
         });
-        setRole(newRole);
-      } catch (error) {
-        console.error('Failed to update role:', error);
+        setRoleState((data.role as UserRole) || 'candidate');
       }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
+  // Listen for auth state changes
+  useEffect(() => {
+    setIsLoading(true);
+    
+    // Get the initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        fetchUserProfile(session.user.id);
+      } else {
+        setUser(null);
+        setRoleState('guest');
+      }
+      setIsLoading(false);
+    });
+
+    // Set up a listener for future auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session) {
+          await fetchUserProfile(session.user.id);
+        } else {
+          setUser(null);
+          setRoleState('guest');
+        }
+        setIsLoading(false);
+      }
+    );
+
+    // Clean up the subscription
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Function to update user role
+  const setRole = async (newRole: UserRole) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ role: newRole })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      setRoleState(newRole);
+      setUser(prev => prev ? { ...prev, role: newRole } : null);
+      
+      toast({
+        title: "Role Updated",
+        description: `Your role has been updated to ${newRole}.`
+      });
+    } catch (error) {
+      console.error('Error updating role:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update role. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Function to sign out
+  const signOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      setUser(null);
+      setRoleState('guest');
+      
+      toast({
+        title: "Signed Out",
+        description: "You have been signed out successfully."
+      });
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
   return (
-    <UserContext.Provider value={{ role, setRole: updateRole, isLoading }}>
+    <UserContext.Provider value={{ user, role, setRole, isLoading, signOut }}>
       {children}
     </UserContext.Provider>
   );
