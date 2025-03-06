@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { getAllJobs, getJobsByFilters, Job } from '../models/job';
 
 interface DatabaseContextType {
@@ -17,7 +17,7 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -29,9 +29,9 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchJobsByFilters = async (filters: any) => {
+  const fetchJobsByFilters = useCallback(async (filters: any) => {
     try {
       setLoading(true);
       setError(null);
@@ -43,15 +43,24 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Initial fetch on mount
   useEffect(() => {
     fetchJobs();
-  }, []);
+  }, [fetchJobs]);
+
+  // Use memoized value to prevent unnecessary re-renders
+  const value = useMemo(() => ({
+    jobs,
+    loading,
+    error,
+    fetchJobs,
+    fetchJobsByFilters
+  }), [jobs, loading, error, fetchJobs, fetchJobsByFilters]);
 
   return (
-    <DatabaseContext.Provider value={{ jobs, loading, error, fetchJobs, fetchJobsByFilters }}>
+    <DatabaseContext.Provider value={value}>
       {children}
     </DatabaseContext.Provider>
   );

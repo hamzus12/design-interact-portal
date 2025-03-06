@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout/Layout';
 import { Input } from '@/components/ui/input';
@@ -15,127 +16,9 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useDatabase } from '@/context/DatabaseContext';
-
-// Sample job data
-const jobsData = [
-  {
-    id: 1,
-    title: 'Post-Room Operate',
-    company: 'Teast Design LTD',
-    companyLogo: 'V',
-    location: 'Wadesley Rd, London',
-    category: 'Accountancy',
-    type: 'Freelance',
-    timeAgo: '1 Hr Ago',
-    featured: true,
-    logoColor: 'bg-green-500',
-    jobType: 'Full Time',
-  },
-  {
-    id: 2,
-    title: 'Data Entry',
-    company: 'Techno Inc.',
-    companyLogo: 'T',
-    location: 'Street 45A, London',
-    category: 'Data Entry',
-    type: 'Freelance',
-    timeAgo: '3 Hr Ago',
-    featured: false,
-    logoColor: 'bg-red',
-    jobType: 'Part Time',
-  },
-  {
-    id: 3,
-    title: 'Graphic Designer',
-    company: 'Dewen Design',
-    companyLogo: 'U',
-    location: 'West Sight, USA',
-    category: 'Graphics',
-    type: 'Freelance',
-    timeAgo: '4 Hr Ago',
-    featured: false,
-    logoColor: 'bg-blue-500',
-    jobType: 'Full Time',
-  },
-  {
-    id: 4,
-    title: 'Web Developer',
-    company: 'MegaNews',
-    companyLogo: 'M',
-    location: 'San Francisco, California',
-    category: 'Development',
-    type: 'Freelance',
-    timeAgo: '5 Hr Ago',
-    featured: false,
-    logoColor: 'bg-purple-500',
-    jobType: 'Remote',
-  },
-  {
-    id: 5,
-    title: 'Digital Marketer',
-    company: 'All Marketer LTD',
-    companyLogo: 'A',
-    location: 'Wadesley Rd, London',
-    category: 'Marketing',
-    type: 'Full Time',
-    timeAgo: '6 Hr Ago',
-    featured: false,
-    logoColor: 'bg-pink-500',
-    jobType: 'On Site',
-  },
-  {
-    id: 6,
-    title: 'UI/UX Designer',
-    company: 'Design Master',
-    companyLogo: 'D',
-    location: 'Zac Rd, London',
-    category: 'Accountancy',
-    type: 'Part Time',
-    timeAgo: '8 Hr Ago',
-    featured: false,
-    logoColor: 'bg-indigo-500', 
-    jobType: 'Hybrid',
-  },
-  {
-    id: 7,
-    title: 'Senior React Developer',
-    company: 'TechGrowth',
-    companyLogo: 'T',
-    location: 'Berlin, Germany',
-    category: 'Development',
-    type: 'Full Time',
-    timeAgo: '10 Hr Ago',
-    featured: true,
-    logoColor: 'bg-green-500',
-    jobType: 'Remote',
-  },
-  {
-    id: 8,
-    title: 'Content Writer',
-    company: 'Media Group',
-    companyLogo: 'M',
-    location: 'Paris, France',
-    category: 'Content',
-    type: 'Contract',
-    timeAgo: '12 Hr Ago',
-    featured: false,
-    logoColor: 'bg-yellow-500',
-    jobType: 'Remote',
-  },
-];
-
-const categories = [
-  'Accountancy', 'Education', 'Automotive', 'Business', 
-  'Healthcare', 'IT & Agency', 'Engineering', 'Legal'
-];
-
-const jobTypes = [
-  'Full Time', 'Part Time', 'Remote', 'Contract', 'Internship'
-];
-
-const locations = [
-  'London', 'New York', 'San Francisco', 'Berlin', 'Paris', 'Tokyo'
-];
+import { Job } from '@/models/job';
+import JobCard from '@/components/Jobs/JobCard';
+import FilterSection from '@/components/Jobs/FilterSection';
 
 // Helper function to get URL parameters
 function useQuery() {
@@ -250,85 +133,12 @@ const Jobs = () => {
           
           {/* Filters */}
           {showFilters && (
-            <div className="mb-8 rounded-lg border border-gray-200 bg-white p-6 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                {/* Categories */}
-                <div>
-                  <h3 className="mb-3 font-semibold">Categories</h3>
-                  <div className="space-y-2">
-                    {categories.map((category) => (
-                      <div key={category} className="flex items-center">
-                        <Checkbox 
-                          id={`category-${category}`} 
-                          checked={filters.category.includes(category)}
-                          onCheckedChange={() => toggleFilter('category', category)}
-                          className="data-[state=checked]:bg-red data-[state=checked]:border-red"
-                        />
-                        <label htmlFor={`category-${category}`} className="ml-2 text-sm">
-                          {category}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                {/* Job Types */}
-                <div>
-                  <h3 className="mb-3 font-semibold">Job Type</h3>
-                  <div className="space-y-2">
-                    {jobTypes.map((type) => (
-                      <div key={type} className="flex items-center">
-                        <Checkbox 
-                          id={`type-${type}`} 
-                          checked={filters.jobType.includes(type)}
-                          onCheckedChange={() => toggleFilter('jobType', type)}
-                          className="data-[state=checked]:bg-red data-[state=checked]:border-red"
-                        />
-                        <label htmlFor={`type-${type}`} className="ml-2 text-sm">
-                          {type}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                {/* Locations */}
-                <div>
-                  <h3 className="mb-3 font-semibold">Location</h3>
-                  <div className="space-y-2">
-                    {locations.map((location) => (
-                      <div key={location} className="flex items-center">
-                        <Checkbox 
-                          id={`location-${location}`} 
-                          checked={filters.location.includes(location)}
-                          onCheckedChange={() => toggleFilter('location', location)}
-                          className="data-[state=checked]:bg-red data-[state=checked]:border-red"
-                        />
-                        <label htmlFor={`location-${location}`} className="ml-2 text-sm">
-                          {location}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-6 flex justify-end">
-                <Button
-                  variant="outline"
-                  onClick={clearFilters}
-                  className="mr-2"
-                >
-                  Clear Filters
-                </Button>
-                <Button
-                  className="bg-red text-white hover:bg-red/90"
-                  onClick={() => setShowFilters(false)}
-                >
-                  Apply Filters
-                </Button>
-              </div>
-            </div>
+            <FilterSection 
+              filters={filters} 
+              toggleFilter={toggleFilter} 
+              clearFilters={clearFilters} 
+              onApplyFilters={() => setShowFilters(false)} 
+            />
           )}
           
           {/* Jobs grid */}
@@ -367,72 +177,13 @@ const Jobs = () => {
                 <p className="mb-4 text-gray-600">Showing {jobs.length} jobs</p>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {jobs.map((job, index) => (
-                    <div
+                    <JobCard 
                       key={job.id}
-                      className="job-card overflow-hidden rounded-lg border border-gray-100 bg-white transition-all hover:border-red animate-fade-in"
-                      style={{ animationDelay: `${0.1 + index * 0.05}s` }}
-                    >
-                      <div className="bg-red-50 p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center">
-                            <div className={`mr-3 flex h-10 w-10 items-center justify-center rounded-full ${job.logoColor} text-white`}>
-                              {job.companyLogo}
-                            </div>
-                            <div>
-                              <h3 className="font-semibold text-gray-900">
-                                <Link to={`/job/${job.id}`} className="hover:text-red transition-colors">
-                                  {job.title}
-                                </Link>
-                              </h3>
-                              <p className="text-sm text-gray-600">via {job.company}</p>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => toggleFavorite(job.id)}
-                            className="rounded-full p-1 transition-colors hover:bg-gray-100"
-                          >
-                            <Heart
-                              className={`h-5 w-5 ${
-                                favorites.includes(job.id) ? 'fill-red text-red' : 'text-gray-400'
-                              } transition-colors`}
-                            />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="p-4">
-                        {job.jobType && (
-                          <div className="mb-3">
-                            <Badge variant="outline" className="border-red text-red">
-                              {job.jobType}
-                            </Badge>
-                          </div>
-                        )}
-                        
-                        <div className="mb-3 flex items-center text-sm text-gray-600">
-                          <MapPin className="mr-1 h-4 w-4 text-gray-400" />
-                          {job.location}
-                        </div>
-                        
-                        <div className="mb-3 flex items-center text-sm text-gray-600">
-                          <Building className="mr-1 h-4 w-4 text-gray-400" />
-                          {job.category}
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm text-gray-600">
-                            <Badge variant="secondary" className="font-normal">
-                              {job.type}
-                            </Badge>
-                          </div>
-                          
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Clock className="mr-1 h-4 w-4 text-gray-400" />
-                            {job.timeAgo}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                      job={job}
+                      index={index}
+                      isFavorite={favorites.includes(job.id)}
+                      onToggleFavorite={() => toggleFavorite(job.id)}
+                    />
                   ))}
                 </div>
               </>
