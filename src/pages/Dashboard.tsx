@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useUserRole } from '@/context/UserContext';
 import { useUser } from '@clerk/clerk-react';
 import Layout from '@/components/Layout/Layout';
@@ -13,16 +13,50 @@ import {
   BookMarked, 
   UserRoundCog, 
   Bell,
-  Plus
+  Plus,
+  Mail,
+  Pencil,
+  Ban,
+  Trash,
+  User,
+  Eye,
+  Send
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useDatabase } from '@/context/DatabaseContext';
 import { Link } from 'react-router-dom';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from '@/components/ui/use-toast';
 
 const Dashboard = () => {
   const { role } = useUserRole();
   const { user } = useUser();
   const { jobs } = useDatabase();
+  
+  // States for admin actions
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [isEditUserOpen, setIsEditUserOpen] = useState(false);
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
+  
+  // Form states
+  const [newUserData, setNewUserData] = useState({
+    name: '',
+    email: '',
+    role: 'candidate',
+  });
+  
+  const [messageData, setMessageData] = useState({
+    to: '',
+    subject: '',
+    body: ''
+  });
 
   // This would come from the database in a real application
   const applications = [
@@ -35,6 +69,89 @@ const Dashboard = () => {
     { id: 1, from: 'Jane Recruiter', subject: 'Interview Invitation', date: '2023-10-16', unread: true },
     { id: 2, from: 'HR Team', subject: 'Application Update', date: '2023-10-14', unread: false },
   ];
+  
+  // Mock user data for admin
+  const usersData = [
+    { id: 1, name: 'John Smith', email: 'john@example.com', role: 'candidate', status: 'active' },
+    { id: 2, name: 'Sarah Johnson', email: 'sarah@example.com', role: 'recruiter', status: 'active' },
+    { id: 3, name: 'Michael Brown', email: 'michael@example.com', role: 'candidate', status: 'suspended' },
+  ];
+  
+  // Handle add user form submit
+  const handleAddUser = (e) => {
+    e.preventDefault();
+    // In a real app, this would call an API to create the user
+    toast({
+      title: "User added",
+      description: `New user ${newUserData.name} has been added successfully.`
+    });
+    setIsAddUserOpen(false);
+    setNewUserData({ name: '', email: '', role: 'candidate' });
+  };
+  
+  // Handle edit user
+  const handleEditUser = (user) => {
+    setSelectedUser(user);
+    setNewUserData({
+      name: user.name,
+      email: user.email,
+      role: user.role
+    });
+    setIsEditUserOpen(true);
+  };
+  
+  // Handle update user
+  const handleUpdateUser = (e) => {
+    e.preventDefault();
+    // In a real app, this would call an API to update the user
+    toast({
+      title: "User updated",
+      description: `User ${newUserData.name} has been updated successfully.`
+    });
+    setIsEditUserOpen(false);
+  };
+  
+  // Handle suspend user
+  const handleSuspendUser = (user) => {
+    // In a real app, this would call an API to suspend the user
+    toast({
+      title: `User ${user.status === 'active' ? 'suspended' : 'activated'}`,
+      description: `User ${user.name} has been ${user.status === 'active' ? 'suspended' : 'activated'} successfully.`
+    });
+  };
+  
+  // Handle delete job confirmation
+  const handleDeleteJobClick = (job) => {
+    setSelectedJob(job);
+    setDeleteConfirmOpen(true);
+  };
+  
+  // Handle delete job
+  const handleDeleteJob = () => {
+    // In a real app, this would call an API to delete the job
+    toast({
+      title: "Job deleted",
+      description: `Job "${selectedJob.title}" has been deleted successfully.`
+    });
+    setDeleteConfirmOpen(false);
+  };
+  
+  // Handle compose message
+  const handleComposeMessage = () => {
+    setIsComposeOpen(true);
+  };
+  
+  // Handle send message
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    // In a real app, this would call an API to send the message
+    toast({
+      title: "Message sent",
+      description: `Your message to ${messageData.to} has been sent successfully.`
+    });
+    setIsComposeOpen(false);
+    setMessageData({ to: '', subject: '', body: '' });
+  };
 
   return (
     <Layout>
@@ -369,7 +486,7 @@ const Dashboard = () => {
             <TabsContent value="messages" className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-semibold">Messages</h3>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={handleComposeMessage}>
                   <MessageSquare className="mr-2 h-4 w-4" />
                   Compose
                 </Button>
@@ -396,7 +513,10 @@ const Dashboard = () => {
                           <td className="px-4 py-4 text-sm">{message.subject}</td>
                           <td className="px-4 py-4 text-sm text-gray-600">{message.date}</td>
                           <td className="px-4 py-4 text-sm">
-                            <Button variant="outline" size="sm">Read</Button>
+                            <Button variant="outline" size="sm">
+                              <Eye className="mr-2 h-4 w-4" />
+                              Read
+                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -509,7 +629,7 @@ const Dashboard = () => {
                 <TabsContent value="users" className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-semibold">User Management</h3>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => setIsAddUserOpen(true)}>
                       <Plus className="mr-2 h-4 w-4" />
                       Add User
                     </Button>
@@ -528,34 +648,46 @@ const Dashboard = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y">
-                          <tr>
-                            <td className="px-4 py-4 text-sm font-medium">John Smith</td>
-                            <td className="px-4 py-4 text-sm">john@example.com</td>
-                            <td className="px-4 py-4 text-sm">
-                              <Badge variant="outline">Candidate</Badge>
-                            </td>
-                            <td className="px-4 py-4 text-sm">
-                              <Badge className="bg-green-500">Active</Badge>
-                            </td>
-                            <td className="px-4 py-4 text-sm space-x-2">
-                              <Button variant="outline" size="sm">Edit</Button>
-                              <Button variant="outline" size="sm" className="border-red text-red hover:bg-red hover:text-white">Suspend</Button>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="px-4 py-4 text-sm font-medium">Sarah Johnson</td>
-                            <td className="px-4 py-4 text-sm">sarah@example.com</td>
-                            <td className="px-4 py-4 text-sm">
-                              <Badge variant="outline">Recruiter</Badge>
-                            </td>
-                            <td className="px-4 py-4 text-sm">
-                              <Badge className="bg-green-500">Active</Badge>
-                            </td>
-                            <td className="px-4 py-4 text-sm space-x-2">
-                              <Button variant="outline" size="sm">Edit</Button>
-                              <Button variant="outline" size="sm" className="border-red text-red hover:bg-red hover:text-white">Suspend</Button>
-                            </td>
-                          </tr>
+                          {usersData.map((userData) => (
+                            <tr key={userData.id}>
+                              <td className="px-4 py-4 text-sm font-medium">{userData.name}</td>
+                              <td className="px-4 py-4 text-sm">{userData.email}</td>
+                              <td className="px-4 py-4 text-sm">
+                                <Badge variant="outline">
+                                  {userData.role.charAt(0).toUpperCase() + userData.role.slice(1)}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-4 text-sm">
+                                <Badge className={userData.status === 'active' ? 'bg-green-500' : 'bg-gray-500'}>
+                                  {userData.status.charAt(0).toUpperCase() + userData.status.slice(1)}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-4 text-sm space-x-2">
+                                <Button variant="outline" size="sm" onClick={() => handleEditUser(userData)}>
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  Edit
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className={userData.status === 'active' ? 'border-red text-red hover:bg-red hover:text-white' : 'border-green-600 text-green-600 hover:bg-green-600 hover:text-white'}
+                                  onClick={() => handleSuspendUser(userData)}
+                                >
+                                  {userData.status === 'active' ? (
+                                    <>
+                                      <Ban className="mr-2 h-4 w-4" />
+                                      Suspend
+                                    </>
+                                  ) : (
+                                    <>
+                                      <User className="mr-2 h-4 w-4" />
+                                      Activate
+                                    </>
+                                  )}
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
@@ -586,8 +718,21 @@ const Dashboard = () => {
                                 <Badge className="bg-green-500">Active</Badge>
                               </td>
                               <td className="px-4 py-4 text-sm space-x-2">
-                                <Button variant="outline" size="sm">View</Button>
-                                <Button variant="outline" size="sm" className="border-red text-red hover:bg-red hover:text-white">Remove</Button>
+                                <Button variant="outline" size="sm" asChild>
+                                  <Link to={`/job/${job.id}`}>
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    View
+                                  </Link>
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="border-red text-red hover:bg-red hover:text-white"
+                                  onClick={() => handleDeleteJobClick(job)}
+                                >
+                                  <Trash className="mr-2 h-4 w-4" />
+                                  Remove
+                                </Button>
                               </td>
                             </tr>
                           ))}
@@ -601,6 +746,208 @@ const Dashboard = () => {
           </Tabs>
         </div>
       </div>
+
+      {/* Add User Dialog */}
+      <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New User</DialogTitle>
+            <DialogDescription>
+              Create a new user account. They will receive an email invitation.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleAddUser}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="name"
+                  value={newUserData.name}
+                  onChange={(e) => setNewUserData({...newUserData, name: e.target.value})}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="email" className="text-right">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newUserData.email}
+                  onChange={(e) => setNewUserData({...newUserData, email: e.target.value})}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="role" className="text-right">
+                  Role
+                </Label>
+                <Select
+                  value={newUserData.role}
+                  onValueChange={(value) => setNewUserData({...newUserData, role: value})}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="candidate">Candidate</SelectItem>
+                    <SelectItem value="recruiter">Recruiter</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit">Create User</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditUserOpen} onOpenChange={setIsEditUserOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update user account details.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateUser}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="edit-name"
+                  value={newUserData.name}
+                  onChange={(e) => setNewUserData({...newUserData, name: e.target.value})}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-email" className="text-right">
+                  Email
+                </Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={newUserData.email}
+                  onChange={(e) => setNewUserData({...newUserData, email: e.target.value})}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-role" className="text-right">
+                  Role
+                </Label>
+                <Select
+                  value={newUserData.role}
+                  onValueChange={(value) => setNewUserData({...newUserData, role: value})}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="candidate">Candidate</SelectItem>
+                    <SelectItem value="recruiter">Recruiter</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit">Update User</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Job Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this job? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeleteJob}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Compose Message Dialog */}
+      <Dialog open={isComposeOpen} onOpenChange={setIsComposeOpen}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>Compose Message</DialogTitle>
+            <DialogDescription>
+              Send a message to users or applicants.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSendMessage}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="to" className="text-right">
+                  To
+                </Label>
+                <Input
+                  id="to"
+                  placeholder="Recipient name or email"
+                  value={messageData.to}
+                  onChange={(e) => setMessageData({...messageData, to: e.target.value})}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="subject" className="text-right">
+                  Subject
+                </Label>
+                <Input
+                  id="subject"
+                  placeholder="Message subject"
+                  value={messageData.subject}
+                  onChange={(e) => setMessageData({...messageData, subject: e.target.value})}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="body" className="text-right align-top pt-2">
+                  Message
+                </Label>
+                <Textarea
+                  id="body"
+                  placeholder="Type your message here"
+                  value={messageData.body}
+                  onChange={(e) => setMessageData({...messageData, body: e.target.value})}
+                  className="col-span-3"
+                  rows={6}
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit">
+                <Send className="mr-2 h-4 w-4" />
+                Send Message
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
