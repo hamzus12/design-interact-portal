@@ -30,8 +30,7 @@ const Jobs = () => {
   const initialKeyword = query.get('keyword') || '';
   const initialLocation = query.get('location') || '';
   
-  const { jobs, loading, error, fetchJobsByFilters } = useDatabase();
-  const [favorites, setFavorites] = useState<number[]>([]);
+  const { jobs, loading, error, fetchJobsByFilters, favorites, toggleFavorite } = useDatabase();
   const [filters, setFilters] = useState({
     category: [] as string[],
     jobType: [] as string[],
@@ -39,14 +38,6 @@ const Jobs = () => {
   });
   const [keyword, setKeyword] = useState(initialKeyword);
   const [showFilters, setShowFilters] = useState(false);
-
-  const toggleFavorite = (jobId: number) => {
-    if (favorites.includes(jobId)) {
-      setFavorites(favorites.filter(id => id !== jobId));
-    } else {
-      setFavorites([...favorites, jobId]);
-    }
-  };
 
   const toggleFilter = (type: 'category' | 'jobType' | 'location', value: string) => {
     setFilters(prev => {
