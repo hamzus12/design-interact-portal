@@ -1,6 +1,6 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import React, { createContext, useContext, useEffect, ReactNode } from 'react';
+import { useUser, useAuth, useClerk } from '@clerk/clerk-react';
 import { toast } from '@/components/ui/use-toast';
 
 // Define the possible user roles
@@ -28,101 +28,36 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [role, setRoleState] = useState<UserRole>('guest');
-  const [isLoading, setIsLoading] = useState(true);
+  const { isLoaded: clerkLoaded, user: clerkUser } = useUser();
+  const { isLoaded: authLoaded, getToken } = useAuth();
+  const { signOut: clerkSignOut } = useClerk();
+  
+  // Map Clerk user to our UserProfile structure
+  const user: UserProfile | null = clerkUser ? {
+    id: clerkUser.id,
+    email: clerkUser.primaryEmailAddress?.emailAddress || '',
+    firstName: clerkUser.firstName || '',
+    lastName: clerkUser.lastName || '',
+    role: (clerkUser.publicMetadata?.role as UserRole) || 'candidate',
+    profileImage: clerkUser.imageUrl,
+    bio: clerkUser.publicMetadata?.bio as string,
+    resumeUrl: clerkUser.publicMetadata?.resumeUrl as string
+  } : null;
+  
+  const isLoading = !clerkLoaded || !authLoaded;
+  const role = user?.role || 'guest';
 
-  // Function to fetch user profile from our public.users table - optimized
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-      
-      if (error) throw error;
-      
-      if (data) {
-        const userProfile = {
-          id: data.id,
-          email: data.email || '',
-          firstName: data.first_name || '',
-          lastName: data.last_name || '',
-          role: (data.role as UserRole) || 'candidate',
-          profileImage: data.profile_image,
-          bio: data.bio,
-          resumeUrl: data.resume_url
-        };
-        
-        setUser(userProfile);
-        setRoleState((data.role as UserRole) || 'candidate');
-      }
-      
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      setIsLoading(false);
-    }
-  };
-
-  // Listen for auth state changes - optimized to reduce lag
-  useEffect(() => {
-    let mounted = true;
-    setIsLoading(true);
-    
-    // Get the initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      
-      if (session && session.user) {
-        fetchUserProfile(session.user.id);
-      } else {
-        setUser(null);
-        setRoleState('guest');
-        setIsLoading(false);
-      }
-    }).catch(error => {
-      console.error('Error getting session:', error);
-      if (mounted) setIsLoading(false);
-    });
-
-    // Set up a listener for future auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
-        
-        if (session && session.user) {
-          await fetchUserProfile(session.user.id);
-        } else {
-          setUser(null);
-          setRoleState('guest');
-          setIsLoading(false);
-        }
-      }
-    );
-
-    // Clean up
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  // Function to update user role
+  // Function to update user role in Clerk metadata
   const setRole = async (newRole: UserRole) => {
-    if (!user) return;
+    if (!clerkUser) return;
     
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ role: newRole })
-        .eq('id', user.id);
-      
-      if (error) throw error;
-      
-      setRoleState(newRole);
-      setUser(prev => prev ? { ...prev, role: newRole } : null);
+      await clerkUser.update({
+        publicMetadata: {
+          ...clerkUser.publicMetadata,
+          role: newRole
+        }
+      });
       
       toast({
         title: "Role Updated",
@@ -141,12 +76,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Function to sign out
   const signOut = async () => {
     try {
-      setIsLoading(true);
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
-      setUser(null);
-      setRoleState('guest');
+      await clerkSignOut();
       
       toast({
         title: "Signed Out",
@@ -159,8 +89,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         description: "Failed to sign out. Please try again.",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 

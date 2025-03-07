@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { SignedIn, SignedOut } from '@clerk/clerk-react';
 
 // Navbar component
 const Navbar: React.FC = () => {
@@ -91,7 +92,7 @@ const Navbar: React.FC = () => {
 
         {/* Sign In / Sign Up OR User Profile */}
         <div className="hidden items-center space-x-3 md:flex">
-          {!isLoading && user ? (
+          <SignedIn>
             <div className="flex items-center gap-3">
               <Link to="/dashboard" className="text-white hover:text-gray-300 text-sm">
                 Dashboard
@@ -101,16 +102,16 @@ const Navbar: React.FC = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.profileImage} alt={user.firstName} />
+                      <AvatarImage src={user?.profileImage} alt={user?.firstName} />
                       <AvatarFallback className="bg-primary text-white">{getInitials()}</AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <div className="flex flex-col space-y-1 p-2">
-                    <p className="text-sm font-medium leading-none">{user.firstName} {user.lastName}</p>
+                    <p className="text-sm font-medium leading-none">{user?.firstName} {user?.lastName}</p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      {user.email}
+                      {user?.email}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground mt-1 capitalize">
                       Role: {role}
@@ -131,16 +132,15 @@ const Navbar: React.FC = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-          ) : (
-            <>
-              <Button className="border border-white bg-transparent text-white hover:bg-white/10" variant="outline" asChild>
-                <Link to="/signin">Sign In</Link>
-              </Button>
-              <Button className="bg-red text-white hover:bg-red/90" asChild>
-                <Link to="/signup">Sign Up</Link>
-              </Button>
-            </>
-          )}
+          </SignedIn>
+          <SignedOut>
+            <Button className="border border-white bg-transparent text-white hover:bg-white/10" variant="outline" asChild>
+              <Link to="/signin">Sign In</Link>
+            </Button>
+            <Button className="bg-red text-white hover:bg-red/90" asChild>
+              <Link to="/signup">Sign Up</Link>
+            </Button>
+          </SignedOut>
         </div>
       </div>
 
@@ -158,7 +158,7 @@ const Navbar: React.FC = () => {
             </Link>
           ))}
           
-          {!isLoading && user ? (
+          <SignedIn>
             <div className="mt-3 space-y-1 border-t border-gray-700 pt-3">
               <Link 
                 to="/dashboard" 
@@ -181,7 +181,8 @@ const Navbar: React.FC = () => {
                 Sign Out
               </button>
             </div>
-          ) : (
+          </SignedIn>
+          <SignedOut>
             <div className="mt-4 flex flex-col space-y-2 px-3">
               <Button className="w-full justify-center border border-white bg-transparent text-white hover:bg-white/10" variant="outline" asChild>
                 <Link to="/signin">Sign In</Link>
@@ -190,7 +191,7 @@ const Navbar: React.FC = () => {
                 <Link to="/signup">Sign Up</Link>
               </Button>
             </div>
-          )}
+          </SignedOut>
         </div>
       </div>
     </nav>

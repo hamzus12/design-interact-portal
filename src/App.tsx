@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DatabaseProvider } from "./context/DatabaseContext";
 import { UserProvider, useUserRole } from "./context/UserContext";
+import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/clerk-react";
 import Index from "./pages/Index";
 import Jobs from "./pages/Jobs";
 import JobDetail from "./pages/JobDetail";
@@ -24,19 +25,22 @@ import { ReactNode } from "react";
 
 const queryClient = new QueryClient();
 
-// Protected route component
+// Protected route component using Clerk
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
-  const { user, isLoading } = useUserRole();
+  const { isLoading } = useUserRole();
   
   if (isLoading) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
   
-  if (!user) {
-    return <Navigate to="/signin" replace />;
-  }
-  
-  return <>{children}</>;
+  return (
+    <>
+      <SignedIn>{children}</SignedIn>
+      <SignedOut>
+        <Navigate to="/signin" replace />
+      </SignedOut>
+    </>
+  );
 };
 
 const App = () => (
