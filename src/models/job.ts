@@ -1,3 +1,4 @@
+
 // Define Job interface
 export interface Job {
   id: number | string;  // Updated to support UUID strings from Supabase
@@ -11,6 +12,9 @@ export interface Job {
   featured: boolean;
   logoColor: string;
   jobType: string | null;
+  description?: string;
+  salaryRange?: string;
+  recruiterId?: string;
 }
 
 // Export functions for backward compatibility 

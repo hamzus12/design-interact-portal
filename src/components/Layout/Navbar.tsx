@@ -1,200 +1,251 @@
 
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, User, LogOut } from 'lucide-react';
-import { useUserRole } from '@/context/UserContext';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserButton } from '@clerk/clerk-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Menu, X, ChevronDown, Briefcase, User, LogIn, Users } from 'lucide-react';
+import { useMobile } from '@/hooks/use-mobile';
+import { useUserRole } from '@/context/UserContext';
 
-// Navbar component
-const Navbar: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const { user, role, isLoading, signOut } = useUserRole();
+const Navbar = () => {
+  const isMobile = useMobile();
+  const location = useLocation();
   const navigate = useNavigate();
+  const { isLoading, user, role } = useUserRole();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const navItems = [
+  const isActive = (path: string): boolean => location.pathname === path;
+
+  const navLinks = [
     { name: 'Home', path: '/' },
-    { name: 'About', path: '/about' },
     { name: 'Jobs', path: '/jobs' },
     { name: 'Candidates', path: '/candidates' },
-    { name: 'Pages', path: '/pages', hasDropdown: true },
     { name: 'Blog', path: '/blog' },
-    { name: 'Contact Us', path: '/contact' },
+    { name: 'About Us', path: '/about' },
+    { name: 'Contact', path: '/contact' },
   ];
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
-  };
-
-  const getInitials = () => {
-    if (!user) return 'U';
-    return ((user.firstName || '')[0] || '') + ((user.lastName || '')[0] || '');
-  };
-
-  return (
-    <nav className="fixed top-0 z-50 w-full bg-navy shadow-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-        {/* Logo */}
-        <Link to="/" className="flex items-center space-x-2">
-          <div className="text-xl font-bold text-white">
-            <span className="flex items-center">
-              <span className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-red"></span>
-              Jovie
-            </span>
-          </div>
-        </Link>
-
-        {/* Mobile menu button */}
-        <div className="flex md:hidden">
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            type="button"
-            className="text-white hover:text-gray-300"
-            aria-controls="mobile-menu"
-            aria-expanded="false"
-          >
-            <span className="sr-only">Open main menu</span>
-            {!isOpen ? (
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            ) : (
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            )}
-          </button>
+  const MobileMenu = () => (
+    <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="md:hidden">
+          <Menu className="h-6 w-6" />
+          <span className="sr-only">Toggle menu</span>
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left">
+        <div className="flex items-center justify-between">
+          <Link to="/" className="flex items-center space-x-2" onClick={() => setIsMenuOpen(false)}>
+            <span className="text-xl font-bold">JobConnect</span>
+          </Link>
+          <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(false)}>
+            <X className="h-6 w-6" />
+          </Button>
         </div>
-
-        {/* Desktop Navigation Links */}
-        <div className="hidden md:flex md:items-center md:space-x-6">
-          {navItems.map((item) => (
-            <div key={item.name} className="relative">
-              <Link
-                to={item.path}
-                className="nav-link flex items-center px-2 py-2 text-sm text-white transition-colors hover:text-gray-300"
-              >
-                {item.name}
-                {item.hasDropdown && <ChevronDown className="ml-1 h-4 w-4" />}
-              </Link>
-            </div>
-          ))}
-        </div>
-
-        {/* Sign In / Sign Up OR User Profile */}
-        <div className="hidden items-center space-x-3 md:flex">
-          <SignedIn>
-            <div className="flex items-center gap-3">
-              <Link to="/dashboard" className="text-white hover:text-gray-300 text-sm">
-                Dashboard
-              </Link>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user?.profileImage} alt={user?.firstName} />
-                      <AvatarFallback className="bg-primary text-white">{getInitials()}</AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <div className="flex flex-col space-y-1 p-2">
-                    <p className="text-sm font-medium leading-none">{user?.firstName} {user?.lastName}</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {user?.email}
-                    </p>
-                    <p className="text-xs leading-none text-muted-foreground mt-1 capitalize">
-                      Role: {role}
-                    </p>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile" className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      <span>Profile</span>
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-600">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </SignedIn>
-          <SignedOut>
-            <Button className="border border-white bg-transparent text-white hover:bg-white/10" variant="outline" asChild>
-              <Link to="/signin">Sign In</Link>
-            </Button>
-            <Button className="bg-red text-white hover:bg-red/90" asChild>
-              <Link to="/signup">Sign Up</Link>
-            </Button>
-          </SignedOut>
-        </div>
-      </div>
-
-      {/* Mobile Navigation Menu */}
-      <div className={`${isOpen ? 'block' : 'hidden'} md:hidden`} id="mobile-menu">
-        <div className="space-y-1 px-2 pb-3 pt-2 sm:px-3">
-          {navItems.map((item) => (
+        <nav className="mt-8 flex flex-col space-y-4">
+          {navLinks.map((link) => (
             <Link
-              key={item.name}
-              to={item.path}
-              className="block rounded-md px-3 py-2 text-base font-medium text-white hover:bg-navy-light"
-              onClick={() => setIsOpen(false)}
+              key={link.path}
+              to={link.path}
+              className={`rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 ${
+                isActive(link.path) ? 'bg-gray-100 text-primary' : 'text-gray-700'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
             >
-              {item.name}
+              {link.name}
             </Link>
           ))}
-          
-          <SignedIn>
-            <div className="mt-3 space-y-1 border-t border-gray-700 pt-3">
-              <Link 
-                to="/dashboard" 
-                className="block rounded-md px-3 py-2 text-base font-medium text-white hover:bg-navy-light"
-                onClick={() => setIsOpen(false)}
+          {!isLoading && !user && (
+            <>
+              <Link
+                to="/signin"
+                className="rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/signup"
+                className="rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-white hover:bg-primary/90"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Sign Up
+              </Link>
+            </>
+          )}
+          {!isLoading && user && (
+            <>
+              <Link
+                to="/dashboard"
+                className={`rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 ${
+                  isActive('/dashboard') ? 'bg-gray-100 text-primary' : 'text-gray-700'
+                }`}
+                onClick={() => setIsMenuOpen(false)}
               >
                 Dashboard
               </Link>
-              <Link 
-                to="/profile" 
-                className="block rounded-md px-3 py-2 text-base font-medium text-white hover:bg-navy-light"
-                onClick={() => setIsOpen(false)}
+              {role === 'candidate' && (
+                <Link
+                  to="/my-applications"
+                  className={`rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 ${
+                    isActive('/my-applications') ? 'bg-gray-100 text-primary' : 'text-gray-700'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  My Applications
+                </Link>
+              )}
+              {(role === 'recruiter' || role === 'admin') && (
+                <Link
+                  to="/add-job"
+                  className={`rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 ${
+                    isActive('/add-job') ? 'bg-gray-100 text-primary' : 'text-gray-700'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Post a Job
+                </Link>
+              )}
+              {role === 'admin' && (
+                <Link
+                  to="/manage-users"
+                  className={`rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 ${
+                    isActive('/manage-users') ? 'bg-gray-100 text-primary' : 'text-gray-700'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Manage Users
+                </Link>
+              )}
+              <Link
+                to="/profile"
+                className={`rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 ${
+                  isActive('/profile') ? 'bg-gray-100 text-primary' : 'text-gray-700'
+                }`}
+                onClick={() => setIsMenuOpen(false)}
               >
                 Profile
               </Link>
-              <button 
-                className="block w-full text-left rounded-md px-3 py-2 text-base font-medium text-red-400 hover:bg-navy-light"
-                onClick={handleSignOut}
-              >
-                Sign Out
-              </button>
-            </div>
-          </SignedIn>
-          <SignedOut>
-            <div className="mt-4 flex flex-col space-y-2 px-3">
-              <Button className="w-full justify-center border border-white bg-transparent text-white hover:bg-white/10" variant="outline" asChild>
-                <Link to="/signin">Sign In</Link>
-              </Button>
-              <Button className="w-full justify-center bg-red text-white hover:bg-red/90" asChild>
-                <Link to="/signup">Sign Up</Link>
-              </Button>
-            </div>
-          </SignedOut>
+            </>
+          )}
+        </nav>
+      </SheetContent>
+    </Sheet>
+  );
+
+  return (
+    <header className="flex h-16 items-center border-b bg-white">
+      <div className="container mx-auto flex items-center justify-between px-4">
+        <div className="flex items-center space-x-8">
+          <Link to="/" className="flex items-center space-x-2">
+            <Briefcase className="h-6 w-6 text-primary" />
+            <span className="text-xl font-bold">JobConnect</span>
+          </Link>
+
+          {!isMobile && (
+            <nav className="flex space-x-6">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className={`text-sm font-medium hover:text-primary ${
+                    isActive(link.path) ? 'text-primary' : 'text-gray-700'
+                  }`}
+                >
+                  {link.name}
+                </Link>
+              ))}
+              {!isLoading && user && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center space-x-1 text-sm font-medium text-gray-700 hover:text-primary">
+                      <span>More</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link to="/dashboard" className="flex w-full cursor-pointer items-center">
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    {role === 'candidate' && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/my-applications" className="flex w-full cursor-pointer items-center">
+                          My Applications
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {(role === 'recruiter' || role === 'admin') && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/add-job" className="flex w-full cursor-pointer items-center">
+                          Post a Job
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {role === 'admin' && (
+                      <DropdownMenuItem asChild>
+                        <Link to="/manage-users" className="flex w-full cursor-pointer items-center">
+                          Manage Users
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem asChild>
+                      <Link to="/profile" className="flex w-full cursor-pointer items-center">
+                        Profile
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </nav>
+          )}
+        </div>
+
+        <div className="flex items-center space-x-4">
+          {isMobile ? (
+            <MobileMenu />
+          ) : (
+            <>
+              {!isLoading && !user ? (
+                <>
+                  <Button variant="ghost" asChild>
+                    <Link to="/signin" className="hidden sm:flex">
+                      <LogIn className="mr-2 h-4 w-4" />
+                      Sign In
+                    </Link>
+                  </Button>
+                  <Button asChild>
+                    <Link to="/signup" className="hidden sm:flex">
+                      <User className="mr-2 h-4 w-4" />
+                      Sign Up
+                    </Link>
+                  </Button>
+                </>
+              ) : (
+                !isLoading && (
+                  <div className="flex items-center space-x-4">
+                    {(role === 'recruiter' || role === 'admin') && (
+                      <Button asChild>
+                        <Link to="/add-job">Post a Job</Link>
+                      </Button>
+                    )}
+                    <UserButton afterSignOutUrl="/" />
+                  </div>
+                )
+              )}
+            </>
+          )}
         </div>
       </div>
-    </nav>
+    </header>
   );
 };
 

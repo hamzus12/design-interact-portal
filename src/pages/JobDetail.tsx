@@ -1,38 +1,90 @@
 
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   MapPin,
   Building,
   Clock,
   BriefcaseBusiness,
-  Calendar,
   Share2,
   BookmarkPlus,
-  ArrowLeft
+  ArrowLeft,
+  Upload
 } from 'lucide-react';
-import { toast } from 'sonner';
-import { getJobById, Job } from '@/models/job';
+import { toast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useUserRole } from '@/context/UserContext';
+import { Job } from '@/models/job';
+import { useDatabase } from '@/context/DatabaseContext';
 
 const JobDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user, role } = useUserRole();
+  const { favorites, toggleFavorite } = useDatabase();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isApplyDialogOpen, setIsApplyDialogOpen] = useState(false);
+  const [coverLetter, setCoverLetter] = useState('');
+  const [applyLoading, setApplyLoading] = useState(false);
+  const [isRecruiterOrAdmin, setIsRecruiterOrAdmin] = useState(false);
+  const [isJobOwner, setIsJobOwner] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     const fetchJob = async () => {
       try {
         if (id) {
           setLoading(true);
-          const jobData = await getJobById(parseInt(id));
-          setJob(jobData);
+          const { data, error } = await supabase
+            .from('jobs')
+            .select('*')
+            .eq('id', id)
+            .single();
+          
+          if (error) throw error;
+
+          // Transform to Job type
+          const transformedJob: Job = {
+            id: data.id,
+            title: data.title,
+            company: data.company,
+            companyLogo: data.company_logo || data.company.charAt(0),
+            location: data.location,
+            category: data.category,
+            type: data.job_type,
+            jobType: data.job_type,
+            timeAgo: formatTimeAgo(data.created_at),
+            featured: false,
+            logoColor: getRandomLogoColor(),
+            description: data.description,
+            salaryRange: data.salary_range,
+            recruiterId: data.recruiter_id
+          };
+          
+          setJob(transformedJob);
+          
+          // Check if current user is the recruiter who posted this job
+          if (user && data.recruiter_id === user.id) {
+            setIsJobOwner(true);
+          }
+          
+          // Check if user is recruiter or admin (for UI controls)
+          setIsRecruiterOrAdmin(role === 'recruiter' || role === 'admin');
         }
       } catch (error) {
         console.error("Error fetching job details:", error);
-        toast.error("Failed to load job details");
+        toast({
+          title: "Error",
+          description: "Failed to load job details",
+          variant: "destructive"
+        });
       } finally {
         setLoading(false);
       }
@@ -40,19 +92,171 @@ const JobDetail = () => {
 
     fetchJob();
     window.scrollTo(0, 0);
-  }, [id]);
+  }, [id, user, role]);
 
-  const handleApply = () => {
-    toast.success("Your application has been submitted!");
+  const handleApply = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to apply for this job",
+        variant: "destructive"
+      });
+      navigate("/signin");
+      return;
+    }
+
+    if (role !== 'candidate') {
+      toast({
+        title: "Permission Denied",
+        description: "Only candidates can apply for jobs",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsApplyDialogOpen(true);
+  };
+
+  const submitApplication = async () => {
+    if (!job || !user) return;
+    
+    try {
+      setApplyLoading(true);
+      
+      // Check if the user has already applied
+      const { data: existingApplication, error: checkError } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('job_id', job.id)
+        .eq('candidate_id', user.id)
+        .single();
+      
+      if (existingApplication) {
+        toast({
+          title: "Already Applied",
+          description: "You have already applied for this job",
+          variant: "destructive"
+        });
+        setIsApplyDialogOpen(false);
+        return;
+      }
+      
+      // Create application
+      const { error } = await supabase
+        .from('applications')
+        .insert({
+          job_id: job.id,
+          candidate_id: user.id,
+          cover_letter: coverLetter,
+          status: 'pending',
+          resume_url: user.resumeUrl
+        });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Application Submitted",
+        description: "Your application has been submitted successfully"
+      });
+      
+      setIsApplyDialogOpen(false);
+      setCoverLetter('');
+    } catch (error) {
+      console.error("Error submitting application:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit application. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setApplyLoading(false);
+    }
+  };
+
+  const handleEditJob = () => {
+    if (job) {
+      navigate(`/edit-job/${job.id}`);
+    }
+  };
+
+  const handleDeleteJob = async () => {
+    if (!job) return;
+    
+    try {
+      setDeleteLoading(true);
+      
+      const { error } = await supabase
+        .from('jobs')
+        .delete()
+        .eq('id', job.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Job Deleted",
+        description: "The job has been deleted successfully"
+      });
+      
+      navigate('/jobs');
+    } catch (error) {
+      console.error("Error deleting job:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete job. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setDeleteLoading(false);
+      setIsDeleteDialogOpen(false);
+    }
   };
 
   const handleBookmark = () => {
-    toast.success("Job saved to your bookmarks!");
+    if (job) {
+      toggleFavorite(job.id);
+    }
   };
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
-    toast.success("Job link copied to clipboard!");
+    toast({
+      title: "Link Copied",
+      description: "Job link copied to clipboard"
+    });
+  };
+
+  // Helper function to format time ago
+  const formatTimeAgo = (dateString: string) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffMs = now.getTime() - date.getTime();
+    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+    
+    if (diffHrs < 1) return 'Just now';
+    if (diffHrs === 1) return '1 Hr Ago';
+    if (diffHrs < 24) return `${diffHrs} Hrs Ago`;
+    
+    const diffDays = Math.floor(diffHrs / 24);
+    if (diffDays === 1) return '1 Day Ago';
+    if (diffDays < 30) return `${diffDays} Days Ago`;
+    
+    const diffMonths = Math.floor(diffDays / 30);
+    if (diffMonths === 1) return '1 Month Ago';
+    return `${diffMonths} Months Ago`;
+  };
+
+  // Helper function to generate random logo colors
+  const getRandomLogoColor = () => {
+    const colors = [
+      'bg-red', 
+      'bg-blue-500', 
+      'bg-green-500', 
+      'bg-purple-500', 
+      'bg-yellow-500', 
+      'bg-indigo-500', 
+      'bg-pink-500'
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
   };
 
   if (loading) {
@@ -119,7 +323,7 @@ const JobDetail = () => {
                         onClick={handleBookmark}
                         className="inline-flex items-center rounded-full border border-gray-200 bg-white p-2 text-gray-500 hover:bg-gray-50 hover:text-red"
                       >
-                        <BookmarkPlus className="h-5 w-5" />
+                        <BookmarkPlus className={`h-5 w-5 ${favorites.includes(job.id) ? "fill-red text-red" : ""}`} />
                       </button>
                       <button 
                         onClick={handleShare}
@@ -158,48 +362,30 @@ const JobDetail = () => {
 
                   <div className="mb-8 border-b border-gray-100 pb-8">
                     <h2 className="mb-4 text-xl font-semibold">Job Description</h2>
-                    <p className="mb-4 text-gray-700">
-                      We are looking for a talented and experienced {job.title} to join our growing team at {job.company}. The ideal candidate will have a passion for {job.category.toLowerCase()} and a strong track record of success in similar roles.
-                    </p>
-                    <p className="mb-4 text-gray-700">
-                      As a {job.title} at {job.company}, you will be responsible for developing and implementing strategies, collaborating with cross-functional teams, and driving results that contribute to our company's growth and success.
-                    </p>
-                  </div>
-
-                  <div className="mb-8 border-b border-gray-100 pb-8">
-                    <h2 className="mb-4 text-xl font-semibold">Responsibilities</h2>
-                    <ul className="list-disc pl-5 text-gray-700">
-                      <li className="mb-2">Develop and implement comprehensive strategies that align with company goals and objectives</li>
-                      <li className="mb-2">Collaborate with various teams to ensure successful execution of projects</li>
-                      <li className="mb-2">Analyze data and metrics to track performance and identify areas for improvement</li>
-                      <li className="mb-2">Stay updated on industry trends and best practices</li>
-                      <li className="mb-2">Prepare and present regular reports to management</li>
-                    </ul>
-                  </div>
-
-                  <div className="mb-8 border-b border-gray-100 pb-8">
-                    <h2 className="mb-4 text-xl font-semibold">Requirements</h2>
-                    <ul className="list-disc pl-5 text-gray-700">
-                      <li className="mb-2">Bachelor's degree in a related field</li>
-                      <li className="mb-2">3+ years of experience in a similar role</li>
-                      <li className="mb-2">Strong communication and interpersonal skills</li>
-                      <li className="mb-2">Excellent analytical and problem-solving abilities</li>
-                      <li className="mb-2">Proficiency in relevant software and tools</li>
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h2 className="mb-4 text-xl font-semibold">Benefits</h2>
-                    <ul className="list-disc pl-5 text-gray-700">
-                      <li className="mb-2">Competitive salary and benefits package</li>
-                      <li className="mb-2">Professional development opportunities</li>
-                      <li className="mb-2">Collaborative and innovative work environment</li>
-                      <li className="mb-2">Flexible work arrangements</li>
-                      <li className="mb-2">Health and wellness programs</li>
-                    </ul>
+                    <p className="whitespace-pre-line text-gray-700">{job.description}</p>
                   </div>
                 </div>
               </div>
+              
+              {/* Admin/Recruiter Controls */}
+              {isJobOwner && (
+                <div className="mb-6 flex space-x-4">
+                  <Button 
+                    variant="outline" 
+                    className="w-1/2"
+                    onClick={handleEditJob}
+                  >
+                    Edit Job
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    className="w-1/2"
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                  >
+                    Delete Job
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Right Sidebar */}
@@ -224,13 +410,23 @@ const JobDetail = () => {
                     <span className="text-gray-600">Location:</span>
                     <span className="font-medium">{job.location}</span>
                   </div>
+                  {job.salaryRange && (
+                    <div className="flex justify-between border-b border-gray-100 pb-2">
+                      <span className="text-gray-600">Salary:</span>
+                      <span className="font-medium">{job.salaryRange}</span>
+                    </div>
+                  )}
                 </div>
-                <Button 
-                  onClick={handleApply} 
-                  className="mt-4 w-full bg-red hover:bg-red/90"
-                >
-                  Apply Now
-                </Button>
+                
+                {/* Only show apply button to candidates */}
+                {role === 'candidate' && (
+                  <Button 
+                    onClick={handleApply} 
+                    className="mt-4 w-full bg-red hover:bg-red/90"
+                  >
+                    Apply Now
+                  </Button>
+                )}
               </div>
 
               {/* Company Information */}
@@ -248,17 +444,106 @@ const JobDetail = () => {
                 <p className="mb-4 text-gray-700">
                   {job.company} is a leading organization in the {job.category.toLowerCase()} industry, dedicated to innovation and excellence. With a strong commitment to quality and customer satisfaction, we strive to deliver exceptional products and services.
                 </p>
-                <Button 
-                  variant="outline" 
-                  className="w-full border-red text-red hover:bg-red hover:text-white"
-                >
-                  View Company Profile
-                </Button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Apply Dialog */}
+      <Dialog open={isApplyDialogOpen} onOpenChange={setIsApplyDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Apply for {job.title}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="mb-2">
+              <h3 className="mb-2 font-semibold">Cover Letter</h3>
+              <Textarea
+                placeholder="Tell us why you're a good fit for this role..."
+                className="h-32"
+                value={coverLetter}
+                onChange={(e) => setCoverLetter(e.target.value)}
+              />
+            </div>
+            <div>
+              <h3 className="mb-2 font-semibold">Resume</h3>
+              {user?.resumeUrl ? (
+                <div className="flex items-center rounded-md border border-gray-200 p-2">
+                  <div className="mr-2 flex h-8 w-8 items-center justify-center rounded bg-gray-100">
+                    <Upload className="h-4 w-4" />
+                  </div>
+                  <div className="text-sm">
+                    <p className="font-medium">Your resume is attached</p>
+                    <p className="text-gray-500">Resume will be included with your application</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-md border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500">
+                  <p>No resume found. You can add one in your profile.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => {
+                      setIsApplyDialogOpen(false);
+                      navigate('/profile');
+                    }}
+                  >
+                    Go to Profile
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsApplyDialogOpen(false)}
+              disabled={applyLoading}
+            >
+              Cancel
+            </Button>
+            <Button 
+              className="bg-red hover:bg-red/90"
+              onClick={submitApplication}
+              disabled={applyLoading}
+            >
+              {applyLoading ? "Submitting..." : "Submit Application"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-gray-700">
+              Are you sure you want to delete this job listing? This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={deleteLoading}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleDeleteJob}
+              disabled={deleteLoading}
+            >
+              {deleteLoading ? "Deleting..." : "Delete Job"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

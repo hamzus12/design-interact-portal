@@ -10,6 +10,7 @@ import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/clerk-react";
 import Index from "./pages/Index";
 import Jobs from "./pages/Jobs";
 import JobDetail from "./pages/JobDetail";
+import EditJob from "./pages/EditJob";
 import Candidates from "./pages/Candidates";
 import About from "./pages/About";
 import Blog from "./pages/Blog";
@@ -21,6 +22,8 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import VerifyEmail from "./pages/VerifyEmail";
 import AddJob from "./pages/AddJob";
+import ManageUsers from "./pages/ManageUsers";
+import MyApplications from "./pages/MyApplications";
 import { ReactNode } from "react";
 
 const queryClient = new QueryClient();
@@ -36,6 +39,36 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   return (
     <>
       <SignedIn>{children}</SignedIn>
+      <SignedOut>
+        <Navigate to="/signin" replace />
+      </SignedOut>
+    </>
+  );
+};
+
+// Role-based protected route component
+const RoleProtectedRoute = ({ 
+  children, 
+  allowedRoles 
+}: { 
+  children: ReactNode, 
+  allowedRoles: string[] 
+}) => {
+  const { role, isLoading } = useUserRole();
+  
+  if (isLoading) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  }
+  
+  return (
+    <>
+      <SignedIn>
+        {allowedRoles.includes(role) ? (
+          children
+        ) : (
+          <Navigate to="/dashboard" replace />
+        )}
+      </SignedIn>
       <SignedOut>
         <Navigate to="/signin" replace />
       </SignedOut>
@@ -65,7 +98,7 @@ const App = () => (
               {/* Add Verification routes */}
               <Route path="/signup/verify-email-address" element={<VerifyEmail />} />
               
-              {/* Protected routes */}
+              {/* Protected routes for all authenticated users */}
               <Route 
                 path="/dashboard" 
                 element={
@@ -83,11 +116,39 @@ const App = () => (
                 } 
               />
               <Route 
+                path="/my-applications" 
+                element={
+                  <RoleProtectedRoute allowedRoles={['candidate']}>
+                    <MyApplications />
+                  </RoleProtectedRoute>
+                } 
+              />
+              
+              {/* Protected routes for recruiters and admins */}
+              <Route 
                 path="/add-job" 
                 element={
-                  <ProtectedRoute>
+                  <RoleProtectedRoute allowedRoles={['recruiter', 'admin']}>
                     <AddJob />
-                  </ProtectedRoute>
+                  </RoleProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/edit-job/:id" 
+                element={
+                  <RoleProtectedRoute allowedRoles={['recruiter', 'admin']}>
+                    <EditJob />
+                  </RoleProtectedRoute>
+                } 
+              />
+              
+              {/* Admin-only routes */}
+              <Route 
+                path="/manage-users" 
+                element={
+                  <RoleProtectedRoute allowedRoles={['admin']}>
+                    <ManageUsers />
+                  </RoleProtectedRoute>
                 } 
               />
               
