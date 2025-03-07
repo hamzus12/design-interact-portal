@@ -10,12 +10,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, X, ChevronDown, Briefcase, User, LogIn, Users } from 'lucide-react';
-import { useMobile } from '@/hooks/use-mobile';
+import { Menu, X, ChevronDown, Briefcase, User, LogIn, Users, PlusCircle, FileEdit, LayoutDashboard } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useUserRole } from '@/context/UserContext';
 
 const Navbar = () => {
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
   const { isLoading, user, role } = useUserRole();
@@ -23,14 +23,87 @@ const Navbar = () => {
 
   const isActive = (path: string): boolean => location.pathname === path;
 
-  const navLinks = [
-    { name: 'Home', path: '/' },
-    { name: 'Jobs', path: '/jobs' },
-    { name: 'Candidates', path: '/candidates' },
-    { name: 'Blog', path: '/blog' },
-    { name: 'About Us', path: '/about' },
-    { name: 'Contact', path: '/contact' },
-  ];
+  // Define navigation links based on user role
+  const getNavLinks = () => {
+    const baseLinks = [
+      { name: 'Home', path: '/' },
+      { name: 'Jobs', path: '/jobs' },
+    ];
+    
+    // Add role-specific links
+    if (role === 'admin') {
+      return [
+        ...baseLinks,
+        { name: 'Candidates', path: '/candidates' },
+        { name: 'Manage Users', path: '/manage-users' },
+        { name: 'Blog', path: '/blog' },
+        { name: 'About Us', path: '/about' },
+        { name: 'Contact', path: '/contact' },
+      ];
+    } else if (role === 'recruiter') {
+      return [
+        ...baseLinks,
+        { name: 'Candidates', path: '/candidates' },
+        { name: 'Post Job', path: '/add-job' },
+        { name: 'About Us', path: '/about' },
+        { name: 'Contact', path: '/contact' },
+      ];
+    } else if (role === 'candidate') {
+      return [
+        ...baseLinks,
+        { name: 'My Applications', path: '/my-applications' },
+        { name: 'About Us', path: '/about' },
+        { name: 'Contact', path: '/contact' },
+      ];
+    } else {
+      // Guest user
+      return [
+        ...baseLinks,
+        { name: 'About Us', path: '/about' },
+        { name: 'Contact', path: '/contact' },
+      ];
+    }
+  };
+
+  const navLinks = getNavLinks();
+
+  // Define dashboard links based on user role
+  const getDashboardLinks = () => {
+    const baseLinks = [
+      { 
+        name: 'Dashboard', 
+        path: '/dashboard', 
+        icon: LayoutDashboard 
+      },
+      { 
+        name: 'Profile', 
+        path: '/profile', 
+        icon: User 
+      },
+    ];
+
+    if (role === 'admin') {
+      return [
+        ...baseLinks,
+        { name: 'Manage Users', path: '/manage-users', icon: Users },
+        { name: 'Post Job', path: '/add-job', icon: PlusCircle },
+      ];
+    } else if (role === 'recruiter') {
+      return [
+        ...baseLinks,
+        { name: 'Post Job', path: '/add-job', icon: PlusCircle },
+      ];
+    } else if (role === 'candidate') {
+      return [
+        ...baseLinks,
+        { name: 'My Applications', path: '/my-applications', icon: FileEdit },
+      ];
+    }
+    
+    return baseLinks;
+  };
+
+  const dashboardLinks = getDashboardLinks();
 
   const MobileMenu = () => (
     <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
@@ -43,6 +116,7 @@ const Navbar = () => {
       <SheetContent side="left">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2" onClick={() => setIsMenuOpen(false)}>
+            <Briefcase className="h-6 w-6 text-primary" />
             <span className="text-xl font-bold">JobConnect</span>
           </Link>
           <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(false)}>
@@ -82,57 +156,19 @@ const Navbar = () => {
           )}
           {!isLoading && user && (
             <>
-              <Link
-                to="/dashboard"
-                className={`rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 ${
-                  isActive('/dashboard') ? 'bg-gray-100 text-primary' : 'text-gray-700'
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Dashboard
-              </Link>
-              {role === 'candidate' && (
+              {dashboardLinks.map((link) => (
                 <Link
-                  to="/my-applications"
-                  className={`rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 ${
-                    isActive('/my-applications') ? 'bg-gray-100 text-primary' : 'text-gray-700'
+                  key={link.path}
+                  to={link.path}
+                  className={`flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 ${
+                    isActive(link.path) ? 'bg-gray-100 text-primary' : 'text-gray-700'
                   }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  My Applications
+                  <link.icon className="mr-2 h-4 w-4" />
+                  {link.name}
                 </Link>
-              )}
-              {(role === 'recruiter' || role === 'admin') && (
-                <Link
-                  to="/add-job"
-                  className={`rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 ${
-                    isActive('/add-job') ? 'bg-gray-100 text-primary' : 'text-gray-700'
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Post a Job
-                </Link>
-              )}
-              {role === 'admin' && (
-                <Link
-                  to="/manage-users"
-                  className={`rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 ${
-                    isActive('/manage-users') ? 'bg-gray-100 text-primary' : 'text-gray-700'
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Manage Users
-                </Link>
-              )}
-              <Link
-                to="/profile"
-                className={`rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 ${
-                  isActive('/profile') ? 'bg-gray-100 text-primary' : 'text-gray-700'
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Profile
-              </Link>
+              ))}
             </>
           )}
         </nav>
@@ -141,7 +177,7 @@ const Navbar = () => {
   );
 
   return (
-    <header className="flex h-16 items-center border-b bg-white">
+    <header className="sticky top-0 z-50 flex h-16 items-center border-b bg-white">
       <div className="container mx-auto flex items-center justify-between px-4">
         <div className="flex items-center space-x-8">
           <Link to="/" className="flex items-center space-x-2">
@@ -166,42 +202,19 @@ const Navbar = () => {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center space-x-1 text-sm font-medium text-gray-700 hover:text-primary">
-                      <span>More</span>
+                      <span>Dashboard</span>
                       <ChevronDown className="h-4 w-4" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem asChild>
-                      <Link to="/dashboard" className="flex w-full cursor-pointer items-center">
-                        Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                    {role === 'candidate' && (
-                      <DropdownMenuItem asChild>
-                        <Link to="/my-applications" className="flex w-full cursor-pointer items-center">
-                          My Applications
+                    {dashboardLinks.map((link) => (
+                      <DropdownMenuItem key={link.path} asChild>
+                        <Link to={link.path} className="flex w-full cursor-pointer items-center">
+                          <link.icon className="mr-2 h-4 w-4" />
+                          {link.name}
                         </Link>
                       </DropdownMenuItem>
-                    )}
-                    {(role === 'recruiter' || role === 'admin') && (
-                      <DropdownMenuItem asChild>
-                        <Link to="/add-job" className="flex w-full cursor-pointer items-center">
-                          Post a Job
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    {role === 'admin' && (
-                      <DropdownMenuItem asChild>
-                        <Link to="/manage-users" className="flex w-full cursor-pointer items-center">
-                          Manage Users
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem asChild>
-                      <Link to="/profile" className="flex w-full cursor-pointer items-center">
-                        Profile
-                      </Link>
-                    </DropdownMenuItem>
+                    ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
@@ -234,7 +247,10 @@ const Navbar = () => {
                   <div className="flex items-center space-x-4">
                     {(role === 'recruiter' || role === 'admin') && (
                       <Button asChild>
-                        <Link to="/add-job">Post a Job</Link>
+                        <Link to="/add-job">
+                          <PlusCircle className="mr-2 h-4 w-4" />
+                          Post a Job
+                        </Link>
                       </Button>
                     )}
                     <UserButton afterSignOutUrl="/" />
