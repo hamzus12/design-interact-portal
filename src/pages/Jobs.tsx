@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
 const Jobs = () => {
-  const { jobs, loading, error, fetchJobs, fetchJobsByFilters } = useDatabase();
+  const { jobs, loading, error, fetchJobs, fetchJobsByFilters, favorites, toggleFavorite } = useDatabase();
   const { user, role } = useUserRole();
   const [filters, setFilters] = useState({
     keyword: '',
@@ -76,7 +76,12 @@ const Jobs = () => {
               ) : jobs.length > 0 ? (
                 <div className="space-y-4">
                   {jobs.map((job) => (
-                    <JobCard key={job.id} job={job} />
+                    <JobCard 
+                      key={job.id} 
+                      job={job} 
+                      isFavorite={favorites.includes(job.id)}
+                      onToggleFavorite={toggleFavorite}
+                    />
                   ))}
                 </div>
               ) : (

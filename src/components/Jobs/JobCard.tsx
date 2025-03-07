@@ -1,84 +1,73 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Building, Clock, Heart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Job } from '@/models/job';
+import { Heart } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-interface JobCardProps {
+export interface JobCardProps {
   job: Job;
-  index: number;
-  isFavorite: boolean;
-  onToggleFavorite: () => void;
+  index?: number;
+  isFavorite?: boolean;
+  onToggleFavorite?: (jobId: string | number) => void;
+  showFavoriteButton?: boolean;
 }
 
-const JobCard: React.FC<JobCardProps> = ({ job, index, isFavorite, onToggleFavorite }) => {
+const JobCard: React.FC<JobCardProps> = ({ 
+  job, 
+  isFavorite = false, 
+  onToggleFavorite, 
+  showFavoriteButton = true 
+}) => {
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (onToggleFavorite) {
+      onToggleFavorite(job.id);
+    }
+  };
+
   return (
-    <div
-      className="job-card overflow-hidden rounded-lg border border-gray-100 bg-white transition-all hover:border-red animate-fade-in"
-      style={{ animationDelay: `${0.1 + index * 0.05}s` }}
-    >
-      <div className="bg-red-50 p-4">
+    <Link to={`/job/${job.id}`} className="block">
+      <div className="rounded-lg border bg-white p-5 shadow-sm transition-all hover:shadow-md">
         <div className="flex items-start justify-between">
-          <div className="flex items-center">
-            <div className={`mr-3 flex h-10 w-10 items-center justify-center rounded-full ${job.logoColor} text-white`}>
-              {job.companyLogo}
+          <div className="flex items-start space-x-4">
+            <div className={`flex h-12 w-12 items-center justify-center rounded-md ${job.logoColor || 'bg-primary'} text-white`}>
+              {job.companyLogo || job.company.charAt(0)}
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">
-                <Link to={`/job/${job.id}`} className="hover:text-red transition-colors">
-                  {job.title}
-                </Link>
-              </h3>
-              <p className="text-sm text-gray-600">via {job.company}</p>
+              <h3 className="font-semibold text-gray-900">{job.title}</h3>
+              <p className="text-sm text-gray-500">{job.company}</p>
             </div>
           </div>
-          <button
-            onClick={onToggleFavorite}
-            className="rounded-full p-1 transition-colors hover:bg-gray-100"
-          >
-            <Heart
-              className={`h-5 w-5 ${
-                isFavorite ? 'fill-red text-red' : 'text-gray-400'
-              } transition-colors`}
-            />
-          </button>
+          {showFavoriteButton && onToggleFavorite && (
+            <button 
+              onClick={handleFavoriteClick} 
+              className="rounded-full p-1.5 hover:bg-gray-100"
+              aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            >
+              <Heart className={cn("h-5 w-5", isFavorite ? "fill-red text-red" : "text-gray-400")} />
+            </button>
+          )}
+        </div>
+        
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Badge variant="outline" className="bg-blue-50 text-blue-700">
+            {job.jobType || job.type}
+          </Badge>
+          <Badge variant="outline" className="bg-green-50 text-green-700">
+            {job.category}
+          </Badge>
+          <Badge variant="outline" className="bg-purple-50 text-purple-700">
+            {job.location}
+          </Badge>
+        </div>
+        
+        <div className="mt-4 flex items-center justify-between border-t pt-4">
+          <span className="text-xs text-gray-500">{job.timeAgo}</span>
         </div>
       </div>
-
-      <div className="p-4">
-        {job.jobType && (
-          <div className="mb-3">
-            <Badge variant="outline" className="border-red text-red">
-              {job.jobType}
-            </Badge>
-          </div>
-        )}
-        
-        <div className="mb-3 flex items-center text-sm text-gray-600">
-          <MapPin className="mr-1 h-4 w-4 text-gray-400" />
-          {job.location}
-        </div>
-        
-        <div className="mb-3 flex items-center text-sm text-gray-600">
-          <Building className="mr-1 h-4 w-4 text-gray-400" />
-          {job.category}
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-600">
-            <Badge variant="secondary" className="font-normal">
-              {job.type}
-            </Badge>
-          </div>
-          
-          <div className="flex items-center text-sm text-gray-600">
-            <Clock className="mr-1 h-4 w-4 text-gray-400" />
-            {job.timeAgo}
-          </div>
-        </div>
-      </div>
-    </div>
+    </Link>
   );
 };
 

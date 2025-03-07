@@ -32,7 +32,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [role, setRoleState] = useState<UserRole>('guest');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Function to fetch user profile from our public.users table
+  // Function to fetch user profile from our public.users table - optimized
   const fetchUserProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -44,7 +44,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (error) throw error;
       
       if (data) {
-        setUser({
+        const userProfile = {
           id: data.id,
           email: data.email || '',
           firstName: data.first_name || '',
@@ -53,44 +53,58 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           profileImage: data.profile_image,
           bio: data.bio,
           resumeUrl: data.resume_url
-        });
+        };
+        
+        setUser(userProfile);
         setRoleState((data.role as UserRole) || 'candidate');
       }
+      
+      setIsLoading(false);
     } catch (error) {
       console.error('Error fetching user profile:', error);
+      setIsLoading(false);
     }
   };
 
-  // Listen for auth state changes
+  // Listen for auth state changes - optimized to reduce lag
   useEffect(() => {
+    let mounted = true;
     setIsLoading(true);
     
     // Get the initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+      if (!mounted) return;
+      
+      if (session && session.user) {
         fetchUserProfile(session.user.id);
       } else {
         setUser(null);
         setRoleState('guest');
+        setIsLoading(false);
       }
-      setIsLoading(false);
+    }).catch(error => {
+      console.error('Error getting session:', error);
+      if (mounted) setIsLoading(false);
     });
 
     // Set up a listener for future auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (session) {
+        if (!mounted) return;
+        
+        if (session && session.user) {
           await fetchUserProfile(session.user.id);
         } else {
           setUser(null);
           setRoleState('guest');
+          setIsLoading(false);
         }
-        setIsLoading(false);
       }
     );
 
-    // Clean up the subscription
+    // Clean up
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
@@ -127,6 +141,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Function to sign out
   const signOut = async () => {
     try {
+      setIsLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
@@ -144,6 +159,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         description: "Failed to sign out. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
