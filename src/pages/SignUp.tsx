@@ -1,24 +1,11 @@
 
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { SignUp as ClerkSignUp } from '@clerk/clerk-react';
-import { useToast } from '@/components/ui/use-toast';
 
 const SignUp = () => {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-
-  const handleSignUpComplete = () => {
-    toast({
-      title: "Success",
-      description: "Your account has been created. Please check your email for verification.",
-    });
-    
-    navigate('/signup/verify-email-address');
-  };
-
   return (
     <Layout>
       <div className="flex min-h-[calc(100vh-64px)] items-center justify-center bg-gray-50 py-16">
@@ -38,7 +25,6 @@ const SignUp = () => {
                     formButtonPrimary: "bg-primary hover:bg-primary/90",
                   }
                 }}
-                afterSignUp={handleSignUpComplete}
               />
             </CardContent>
             <CardFooter className="flex flex-col">

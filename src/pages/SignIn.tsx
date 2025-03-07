@@ -10,15 +10,6 @@ const SignIn = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleSignInComplete = () => {
-    toast({
-      title: "Success",
-      description: "You have been signed in successfully!",
-    });
-    
-    navigate('/dashboard');
-  };
-
   return (
     <Layout>
       <div className="flex min-h-[calc(100vh-64px)] items-center justify-center bg-gray-50 py-16">
@@ -38,7 +29,6 @@ const SignIn = () => {
                     formButtonPrimary: "bg-primary hover:bg-primary/90",
                   }
                 }}
-                afterSignIn={handleSignInComplete}
               />
             </CardContent>
             <CardFooter className="flex flex-col">

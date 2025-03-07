@@ -27,18 +27,7 @@ const Dashboard = () => {
       try {
         setIsLoading(true);
         
-        // Fetch counts for admin dashboard
-        if (role === 'admin') {
-          // Get user count
-          const { count: userCountData, error: userError } = await supabase
-            .from('users')
-            .select('*', { count: 'exact', head: true });
-          
-          if (userError) throw userError;
-          setUserCount(userCountData || 0);
-        }
-        
-        // Get job count
+        // Fetch job count first (this should always work)
         const { count: jobCountData, error: jobError } = await supabase
           .from('jobs')
           .select('*', { count: 'exact', head: true });
@@ -46,102 +35,141 @@ const Dashboard = () => {
         if (jobError) throw jobError;
         setJobCount(jobCountData || 0);
         
-        // Get application count based on user role
+        // Only proceed with user-specific data if we have a user
+        if (!user) {
+          console.log('No user found, skipping user-specific data fetch');
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log('Fetching dashboard data for user:', user.id, 'with role:', role);
+        
+        // Fetch counts for admin dashboard
         if (role === 'admin') {
-          const { count: appCountData, error: appError } = await supabase
-            .from('applications')
+          console.log('Fetching admin data');
+          // Get user count
+          const { count: userCountData, error: userError } = await supabase
+            .from('users')
             .select('*', { count: 'exact', head: true });
           
-          if (appError) throw appError;
-          setApplicationCount(appCountData || 0);
-        } else if (role === 'recruiter') {
-          // Only count applications for recruiter's jobs
-          const { count: appCountData, error: appError } = await supabase
-            .from('applications')
-            .select('*', { count: 'exact', head: true })
-            .eq('recruiter_id', user?.id);
-          
-          if (appError) throw appError;
-          setApplicationCount(appCountData || 0);
-        } else {
-          // For candidates, count their applications
-          const { count: appCountData, error: appError } = await supabase
-            .from('applications')
-            .select('*', { count: 'exact', head: true })
-            .eq('candidate_id', user?.id);
-          
-          if (appError) throw appError;
-          setApplicationCount(appCountData || 0);
+          if (userError) {
+            console.error('Error fetching user count:', userError);
+          } else {
+            setUserCount(userCountData || 0);
+          }
+        }
+        
+        // Get application count based on user role
+        try {
+          if (role === 'admin') {
+            const { count: appCountData, error: appError } = await supabase
+              .from('applications')
+              .select('*', { count: 'exact', head: true });
+            
+            if (appError) throw appError;
+            setApplicationCount(appCountData || 0);
+          } else if (role === 'recruiter') {
+            // Only count applications for recruiter's jobs
+            const { count: appCountData, error: appError } = await supabase
+              .from('applications')
+              .select('*', { count: 'exact', head: true })
+              .eq('recruiter_id', user.id);
+            
+            if (appError) throw appError;
+            setApplicationCount(appCountData || 0);
+          } else {
+            // For candidates, count their applications
+            const { count: appCountData, error: appError } = await supabase
+              .from('applications')
+              .select('*', { count: 'exact', head: true })
+              .eq('candidate_id', user.id);
+            
+            if (appError) throw appError;
+            setApplicationCount(appCountData || 0);
+          }
+        } catch (error) {
+          console.error('Error fetching application count:', error);
+          // Don't fail the entire dashboard if just this part fails
         }
         
         // Get recent jobs (5 most recent)
-        let recentJobsQuery = supabase
-          .from('jobs')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(5);
-        
-        // Filter by recruiter if the user is a recruiter
-        if (role === 'recruiter') {
-          recentJobsQuery = recentJobsQuery.eq('recruiter_id', user?.id);
+        try {
+          let recentJobsQuery = supabase
+            .from('jobs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(5);
+          
+          // Filter by recruiter if the user is a recruiter
+          if (role === 'recruiter') {
+            recentJobsQuery = recentJobsQuery.eq('recruiter_id', user.id);
+          }
+          
+          const { data: recentJobsData, error: recentError } = await recentJobsQuery;
+          
+          if (recentError) throw recentError;
+          
+          // Transform to Job type
+          const transformedRecentJobs: Job[] = recentJobsData.map(job => ({
+            id: job.id,
+            title: job.title,
+            company: job.company,
+            companyLogo: job.company_logo || 'V',
+            location: job.location,
+            category: job.category,
+            type: job.job_type,
+            jobType: job.job_type,
+            timeAgo: formatTimeAgo(job.created_at),
+            featured: false,
+            logoColor: getRandomLogoColor(),
+          }));
+          
+          setRecentJobs(transformedRecentJobs);
+        } catch (error) {
+          console.error('Error fetching recent jobs:', error);
+          // Don't fail the entire dashboard if just this part fails
         }
-        
-        const { data: recentJobsData, error: recentError } = await recentJobsQuery;
-        
-        if (recentError) throw recentError;
-        
-        // Transform to Job type
-        const transformedRecentJobs: Job[] = recentJobsData.map(job => ({
-          id: job.id,
-          title: job.title,
-          company: job.company,
-          companyLogo: job.company_logo || 'V',
-          location: job.location,
-          category: job.category,
-          type: job.job_type,
-          jobType: job.job_type,
-          timeAgo: formatTimeAgo(job.created_at),
-          featured: false,
-          logoColor: getRandomLogoColor(),
-        }));
-        
-        setRecentJobs(transformedRecentJobs);
         
         // Get saved jobs for candidates
         if (role === 'candidate' && user) {
-          const { data: bookmarksData, error: bookmarksError } = await supabase
-            .from('bookmarks')
-            .select('job_id')
-            .eq('user_id', user.id);
-          
-          if (bookmarksError) throw bookmarksError;
-          
-          if (bookmarksData && bookmarksData.length > 0) {
-            const jobIds = bookmarksData.map(bookmark => bookmark.job_id);
+          try {
+            const { data: bookmarksData, error: bookmarksError } = await supabase
+              .from('bookmarks')
+              .select('job_id')
+              .eq('user_id', user.id);
             
-            const { data: savedJobsData, error: savedError } = await supabase
-              .from('jobs')
-              .select('*')
-              .in('id', jobIds);
+            if (bookmarksError) throw bookmarksError;
             
-            if (savedError) throw savedError;
-            
-            // Transform to Job type
-            const transformedSavedJobs: Job[] = savedJobsData.map(job => ({
-              id: job.id,
-              title: job.title,
-              company: job.company,
-              companyLogo: job.company_logo || 'V',
-              location: job.location,
-              category: job.category,
-              type: job.job_type,
-              jobType: job.job_type,
-              timeAgo: formatTimeAgo(job.created_at),
-              featured: false,
-              logoColor: getRandomLogoColor(),
-            }));
-            
-            setSavedJobs(transformedSavedJobs);
+            if (bookmarksData && bookmarksData.length > 0) {
+              const jobIds = bookmarksData.map(bookmark => bookmark.job_id);
+              
+              const { data: savedJobsData, error: savedError } = await supabase
+                .from('jobs')
+                .select('*')
+                .in('id', jobIds);
+              
+              if (savedError) throw savedError;
+              
+              // Transform to Job type
+              const transformedSavedJobs: Job[] = savedJobsData.map(job => ({
+                id: job.id,
+                title: job.title,
+                company: job.company,
+                companyLogo: job.company_logo || 'V',
+                location: job.location,
+                category: job.category,
+                type: job.job_type,
+                jobType: job.job_type,
+                timeAgo: formatTimeAgo(job.created_at),
+                featured: false,
+                logoColor: getRandomLogoColor(),
+              }));
+              
+              setSavedJobs(transformedSavedJobs);
+            }
+          } catch (error) {
+            console.error('Error fetching saved jobs:', error);
+            // Don't fail the entire dashboard if just this part fails
           }
         }
       } catch (error) {
@@ -156,9 +184,7 @@ const Dashboard = () => {
       }
     };
     
-    if (user) {
-      fetchDashboardData();
-    }
+    fetchDashboardData();
   }, [user, role]);
 
   // Helper function to format time ago

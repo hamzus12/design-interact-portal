@@ -38,10 +38,10 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     email: clerkUser.primaryEmailAddress?.emailAddress || '',
     firstName: clerkUser.firstName || '',
     lastName: clerkUser.lastName || '',
-    role: (clerkUser.publicMetadata?.role as UserRole) || 'candidate',
+    role: (clerkUser.unsafeMetadata?.role as UserRole) || 'candidate',
     profileImage: clerkUser.imageUrl,
-    bio: clerkUser.publicMetadata?.bio as string,
-    resumeUrl: clerkUser.publicMetadata?.resumeUrl as string
+    bio: clerkUser.unsafeMetadata?.bio as string,
+    resumeUrl: clerkUser.unsafeMetadata?.resumeUrl as string
   } : null;
   
   const isLoading = !clerkLoaded || !authLoaded;
@@ -53,8 +53,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     try {
       await clerkUser.update({
-        publicMetadata: {
-          ...clerkUser.publicMetadata,
+        unsafeMetadata: {
+          ...clerkUser.unsafeMetadata,
           role: newRole
         }
       });

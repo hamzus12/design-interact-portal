@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from '@/components/ui/use-toast';
 
 const Profile = () => {
-  const { user } = useUser();
+  const { user: clerkUser } = useUser();
   const { role, setRole } = useUserRole();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -26,17 +26,17 @@ const Profile = () => {
   });
 
   useEffect(() => {
-    if (user) {
+    if (clerkUser) {
       setFormData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.primaryEmailAddress?.emailAddress || '',
-        bio: user.unsafeMetadata?.bio as string || '',
-        skills: user.unsafeMetadata?.skills as string || '',
+        firstName: clerkUser.firstName || '',
+        lastName: clerkUser.lastName || '',
+        email: clerkUser.primaryEmailAddress?.emailAddress || '',
+        bio: clerkUser.unsafeMetadata?.bio as string || '',
+        skills: clerkUser.unsafeMetadata?.skills as string || '',
         role: role
       });
     }
-  }, [user, role]);
+  }, [clerkUser, role]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -56,12 +56,12 @@ const Profile = () => {
       }
 
       // Update user profile data
-      if (user) {
-        await user.update({
+      if (clerkUser) {
+        await clerkUser.update({
           firstName: formData.firstName,
           lastName: formData.lastName,
           unsafeMetadata: {
-            ...user.unsafeMetadata,
+            ...clerkUser.unsafeMetadata,
             bio: formData.bio,
             skills: formData.skills
           }
@@ -84,7 +84,7 @@ const Profile = () => {
   };
 
   const getInitials = () => {
-    return ((user?.firstName || '')[0] || '') + ((user?.lastName || '')[0] || '');
+    return ((clerkUser?.firstName || '')[0] || '') + ((clerkUser?.lastName || '')[0] || '');
   };
 
   return (
@@ -94,7 +94,7 @@ const Profile = () => {
           <Card>
             <CardHeader className="flex flex-row items-center gap-4">
               <Avatar className="h-20 w-20">
-                <AvatarImage src={user?.imageUrl} alt={user?.fullName || 'User'} />
+                <AvatarImage src={clerkUser?.imageUrl} alt={clerkUser?.fullName || 'User'} />
                 <AvatarFallback className="text-xl">{getInitials()}</AvatarFallback>
               </Avatar>
               <div>
