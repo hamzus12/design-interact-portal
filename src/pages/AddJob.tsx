@@ -71,19 +71,65 @@ const AddJob = () => {
         category: formData.category,
         job_type: formData.jobType,
         salary_range: formData.salaryRange,
+        // Store Clerk ID as a string instead of trying to convert to UUID
         recruiter_id: user.id
       });
       
-      const { data, error } = await supabase.from('jobs').insert({
-        title: formData.title,
-        company: formData.company,
-        location: formData.location,
-        description: formData.description,
-        category: formData.category,
-        job_type: formData.jobType,
-        salary_range: formData.salaryRange,
-        recruiter_id: user.id
-      }).select();
+      // First, check if this user already exists in our users table
+      const { data: existingUser, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (userError && userError.code !== 'PGRST116') {
+        // PGRST116 means no rows returned, which is fine - we'll create the user
+        console.error('Error checking user:', userError);
+        throw userError;
+      }
+      
+      let userId;
+      
+      if (!existingUser) {
+        // Create a user record if it doesn't exist
+        const { data: newUser, error: createError } = await supabase
+          .from('users')
+          .insert({
+            user_id: user.id,
+            email: user.email,
+            first_name: user.firstName,
+            last_name: user.lastName,
+            role: user.role
+          })
+          .select('id')
+          .single();
+          
+        if (createError) {
+          console.error('Error creating user:', createError);
+          throw createError;
+        }
+        
+        userId = newUser.id;
+        console.log('Created new user with ID:', userId);
+      } else {
+        userId = existingUser.id;
+        console.log('Using existing user with ID:', userId);
+      }
+      
+      // Now create the job with the proper UUID from our users table
+      const { data, error } = await supabase
+        .from('jobs')
+        .insert({
+          title: formData.title,
+          company: formData.company,
+          location: formData.location,
+          description: formData.description,
+          category: formData.category,
+          job_type: formData.jobType,
+          salary_range: formData.salaryRange,
+          recruiter_id: userId
+        })
+        .select();
       
       if (error) {
         console.error('Supabase error details:', error);
