@@ -62,6 +62,18 @@ const AddJob = () => {
     try {
       setLoading(true);
       
+      // Log job data before insertion
+      console.log('Submitting job with data:', {
+        title: formData.title,
+        company: formData.company,
+        location: formData.location,
+        description: formData.description,
+        category: formData.category,
+        job_type: formData.jobType,
+        salary_range: formData.salaryRange,
+        recruiter_id: user.id
+      });
+      
       const { data, error } = await supabase.from('jobs').insert({
         title: formData.title,
         company: formData.company,
@@ -73,7 +85,12 @@ const AddJob = () => {
         recruiter_id: user.id
       }).select();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error details:', error);
+        throw error;
+      }
+      
+      console.log('Job posted successfully:', data);
       
       toast({
         title: "Success",

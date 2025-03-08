@@ -87,6 +87,9 @@ const Profile = () => {
     return ((clerkUser?.firstName || '')[0] || '') + ((clerkUser?.lastName || '')[0] || '');
   };
 
+  // Check if the current user is an admin
+  const isAdmin = role === 'admin';
+
   return (
     <Layout>
       <div className="container mx-auto py-12">
@@ -150,9 +153,10 @@ const Profile = () => {
                       <SelectValue placeholder="Select a role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="candidate">Candidate</SelectItem>
+                      {/* Only show admin option if user is already an admin */}
+                      {isAdmin && <SelectItem value="admin">Administrator</SelectItem>}
                       <SelectItem value="recruiter">Recruiter</SelectItem>
-                      <SelectItem value="admin">Administrator</SelectItem>
+                      <SelectItem value="candidate">Candidate</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
