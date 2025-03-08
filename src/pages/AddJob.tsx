@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
@@ -62,37 +61,23 @@ const AddJob = () => {
     try {
       setLoading(true);
       
-      // Log job data before insertion
-      console.log('Submitting job with data:', {
-        title: formData.title,
-        company: formData.company,
-        location: formData.location,
-        description: formData.description,
-        category: formData.category,
-        job_type: formData.jobType,
-        salary_range: formData.salaryRange,
-        // Store Clerk ID as a string instead of trying to convert to UUID
-        recruiter_id: user.id
-      });
+      console.log('Starting job submission process with user ID:', user.id);
       
       // First, check if this user already exists in our users table
-      const { data: existingUser, error: userError } = await supabase
+      const { data: existingUser, error: userLookupError } = await supabase
         .from('users')
         .select('id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
         
-      if (userError && userError.code !== 'PGRST116') {
-        // PGRST116 means no rows returned, which is fine - we'll create the user
-        console.error('Error checking user:', userError);
-        throw userError;
-      }
+      console.log('User lookup result:', { existingUser, userLookupError });
       
       let userId;
       
       if (!existingUser) {
+        console.log('User not found in database, creating new user record');
         // Create a user record if it doesn't exist
-        const { data: newUser, error: createError } = await supabase
+        const { data: newUser, error: createUserError } = await supabase
           .from('users')
           .insert({
             user_id: user.id,
@@ -104,20 +89,31 @@ const AddJob = () => {
           .select('id')
           .single();
           
-        if (createError) {
-          console.error('Error creating user:', createError);
-          throw createError;
+        if (createUserError) {
+          console.error('Error creating user record:', createUserError);
+          throw new Error(`Failed to create user record: ${createUserError.message}`);
         }
         
         userId = newUser.id;
-        console.log('Created new user with ID:', userId);
+        console.log('Created new user with database ID:', userId);
       } else {
         userId = existingUser.id;
-        console.log('Using existing user with ID:', userId);
+        console.log('Found existing user with database ID:', userId);
       }
       
       // Now create the job with the proper UUID from our users table
-      const { data, error } = await supabase
+      console.log('Submitting job with data:', {
+        title: formData.title,
+        company: formData.company,
+        location: formData.location,
+        description: formData.description,
+        category: formData.category,
+        job_type: formData.jobType,
+        salary_range: formData.salaryRange,
+        recruiter_id: userId
+      });
+      
+      const { data: jobData, error: jobError } = await supabase
         .from('jobs')
         .insert({
           title: formData.title,
@@ -131,12 +127,12 @@ const AddJob = () => {
         })
         .select();
       
-      if (error) {
-        console.error('Supabase error details:', error);
-        throw error;
+      if (jobError) {
+        console.error('Error creating job posting:', jobError);
+        throw new Error(`Failed to create job posting: ${jobError.message}`);
       }
       
-      console.log('Job posted successfully:', data);
+      console.log('Job posted successfully:', jobData);
       
       toast({
         title: "Success",
