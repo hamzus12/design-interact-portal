@@ -72,11 +72,25 @@ const AddJob = () => {
         
       console.log('User lookup result:', { existingUser, userLookupError });
       
-      let userId;
+      // Modified approach: Try direct job insertion first
+      const jobPayload = {
+        title: formData.title,
+        company: formData.company,
+        location: formData.location,
+        description: formData.description,
+        category: formData.category,
+        job_type: formData.jobType,
+        salary_range: formData.salaryRange
+      };
       
-      if (!existingUser) {
-        console.log('User not found in database, creating new user record');
-        // Create a user record if it doesn't exist
+      // Only add recruiter_id if we have a valid user in the database
+      if (existingUser?.id) {
+        console.log('Found existing user with database ID:', existingUser.id);
+        // @ts-ignore - Typescript might complain but this is valid
+        jobPayload.recruiter_id = existingUser.id;
+      } else {
+        console.log('No existing user found, creating user record first');
+        // Create a user record first
         const { data: newUser, error: createUserError } = await supabase
           .from('users')
           .insert({
@@ -94,37 +108,21 @@ const AddJob = () => {
           throw new Error(`Failed to create user record: ${createUserError.message}`);
         }
         
-        userId = newUser.id;
-        console.log('Created new user with database ID:', userId);
-      } else {
-        userId = existingUser.id;
-        console.log('Found existing user with database ID:', userId);
+        if (!newUser?.id) {
+          throw new Error('Failed to create user: No ID returned');
+        }
+        
+        console.log('Created new user with database ID:', newUser.id);
+        // @ts-ignore - Typescript might complain but this is valid
+        jobPayload.recruiter_id = newUser.id;
       }
       
-      // Now create the job with the proper UUID from our users table
-      console.log('Submitting job with data:', {
-        title: formData.title,
-        company: formData.company,
-        location: formData.location,
-        description: formData.description,
-        category: formData.category,
-        job_type: formData.jobType,
-        salary_range: formData.salaryRange,
-        recruiter_id: userId
-      });
+      console.log('Final job payload:', jobPayload);
       
+      // Now create the job with the proper UUID from our users table  
       const { data: jobData, error: jobError } = await supabase
         .from('jobs')
-        .insert({
-          title: formData.title,
-          company: formData.company,
-          location: formData.location,
-          description: formData.description,
-          category: formData.category,
-          job_type: formData.jobType,
-          salary_range: formData.salaryRange,
-          recruiter_id: userId
-        })
+        .insert(jobPayload)
         .select();
       
       if (jobError) {
