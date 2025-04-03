@@ -1,13 +1,14 @@
 
 import { useState, useCallback } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
 /**
- * Custom hook for managing Clerk user metadata
+ * Custom hook for managing Supabase user metadata
  */
 export function useUserMetadata() {
-  const { user, isLoaded } = useUser();
+  const { user, loading: isLoaded } = useAuth();
   const [isUpdating, setIsUpdating] = useState(false);
 
   /**
@@ -32,12 +33,14 @@ export function useUserMetadata() {
     try {
       setIsUpdating(true);
       
-      await user.update({
-        unsafeMetadata: {
-          ...user.unsafeMetadata,
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          ...user.user_metadata,
           ...metadata
         }
       });
+      
+      if (error) throw error;
       
       if (options?.showSuccessToast !== false) {
         toast({
@@ -67,7 +70,7 @@ export function useUserMetadata() {
    */
   const getMetadata = useCallback((key: string, defaultValue: any = null) => {
     if (!isLoaded || !user) return defaultValue;
-    return user.unsafeMetadata?.[key] ?? defaultValue;
+    return user.user_metadata?.[key] ?? defaultValue;
   }, [isLoaded, user]);
 
   return {

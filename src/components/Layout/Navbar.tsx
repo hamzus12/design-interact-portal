@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { UserButton } from '@clerk/clerk-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,15 +9,18 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, X, ChevronDown, Briefcase, User, LogIn, Users, PlusCircle, FileEdit, LayoutDashboard } from 'lucide-react';
+import { Menu, X, ChevronDown, Briefcase, User, LogIn, Users, PlusCircle, FileEdit, LayoutDashboard, LogOut } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useUserRole } from '@/context/UserContext';
+import { useAuth } from '@/context/AuthContext';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const Navbar = () => {
   const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
-  const { isLoading, user, role } = useUserRole();
+  const { isLoading, user, role, signOut } = useUserRole();
+  const { user: authUser } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const isActive = (path: string): boolean => location.pathname === path;
@@ -105,6 +107,19 @@ const Navbar = () => {
 
   const dashboardLinks = getDashboardLinks();
 
+  // Function to get user initials for avatar
+  const getUserInitials = () => {
+    if (user) {
+      return ((user.firstName || '')[0] || '') + ((user.lastName || '')[0] || '');
+    }
+    return 'U';
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    setIsMenuOpen(false);
+  };
+
   const MobileMenu = () => (
     <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
       <SheetTrigger asChild>
@@ -136,7 +151,7 @@ const Navbar = () => {
               {link.name}
             </Link>
           ))}
-          {!isLoading && !user && (
+          {!isLoading && !authUser && (
             <>
               <Link
                 to="/signin"
@@ -154,7 +169,7 @@ const Navbar = () => {
               </Link>
             </>
           )}
-          {!isLoading && user && (
+          {!isLoading && authUser && (
             <>
               {dashboardLinks.map((link) => (
                 <Link
@@ -169,6 +184,13 @@ const Navbar = () => {
                   {link.name}
                 </Link>
               ))}
+              <button
+                className="flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-red-600 hover:bg-gray-100"
+                onClick={handleSignOut}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </button>
             </>
           )}
         </nav>
@@ -198,7 +220,7 @@ const Navbar = () => {
                   {link.name}
                 </Link>
               ))}
-              {!isLoading && user && (
+              {!isLoading && authUser && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center space-x-1 text-sm font-medium text-gray-700 hover:text-primary">
@@ -227,7 +249,7 @@ const Navbar = () => {
             <MobileMenu />
           ) : (
             <>
-              {!isLoading && !user ? (
+              {!isLoading && !authUser ? (
                 <>
                   <Button variant="ghost" asChild>
                     <Link to="/signin" className="hidden sm:flex">
@@ -243,7 +265,7 @@ const Navbar = () => {
                   </Button>
                 </>
               ) : (
-                !isLoading && (
+                !isLoading && authUser && (
                   <div className="flex items-center space-x-4">
                     {(role === 'recruiter' || role === 'admin') && (
                       <Button asChild>
@@ -253,7 +275,34 @@ const Navbar = () => {
                         </Link>
                       </Button>
                     )}
-                    <UserButton afterSignOutUrl="/" />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Avatar className="h-9 w-9 cursor-pointer">
+                          <AvatarImage src={user?.profileImage} />
+                          <AvatarFallback className="bg-primary text-white">
+                            {getUserInitials()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link to="/profile" className="flex cursor-pointer items-center">
+                            <User className="mr-2 h-4 w-4" />
+                            Profile
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/dashboard" className="flex cursor-pointer items-center">
+                            <LayoutDashboard className="mr-2 h-4 w-4" />
+                            Dashboard
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Sign Out
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 )
               )}

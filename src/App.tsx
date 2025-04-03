@@ -5,10 +5,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DatabaseProvider } from "./context/DatabaseContext";
-import { UserProvider, useUserRole } from "./context/UserContext";
-import { SignedIn, SignedOut } from "@clerk/clerk-react";
+import { AuthProvider } from "./context/AuthContext";
+import { UserProvider } from "./context/UserContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { Suspense, ReactNode, lazy } from "react";
+import { useAuth } from "./context/AuthContext";
 
 // Pages with standard loading
 import Index from "./pages/Index";
@@ -48,22 +49,15 @@ const PageLoader = () => (
   </div>
 );
 
-// Protected route component using Clerk
+// Protected route component
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
-  const { isLoading } = useUserRole();
+  const { user, loading } = useAuth();
   
-  if (isLoading) {
+  if (loading) {
     return <PageLoader />;
   }
   
-  return (
-    <>
-      <SignedIn>{children}</SignedIn>
-      <SignedOut>
-        <Navigate to="/signin" replace />
-      </SignedOut>
-    </>
-  );
+  return user ? children : <Navigate to="/signin" replace />;
 };
 
 // Role-based protected route component
@@ -74,27 +68,120 @@ const RoleProtectedRoute = ({
   children: ReactNode, 
   allowedRoles: string[] 
 }) => {
-  const { role, isLoading } = useUserRole();
+  const { user, loading } = useAuth();
+  const userRole = user?.user_metadata?.role || 'candidate';
   
-  if (isLoading) {
+  if (loading) {
     return <PageLoader />;
   }
   
-  return (
-    <>
-      <SignedIn>
-        {allowedRoles.includes(role) ? (
-          children
-        ) : (
-          <Navigate to="/dashboard" replace />
-        )}
-      </SignedIn>
-      <SignedOut>
-        <Navigate to="/signin" replace />
-      </SignedOut>
-    </>
-  );
+  if (!user) {
+    return <Navigate to="/signin" replace />;
+  }
+  
+  return allowedRoles.includes(userRole) ? children : <Navigate to="/dashboard" replace />;
 };
+
+const AppRoutes = () => (
+  <Routes>
+    <Route path="/" element={<Index />} />
+    <Route path="/about" element={
+      <Suspense fallback={<PageLoader />}>
+        <About />
+      </Suspense>
+    } />
+    <Route path="/jobs" element={<Jobs />} />
+    <Route path="/job/:id" element={<JobDetail />} />
+    <Route path="/candidates" element={
+      <Suspense fallback={<PageLoader />}>
+        <Candidates />
+      </Suspense>
+    } />
+    <Route path="/blog" element={
+      <Suspense fallback={<PageLoader />}>
+        <Blog />
+      </Suspense>
+    } />
+    <Route path="/contact" element={
+      <Suspense fallback={<PageLoader />}>
+        <Contact />
+      </Suspense>
+    } />
+    <Route path="/signin" element={<SignIn />} />
+    <Route path="/signup" element={<SignUp />} />
+    
+    {/* Add Verification routes */}
+    <Route path="/signup/verify-email-address" element={<VerifyEmail />} />
+    
+    {/* Protected routes for all authenticated users */}
+    <Route 
+      path="/dashboard" 
+      element={
+        <ProtectedRoute>
+          <Suspense fallback={<PageLoader />}>
+            <Dashboard />
+          </Suspense>
+        </ProtectedRoute>
+      } 
+    />
+    <Route 
+      path="/profile" 
+      element={
+        <ProtectedRoute>
+          <Suspense fallback={<PageLoader />}>
+            <Profile />
+          </Suspense>
+        </ProtectedRoute>
+      } 
+    />
+    <Route 
+      path="/my-applications" 
+      element={
+        <RoleProtectedRoute allowedRoles={['candidate']}>
+          <Suspense fallback={<PageLoader />}>
+            <MyApplications />
+          </Suspense>
+        </RoleProtectedRoute>
+      } 
+    />
+    
+    {/* Protected routes for recruiters and admins */}
+    <Route 
+      path="/add-job" 
+      element={
+        <RoleProtectedRoute allowedRoles={['recruiter', 'admin']}>
+          <Suspense fallback={<PageLoader />}>
+            <AddJob />
+          </Suspense>
+        </RoleProtectedRoute>
+      } 
+    />
+    <Route 
+      path="/edit-job/:id" 
+      element={
+        <RoleProtectedRoute allowedRoles={['recruiter', 'admin']}>
+          <Suspense fallback={<PageLoader />}>
+            <EditJob />
+          </Suspense>
+        </RoleProtectedRoute>
+      } 
+    />
+    
+    {/* Admin-only routes */}
+    <Route 
+      path="/manage-users" 
+      element={
+        <RoleProtectedRoute allowedRoles={['admin']}>
+          <Suspense fallback={<PageLoader />}>
+            <ManageUsers />
+          </Suspense>
+        </RoleProtectedRoute>
+      } 
+    />
+    
+    <Route path="*" element={<NotFound />} />
+  </Routes>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -102,110 +189,15 @@ const App = () => (
       <Toaster />
       <Sonner />
       <ErrorBoundary>
-        <UserProvider>
-          <DatabaseProvider>
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/about" element={
-                  <Suspense fallback={<PageLoader />}>
-                    <About />
-                  </Suspense>
-                } />
-                <Route path="/jobs" element={<Jobs />} />
-                <Route path="/job/:id" element={<JobDetail />} />
-                <Route path="/candidates" element={
-                  <Suspense fallback={<PageLoader />}>
-                    <Candidates />
-                  </Suspense>
-                } />
-                <Route path="/blog" element={
-                  <Suspense fallback={<PageLoader />}>
-                    <Blog />
-                  </Suspense>
-                } />
-                <Route path="/contact" element={
-                  <Suspense fallback={<PageLoader />}>
-                    <Contact />
-                  </Suspense>
-                } />
-                <Route path="/signin" element={<SignIn />} />
-                <Route path="/signup" element={<SignUp />} />
-                
-                {/* Add Verification routes */}
-                <Route path="/signup/verify-email-address" element={<VerifyEmail />} />
-                
-                {/* Protected routes for all authenticated users */}
-                <Route 
-                  path="/dashboard" 
-                  element={
-                    <ProtectedRoute>
-                      <Suspense fallback={<PageLoader />}>
-                        <Dashboard />
-                      </Suspense>
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/profile" 
-                  element={
-                    <ProtectedRoute>
-                      <Suspense fallback={<PageLoader />}>
-                        <Profile />
-                      </Suspense>
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/my-applications" 
-                  element={
-                    <RoleProtectedRoute allowedRoles={['candidate']}>
-                      <Suspense fallback={<PageLoader />}>
-                        <MyApplications />
-                      </Suspense>
-                    </RoleProtectedRoute>
-                  } 
-                />
-                
-                {/* Protected routes for recruiters and admins */}
-                <Route 
-                  path="/add-job" 
-                  element={
-                    <RoleProtectedRoute allowedRoles={['recruiter', 'admin']}>
-                      <Suspense fallback={<PageLoader />}>
-                        <AddJob />
-                      </Suspense>
-                    </RoleProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/edit-job/:id" 
-                  element={
-                    <RoleProtectedRoute allowedRoles={['recruiter', 'admin']}>
-                      <Suspense fallback={<PageLoader />}>
-                        <EditJob />
-                      </Suspense>
-                    </RoleProtectedRoute>
-                  } 
-                />
-                
-                {/* Admin-only routes */}
-                <Route 
-                  path="/manage-users" 
-                  element={
-                    <RoleProtectedRoute allowedRoles={['admin']}>
-                      <Suspense fallback={<PageLoader />}>
-                        <ManageUsers />
-                      </Suspense>
-                    </RoleProtectedRoute>
-                  } 
-                />
-                
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </DatabaseProvider>
-        </UserProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <UserProvider>
+              <DatabaseProvider>
+                <AppRoutes />
+              </DatabaseProvider>
+            </UserProvider>
+          </AuthProvider>
+        </BrowserRouter>
       </ErrorBoundary>
     </TooltipProvider>
   </QueryClientProvider>

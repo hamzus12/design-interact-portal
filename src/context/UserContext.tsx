@@ -1,8 +1,8 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { useUser, useAuth, useClerk } from '@clerk/clerk-react';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './AuthContext';
 
 // Define the possible user roles
 export type UserRole = 'candidate' | 'recruiter' | 'admin' | 'guest';
@@ -30,37 +30,37 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { isLoaded: clerkLoaded, user: clerkUser } = useUser();
-  const { isLoaded: authLoaded, getToken } = useAuth();
-  const { signOut: clerkSignOut } = useClerk();
+  const { user: authUser, signOut: authSignOut, loading: authLoading } = useAuth();
   const [isSyncing, setIsSyncing] = useState(false);
   
-  // Map Clerk user to our UserProfile structure
-  const user: UserProfile | null = clerkUser ? {
-    id: clerkUser.id,
-    email: clerkUser.primaryEmailAddress?.emailAddress || '',
-    firstName: clerkUser.firstName || '',
-    lastName: clerkUser.lastName || '',
-    role: (clerkUser.unsafeMetadata?.role as UserRole) || 'candidate',
-    profileImage: clerkUser.imageUrl,
-    bio: clerkUser.unsafeMetadata?.bio as string,
-    resumeUrl: clerkUser.unsafeMetadata?.resumeUrl as string
+  // Map Supabase user to our UserProfile structure
+  const user: UserProfile | null = authUser ? {
+    id: authUser.id,
+    email: authUser.email || '',
+    firstName: authUser.user_metadata?.first_name || '',
+    lastName: authUser.user_metadata?.last_name || '',
+    role: (authUser.user_metadata?.role as UserRole) || 'candidate',
+    profileImage: authUser.user_metadata?.avatar_url,
+    bio: authUser.user_metadata?.bio as string,
+    resumeUrl: authUser.user_metadata?.resumeUrl as string
   } : null;
   
-  const isLoading = !clerkLoaded || !authLoaded || isSyncing;
+  const isLoading = authLoading || isSyncing;
   const role = user?.role || 'guest';
 
-  // Function to update user role in Clerk metadata
+  // Function to update user role in Supabase user metadata
   const setRole = async (newRole: UserRole) => {
-    if (!clerkUser) return;
+    if (!authUser) return;
     
     try {
-      await clerkUser.update({
-        unsafeMetadata: {
-          ...clerkUser.unsafeMetadata,
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          ...authUser.user_metadata,
           role: newRole
         }
       });
+      
+      if (error) throw error;
       
       toast({
         title: "Role Updated",
@@ -82,7 +82,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Function to sign out
   const signOut = async () => {
     try {
-      await clerkSignOut();
+      await authSignOut();
       
       toast({
         title: "Signed Out",
@@ -132,7 +132,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           throw new Error(updateError.message);
         }
       } else {
-        // Create new user
+        // Create new user - this should normally be handled by the database trigger
+        // but we're adding it here as a fallback
         const { error: createError } = await supabase
           .from('users')
           .insert({
@@ -158,10 +159,10 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   // Sync user to database when they are authenticated
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && !authLoading) {
       syncUserToDatabase();
     }
-  }, [user?.id]);
+  }, [user?.id, authLoading]);
 
   return (
     <UserContext.Provider value={{ 

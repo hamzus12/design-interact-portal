@@ -1,64 +1,13 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Mail } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import { useSignUp } from '@clerk/clerk-react';
+import { toast } from '@/components/ui/use-toast';
 
 const VerifyEmail = () => {
   const navigate = useNavigate();
-  const [verificationCode, setVerificationCode] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { signUp, setActive } = useSignUp();
-
-  const handleVerifyCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!verificationCode.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter the verification code from your email",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      // Attempt to verify the code
-      const result = await signUp?.attemptEmailAddressVerification({
-        code: verificationCode,
-      });
-      
-      if (result?.status === 'complete') {
-        await setActive?.({ session: result.createdSessionId });
-        toast({
-          title: "Success!",
-          description: "Your email has been verified successfully.",
-        });
-        navigate('/profile');
-      } else {
-        toast({
-          title: "Verification failed",
-          description: "Please check the code and try again.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Verification error:", error);
-      toast({
-        title: "Error",
-        description: "There was a problem verifying your email. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   return (
     <Layout>
@@ -72,41 +21,31 @@ const VerifyEmail = () => {
             <div className="mt-4 text-center">
               <h1 className="mb-2 text-2xl font-bold text-gray-900">Verify your email</h1>
               <p className="mb-6 text-gray-600">
-                We've sent a verification code to your email. Please enter it below to complete your registration.
+                We've sent a verification link to your email. Please check your inbox and click the link to complete your registration.
               </p>
               
-              <form onSubmit={handleVerifyCode} className="space-y-4">
-                <div className="space-y-2">
-                  <Input
-                    type="text"
-                    placeholder="Enter verification code"
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value)}
-                    className="text-center tracking-wider text-lg"
-                    maxLength={6}
-                  />
-                </div>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-500">
+                  If you don't see the email, check your spam folder or try signing in with the email and password you provided.
+                </p>
                 
                 <Button 
-                  type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700"
-                  disabled={isSubmitting}
+                  className="w-full"
+                  onClick={() => navigate('/signin')}
                 >
-                  {isSubmitting ? "Verifying..." : "Verify Code"}
+                  Go to Sign In
                 </Button>
                 
                 <div className="pt-2">
                   <Button 
                     variant="outline" 
                     className="w-full"
-                    onClick={() => navigate('/signup')}
-                    type="button"
-                    disabled={isSubmitting}
+                    onClick={() => navigate('/')}
                   >
-                    Go back to sign up
+                    Return to Home
                   </Button>
                 </div>
-              </form>
+              </div>
             </div>
           </div>
         </div>
