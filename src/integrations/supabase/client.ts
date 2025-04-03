@@ -6,3 +6,27 @@ const SUPABASE_URL = "https://vrtorxjtxvrqxdsfrywo.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZydG9yeGp0eHZycXhkc2ZyeXdvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkwOTc1MDgsImV4cCI6MjA1NDY3MzUwOH0.FvtiosDosFOPiwBeJ_T3Iw2NFv2d_Bzxp3237htQnzM";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+// Helper function to handle common Supabase error patterns
+export const handleSupabaseError = (error: any, defaultMessage = "An error occurred") => {
+  console.error("Supabase error:", error);
+  
+  if (error?.code === "23505") {
+    return "This record already exists.";
+  }
+  
+  if (error?.code === "23503") {
+    return "This operation references a record that doesn't exist.";
+  }
+  
+  if (error?.message) {
+    return error.message;
+  }
+  
+  return defaultMessage;
+};
+
+// Type-safe function to check if a query returned data
+export function hasData<T>(result: { data: T | null, error: any }): result is { data: T, error: null } {
+  return result.data !== null && !result.error;
+}

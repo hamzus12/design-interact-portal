@@ -1,16 +1,13 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { Building, MapPin, Briefcase, DollarSign } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, handleSupabaseError } from '@/integrations/supabase/client';
 import { useUserRole } from '@/context/UserContext';
+import JobForm, { JobFormData } from '@/components/Jobs/JobForm';
+import { validateJobData } from '@/utils/jobValidation';
 
 const AddJob = () => {
   const { user } = useUserRole();
@@ -18,23 +15,56 @@ const AddJob = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   
-  const [formData, setFormData] = useState({
+  // Form state
+  const [formData, setFormData] = useState<JobFormData>({
     title: '',
     company: '',
     location: '',
     description: '',
-    category: 'technology',
-    jobType: 'full-time',
+    category: 'technology', // Default value
+    jobType: 'full-time',  // Default value
     salaryRange: ''
   });
+
+  const [formErrors, setFormErrors] = useState<Partial<Record<keyof JobFormData, string>>>({});
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Clear error when field is edited
+    if (formErrors[name as keyof JobFormData]) {
+      setFormErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Clear error when field is edited
+    if (formErrors[name as keyof JobFormData]) {
+      setFormErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const validateForm = (): boolean => {
+    // Validate job data
+    const errors = validateJobData({
+      title: formData.title,
+      company: formData.company,
+      location: formData.location,
+      description: formData.description,
+      category: formData.category,
+      job_type: formData.jobType,
+      salary_range: formData.salaryRange
+    });
+    
+    if (errors) {
+      setFormErrors(errors);
+      return false;
+    }
+    
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,10 +79,10 @@ const AddJob = () => {
       return;
     }
     
-    if (!formData.title || !formData.company || !formData.location || !formData.description) {
+    if (!validateForm()) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
+        description: "Please fix the errors in the form",
         variant: "destructive"
       });
       return;
@@ -72,7 +102,7 @@ const AddJob = () => {
         
       console.log('User lookup result:', { existingUser, userLookupError });
       
-      // Modified approach: Try direct job insertion first
+      // Build job payload
       const jobPayload = {
         title: formData.title,
         company: formData.company,
@@ -80,7 +110,8 @@ const AddJob = () => {
         description: formData.description,
         category: formData.category,
         job_type: formData.jobType,
-        salary_range: formData.salaryRange
+        salary_range: formData.salaryRange,
+        is_active: true // Ensure job is active by default
       };
       
       // Only add recruiter_id if we have a valid user in the database
@@ -105,7 +136,7 @@ const AddJob = () => {
           
         if (createUserError) {
           console.error('Error creating user record:', createUserError);
-          throw new Error(`Failed to create user record: ${createUserError.message}`);
+          throw new Error(handleSupabaseError(createUserError, "Failed to create user record"));
         }
         
         if (!newUser?.id) {
@@ -127,7 +158,7 @@ const AddJob = () => {
       
       if (jobError) {
         console.error('Error creating job posting:', jobError);
-        throw new Error(`Failed to create job posting: ${jobError.message}`);
+        throw new Error(handleSupabaseError(jobError, "Failed to create job posting"));
       }
       
       console.log('Job posted successfully:', jobData);
@@ -150,169 +181,25 @@ const AddJob = () => {
     }
   };
 
-  const categories = [
-    { value: 'technology', label: 'Technology' },
-    { value: 'healthcare', label: 'Healthcare' },
-    { value: 'finance', label: 'Finance' },
-    { value: 'education', label: 'Education' },
-    { value: 'marketing', label: 'Marketing' },
-    { value: 'design', label: 'Design' },
-    { value: 'customer-service', label: 'Customer Service' },
-    { value: 'other', label: 'Other' }
-  ];
-  
-  const jobTypes = [
-    { value: 'full-time', label: 'Full Time' },
-    { value: 'part-time', label: 'Part Time' },
-    { value: 'contract', label: 'Contract' },
-    { value: 'freelance', label: 'Freelance' },
-    { value: 'internship', label: 'Internship' },
-    { value: 'remote', label: 'Remote' }
-  ];
-
   return (
     <Layout>
       <div className="container mx-auto py-12">
         <div className="max-w-3xl mx-auto">
-          <Card>
-            <CardHeader>
+          <Card className="shadow-lg border-slate-200">
+            <CardHeader className="bg-slate-50 rounded-t-lg">
               <CardTitle className="text-2xl">Post a New Job</CardTitle>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Job Title *</Label>
-                  <Input
-                    id="title"
-                    name="title"
-                    placeholder="e.g. Senior Frontend Developer"
-                    value={formData.title}
-                    onChange={handleInputChange}
-                    required
-                    disabled={loading}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="company">Company Name *</Label>
-                  <div className="relative">
-                    <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="company"
-                      name="company"
-                      placeholder="e.g. Acme Inc."
-                      className="pl-10"
-                      value={formData.company}
-                      onChange={handleInputChange}
-                      required
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="location">Location *</Label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="location"
-                      name="location"
-                      placeholder="e.g. New York, NY or Remote"
-                      className="pl-10"
-                      value={formData.location}
-                      onChange={handleInputChange}
-                      required
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="category">Category *</Label>
-                    <Select
-                      value={formData.category}
-                      onValueChange={(value) => handleSelectChange('category', value)}
-                      disabled={loading}
-                    >
-                      <SelectTrigger id="category">
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category.value} value={category.value}>
-                            {category.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="jobType">Job Type *</Label>
-                    <Select
-                      value={formData.jobType}
-                      onValueChange={(value) => handleSelectChange('jobType', value)}
-                      disabled={loading}
-                    >
-                      <SelectTrigger id="jobType">
-                        <SelectValue placeholder="Select a job type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {jobTypes.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>
-                            {type.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="salaryRange">Salary Range</Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="salaryRange"
-                      name="salaryRange"
-                      placeholder="e.g. $60,000 - $80,000 per year"
-                      className="pl-10"
-                      value={formData.salaryRange}
-                      onChange={handleInputChange}
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="description">Job Description *</Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    placeholder="Describe the job responsibilities, requirements, and other details..."
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    rows={8}
-                    required
-                    disabled={loading}
-                  />
-                </div>
-                
-                <div className="flex justify-end space-x-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => navigate('/jobs')}
-                    disabled={loading}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={loading}>
-                    {loading ? "Posting..." : "Post Job"}
-                  </Button>
-                </div>
-              </form>
+            <CardContent className="pt-6">
+              <JobForm
+                formData={formData}
+                formErrors={formErrors}
+                loading={loading}
+                handleInputChange={handleInputChange}
+                handleSelectChange={handleSelectChange}
+                handleSubmit={handleSubmit}
+                handleCancel={() => navigate('/jobs')}
+                submitButtonText="Post Job"
+              />
             </CardContent>
           </Card>
         </div>

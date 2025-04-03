@@ -1,7 +1,8 @@
 
-import React, { createContext, useContext, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useUser, useAuth, useClerk } from '@clerk/clerk-react';
 import { toast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 // Define the possible user roles
 export type UserRole = 'candidate' | 'recruiter' | 'admin' | 'guest';
@@ -23,6 +24,7 @@ interface UserContextType {
   setRole: (role: UserRole) => Promise<void>;
   isLoading: boolean;
   signOut: () => Promise<void>;
+  syncUserToDatabase: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -31,6 +33,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const { isLoaded: clerkLoaded, user: clerkUser } = useUser();
   const { isLoaded: authLoaded, getToken } = useAuth();
   const { signOut: clerkSignOut } = useClerk();
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // Map Clerk user to our UserProfile structure
   const user: UserProfile | null = clerkUser ? {
@@ -44,7 +47,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     resumeUrl: clerkUser.unsafeMetadata?.resumeUrl as string
   } : null;
   
-  const isLoading = !clerkLoaded || !authLoaded;
+  const isLoading = !clerkLoaded || !authLoaded || isSyncing;
   const role = user?.role || 'guest';
 
   // Function to update user role in Clerk metadata
@@ -63,11 +66,14 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         title: "Role Updated",
         description: `Your role has been updated to ${newRole}.`
       });
-    } catch (error) {
+      
+      // Sync with database
+      await syncUserToDatabase();
+    } catch (error: any) {
       console.error('Error updating role:', error);
       toast({
         title: "Error",
-        description: "Failed to update role. Please try again.",
+        description: error.message || "Failed to update role. Please try again.",
         variant: "destructive"
       });
     }
@@ -82,18 +88,90 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         title: "Signed Out",
         description: "You have been signed out successfully."
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error signing out:', error);
       toast({
         title: "Error",
-        description: "Failed to sign out. Please try again.",
+        description: error.message || "Failed to sign out. Please try again.",
         variant: "destructive"
       });
     }
   };
+  
+  // Function to sync user data to Supabase database
+  const syncUserToDatabase = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setIsSyncing(true);
+      
+      // Check if user exists in our users table
+      const { data: existingUser, error: userLookupError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (userLookupError) {
+        throw new Error(userLookupError.message);
+      }
+      
+      if (existingUser) {
+        // Update existing user
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            email: user.email,
+            first_name: user.firstName,
+            last_name: user.lastName,
+            role: user.role
+          })
+          .eq('user_id', user.id);
+        
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+      } else {
+        // Create new user
+        const { error: createError } = await supabase
+          .from('users')
+          .insert({
+            user_id: user.id,
+            email: user.email,
+            first_name: user.firstName,
+            last_name: user.lastName,
+            role: user.role
+          });
+        
+        if (createError) {
+          throw new Error(createError.message);
+        }
+      }
+      
+      console.log("User data synced with database successfully");
+    } catch (error: any) {
+      console.error('Error syncing user to database:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+  
+  // Sync user to database when they are authenticated
+  useEffect(() => {
+    if (user?.id) {
+      syncUserToDatabase();
+    }
+  }, [user?.id]);
 
   return (
-    <UserContext.Provider value={{ user, role, setRole, isLoading, signOut }}>
+    <UserContext.Provider value={{ 
+      user, 
+      role, 
+      setRole, 
+      isLoading, 
+      signOut,
+      syncUserToDatabase
+    }}>
       {children}
     </UserContext.Provider>
   );

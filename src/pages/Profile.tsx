@@ -4,19 +4,19 @@ import { useUser } from '@clerk/clerk-react';
 import { useUserRole } from '@/context/UserContext';
 import Layout from '@/components/Layout/Layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
+import ProfileForm, { ProfileFormData } from '@/components/Profile/ProfileForm';
+import ProfileHeader from '@/components/Profile/ProfileHeader';
+import { validateForm } from '@/utils/formValidation';
+import { useUserMetadata } from '@/hooks/useUserMetadata';
 
 const Profile = () => {
   const { user: clerkUser } = useUser();
   const { role, setRole } = useUserRole();
+  const { updateMetadata, isUpdating } = useUserMetadata();
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProfileFormData>({
     firstName: '',
     lastName: '',
     email: '',
@@ -24,6 +24,7 @@ const Profile = () => {
     skills: '',
     role: role
   });
+  const [formErrors, setFormErrors] = useState<Partial<Record<keyof ProfileFormData, string>>>({});
 
   useEffect(() => {
     if (clerkUser) {
@@ -41,30 +42,73 @@ const Profile = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Clear field error when edited
+    if (formErrors[name as keyof ProfileFormData]) {
+      setFormErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name as keyof ProfileFormData];
+        return newErrors;
+      });
+    }
   };
 
   const handleRoleChange = (value: string) => {
     setFormData(prev => ({ ...prev, role: value as typeof role }));
+    
+    // Clear role error if it exists
+    if (formErrors.role) {
+      setFormErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.role;
+        return newErrors;
+      });
+    }
+  };
+
+  const validateProfileData = () => {
+    const validationResult = validateForm(formData, {
+      firstName: { required: true, minLength: 2 },
+      lastName: { required: true, minLength: 2 },
+      // No need to validate email as it's read-only
+      bio: { maxLength: 500 },
+      skills: { maxLength: 200 },
+      // Role is selected from predefined options, so no validation needed
+    });
+    
+    setFormErrors(validationResult.errors);
+    return validationResult.isValid;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateProfileData()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fix the errors in the form",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     try {
       // Update role if changed
       if (formData.role !== role) {
         await setRole(formData.role);
       }
 
-      // Update user profile data
+      // Update user metadata
       if (clerkUser) {
+        await updateMetadata({
+          bio: formData.bio,
+          skills: formData.skills
+        });
+        
+        // Update Clerk user data
         await clerkUser.update({
           firstName: formData.firstName,
-          lastName: formData.lastName,
-          unsafeMetadata: {
-            ...clerkUser.unsafeMetadata,
-            bio: formData.bio,
-            skills: formData.skills
-          }
+          lastName: formData.lastName
         });
       }
 
@@ -73,7 +117,7 @@ const Profile = () => {
         description: "Your profile has been successfully updated."
       });
       setIsEditing(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
       toast({
         title: "Update failed",
@@ -94,110 +138,27 @@ const Profile = () => {
     <Layout>
       <div className="container mx-auto py-12">
         <div className="max-w-4xl mx-auto">
-          <Card>
-            <CardHeader className="flex flex-row items-center gap-4">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={clerkUser?.imageUrl} alt={clerkUser?.fullName || 'User'} />
-                <AvatarFallback className="text-xl">{getInitials()}</AvatarFallback>
-              </Avatar>
-              <div>
-                <CardTitle className="text-2xl">{isEditing ? 'Edit Profile' : 'Profile'}</CardTitle>
-                <p className="text-muted-foreground">
-                  Manage your account details and preferences
-                </p>
-              </div>
+          <Card className="shadow-lg border-slate-200">
+            <CardHeader className="bg-slate-50 rounded-t-lg">
+              <ProfileHeader
+                title={isEditing ? 'Edit Profile' : 'Profile'}
+                description="Manage your account details and preferences"
+                imageUrl={clerkUser?.imageUrl}
+                initials={getInitials()}
+              />
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      id="firstName"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleInputChange}
-                      disabled={!isEditing}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    disabled={true} // Email should not be editable here
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select
-                    disabled={!isEditing}
-                    value={formData.role}
-                    onValueChange={handleRoleChange}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {/* Only show admin option if user is already an admin */}
-                      {isAdmin && <SelectItem value="admin">Administrator</SelectItem>}
-                      <SelectItem value="recruiter">Recruiter</SelectItem>
-                      <SelectItem value="candidate">Candidate</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
-                  <Textarea
-                    id="bio"
-                    name="bio"
-                    value={formData.bio}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    rows={4}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="skills">Skills (comma separated)</Label>
-                  <Textarea
-                    id="skills"
-                    name="skills"
-                    value={formData.skills}
-                    onChange={handleInputChange}
-                    disabled={!isEditing}
-                    rows={3}
-                  />
-                </div>
-
-                {isEditing && (
-                  <div className="flex justify-end space-x-4">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={() => setIsEditing(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit">Save Changes</Button>
-                  </div>
-                )}
-              </form>
+            <CardContent className="pt-6">
+              <ProfileForm
+                formData={formData}
+                formErrors={formErrors}
+                isEditing={isEditing}
+                isAdmin={isAdmin}
+                isSubmitting={isUpdating}
+                onSubmit={handleSubmit}
+                onCancel={() => setIsEditing(false)}
+                handleInputChange={handleInputChange}
+                handleRoleChange={handleRoleChange}
+              />
             </CardContent>
             {!isEditing && (
               <CardFooter className="flex justify-end">

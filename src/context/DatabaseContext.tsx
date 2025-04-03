@@ -1,27 +1,72 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, handleSupabaseError } from '@/integrations/supabase/client';
 import { Job } from '../models/job';
 import { toast } from '@/components/ui/use-toast';
+import { formatTimeAgo } from '@/utils/dateUtils';
+import { useUserRole } from '@/context/UserContext';
 
 interface DatabaseContextType {
   jobs: Job[];
   loading: boolean;
   error: string | null;
   fetchJobs: () => Promise<void>;
-  fetchJobsByFilters: (filters: any) => Promise<void>;
+  fetchJobsByFilters: (filters: JobFilters) => Promise<void>;
   toggleFavorite: (jobId: number | string) => Promise<void>;
   favorites: (number | string)[];
 }
 
+export interface JobFilters {
+  keyword?: string;
+  category?: string[];
+  jobType?: string[];
+  location?: string[];
+  page?: number;
+  limit?: number;
+}
+
 const DatabaseContext = createContext<DatabaseContextType | undefined>(undefined);
+
+// Random logo colors for consistent job displays
+const LOGO_COLORS = [
+  'bg-blue-500', 
+  'bg-green-500', 
+  'bg-purple-500', 
+  'bg-yellow-500', 
+  'bg-indigo-500', 
+  'bg-pink-500',
+  'bg-teal-500',
+  'bg-orange-500'
+];
 
 export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<(number | string)[]>([]);
+  const { user } = useUserRole();
 
+  // Transform job data from Supabase to our Job interface
+  const transformJobData = useCallback((data: any[]): Job[] => {
+    return data.map((job, index) => ({
+      id: job.id,
+      title: job.title,
+      company: job.company,
+      companyLogo: job.company_logo || job.company.charAt(0).toUpperCase(),
+      location: job.location,
+      category: job.category,
+      type: job.job_type,
+      timeAgo: formatTimeAgo(job.created_at),
+      featured: Boolean(job.is_featured),
+      logoColor: LOGO_COLORS[index % LOGO_COLORS.length], // Consistent color based on array position
+      jobType: job.job_type,
+      description: job.description,
+      salaryRange: job.salary_range,
+      recruiterId: job.recruiter_id
+    }));
+  }, []);
+
+  // Fetch all active jobs
   const fetchJobs = useCallback(async () => {
     try {
       setLoading(true);
@@ -30,35 +75,24 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
       const { data, error: supabaseError } = await supabase
         .from('jobs')
         .select('*')
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
       
-      if (supabaseError) throw supabaseError;
+      if (supabaseError) {
+        throw new Error(handleSupabaseError(supabaseError));
+      }
       
-      // Transform the data to match our Job interface
-      const transformedJobs: Job[] = data.map(job => ({
-        id: job.id,
-        title: job.title,
-        company: job.company,
-        companyLogo: job.company_logo || 'V', // Use first letter if no logo
-        location: job.location,
-        category: job.category,
-        type: job.job_type,
-        timeAgo: formatTimeAgo(job.created_at),
-        featured: false, // You can determine this later
-        logoColor: getRandomLogoColor(),
-        jobType: job.job_type
-      }));
-      
-      setJobs(transformedJobs);
-    } catch (err) {
+      setJobs(transformJobData(data || []));
+    } catch (err: any) {
       console.error('Error fetching jobs:', err);
-      setError('Failed to fetch jobs. Please try again later.');
+      setError(err.message || 'Failed to fetch jobs. Please try again later.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [transformJobData]);
 
-  const fetchJobsByFilters = useCallback(async (filters: any) => {
+  // Fetch jobs with filters
+  const fetchJobsByFilters = useCallback(async (filters: JobFilters) => {
     try {
       setLoading(true);
       setError(null);
@@ -68,9 +102,9 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
         .select('*')
         .eq('is_active', true);
       
-      // Apply keyword filter (search in title and company)
+      // Apply keyword filter (search in title, company and description)
       if (filters.keyword) {
-        query = query.or(`title.ilike.%${filters.keyword}%,company.ilike.%${filters.keyword}%`);
+        query = query.or(`title.ilike.%${filters.keyword}%,company.ilike.%${filters.keyword}%,description.ilike.%${filters.keyword}%`);
       }
       
       // Apply category filter
@@ -89,39 +123,37 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
         query = query.ilike('location', `%${locationParam}%`);
       }
       
+      // Apply pagination
+      if (filters.limit) {
+        const page = filters.page || 1;
+        const from = (page - 1) * filters.limit;
+        const to = from + filters.limit - 1;
+        
+        query = query.range(from, to);
+      }
+      
+      // Order by created_at descending
+      query = query.order('created_at', { ascending: false });
+      
       const { data, error: supabaseError } = await query;
       
-      if (supabaseError) throw supabaseError;
+      if (supabaseError) {
+        throw new Error(handleSupabaseError(supabaseError));
+      }
       
-      // Transform the data to match our Job interface
-      const transformedJobs: Job[] = data.map(job => ({
-        id: job.id,
-        title: job.title,
-        company: job.company,
-        companyLogo: job.company_logo || 'V', // Use first letter if no logo
-        location: job.location,
-        category: job.category,
-        type: job.job_type,
-        timeAgo: formatTimeAgo(job.created_at),
-        featured: false,
-        logoColor: getRandomLogoColor(),
-        jobType: job.job_type
-      }));
-      
-      setJobs(transformedJobs);
-    } catch (err) {
+      setJobs(transformJobData(data || []));
+    } catch (err: any) {
       console.error('Error fetching filtered jobs:', err);
-      setError('Failed to fetch jobs. Please try again later.');
+      setError(err.message || 'Failed to fetch jobs. Please try again later.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [transformJobData]);
 
+  // Load favorites from database or localStorage
   const loadFavorites = useCallback(async () => {
     try {
-      const { data: session } = await supabase.auth.getSession();
-      
-      if (!session.session) {
+      if (!user?.id) {
         // User is not logged in, use local storage
         const storedFavorites = localStorage.getItem('favorites');
         if (storedFavorites) {
@@ -133,22 +165,26 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
       // User is logged in, load from database
       const { data, error } = await supabase
         .from('bookmarks')
-        .select('job_id');
+        .select('job_id')
+        .eq('user_id', user.id);
         
-      if (error) throw error;
+      if (error) throw new Error(handleSupabaseError(error));
       
       setFavorites(data.map(item => item.job_id));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading favorites:', err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to load favorites",
+        variant: "destructive"
+      });
     }
-  }, []);
+  }, [user?.id]);
 
+  // Toggle job favorite status
   const toggleFavorite = useCallback(async (jobId: number | string) => {
     try {
-      // Check if user is authenticated
-      const { data: session } = await supabase.auth.getSession();
-      
-      if (!session.session) {
+      if (!user?.id) {
         // User is not logged in, use local storage
         const newFavorites = favorites.includes(jobId)
           ? favorites.filter(id => id !== jobId)
@@ -156,6 +192,7 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
           
         setFavorites(newFavorites);
         localStorage.setItem('favorites', JSON.stringify(newFavorites));
+        
         toast({
           title: favorites.includes(jobId) ? "Removed from favorites" : "Added to favorites",
           description: "Please sign in to save your favorites permanently."
@@ -166,77 +203,54 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
       // User is logged in, toggle in database
       if (favorites.includes(jobId)) {
         // Remove from favorites
-        await supabase
+        const { error } = await supabase
           .from('bookmarks')
           .delete()
-          .eq('job_id', jobId);
+          .eq('job_id', jobId)
+          .eq('user_id', user.id);
+          
+        if (error) throw new Error(handleSupabaseError(error));
           
         setFavorites(favorites.filter(id => id !== jobId));
+        
         toast({
           title: "Removed from favorites",
           description: "Job removed from your saved listings"
         });
       } else {
         // Add to favorites
-        await supabase
+        const { error } = await supabase
           .from('bookmarks')
-          .insert({ job_id: jobId });
+          .insert({ job_id: jobId, user_id: user.id });
+          
+        if (error) throw new Error(handleSupabaseError(error));
           
         setFavorites([...favorites, jobId]);
+        
         toast({
           title: "Added to favorites",
           description: "Job saved to your favorites"
         });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error toggling favorite:', err);
       toast({
         title: "Error",
-        description: "Failed to update favorites. Please try again.",
+        description: err.message || "Failed to update favorites. Please try again.",
         variant: "destructive"
       });
     }
-  }, [favorites]);
-
-  // Helper function to format time ago
-  const formatTimeAgo = (dateString: string) => {
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffMs = now.getTime() - date.getTime();
-    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-    
-    if (diffHrs < 1) return 'Just now';
-    if (diffHrs === 1) return '1 Hr Ago';
-    if (diffHrs < 24) return `${diffHrs} Hrs Ago`;
-    
-    const diffDays = Math.floor(diffHrs / 24);
-    if (diffDays === 1) return '1 Day Ago';
-    if (diffDays < 30) return `${diffDays} Days Ago`;
-    
-    const diffMonths = Math.floor(diffDays / 30);
-    if (diffMonths === 1) return '1 Month Ago';
-    return `${diffMonths} Months Ago`;
-  };
-
-  // Helper function to generate random logo colors
-  const getRandomLogoColor = () => {
-    const colors = [
-      'bg-red', 
-      'bg-blue-500', 
-      'bg-green-500', 
-      'bg-purple-500', 
-      'bg-yellow-500', 
-      'bg-indigo-500', 
-      'bg-pink-500'
-    ];
-    return colors[Math.floor(Math.random() * colors.length)];
-  };
+  }, [favorites, user?.id]);
 
   // Initial fetch on mount
   useEffect(() => {
     fetchJobs();
+  }, [fetchJobs]);
+  
+  // Load favorites when user changes
+  useEffect(() => {
     loadFavorites();
-  }, [fetchJobs, loadFavorites]);
+  }, [loadFavorites, user?.id]);
 
   // Use memoized value to prevent unnecessary re-renders
   const value = useMemo(() => ({
