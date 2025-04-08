@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useAuth } from '@/context/AuthContext';
 import { useUserRole } from '@/context/UserContext';
 import Layout from '@/components/Layout/Layout';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { validateForm } from '@/utils/formValidation';
 import { useUserMetadata } from '@/hooks/useUserMetadata';
 
 const Profile = () => {
-  const { user: clerkUser } = useUser();
+  const { user } = useAuth();
   const { role, setRole } = useUserRole();
   const { updateMetadata, isUpdating } = useUserMetadata();
   const [isEditing, setIsEditing] = useState(false);
@@ -27,17 +27,17 @@ const Profile = () => {
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof ProfileFormData, string>>>({});
 
   useEffect(() => {
-    if (clerkUser) {
+    if (user) {
       setFormData({
-        firstName: clerkUser.firstName || '',
-        lastName: clerkUser.lastName || '',
-        email: clerkUser.primaryEmailAddress?.emailAddress || '',
-        bio: clerkUser.unsafeMetadata?.bio as string || '',
-        skills: clerkUser.unsafeMetadata?.skills as string || '',
+        firstName: user.user_metadata?.first_name || '',
+        lastName: user.user_metadata?.last_name || '',
+        email: user.email || '',
+        bio: user.user_metadata?.bio || '',
+        skills: user.user_metadata?.skills || '',
         role: role
       });
     }
-  }, [clerkUser, role]);
+  }, [user, role]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -70,10 +70,10 @@ const Profile = () => {
     const validationResult = validateForm(formData, {
       firstName: { required: true, minLength: 2 },
       lastName: { required: true, minLength: 2 },
-      email: {}, // Add validation rule for email (even if it's read-only)
+      email: {}, 
       bio: { maxLength: 500 },
       skills: { maxLength: 200 },
-      role: {} // Add validation rule for role
+      role: {}
     });
     
     setFormErrors(validationResult.errors);
@@ -99,16 +99,12 @@ const Profile = () => {
       }
 
       // Update user metadata
-      if (clerkUser) {
+      if (user) {
         await updateMetadata({
+          first_name: formData.firstName,
+          last_name: formData.lastName,
           bio: formData.bio,
           skills: formData.skills
-        });
-        
-        // Update Clerk user data
-        await clerkUser.update({
-          firstName: formData.firstName,
-          lastName: formData.lastName
         });
       }
 
@@ -128,7 +124,7 @@ const Profile = () => {
   };
 
   const getInitials = () => {
-    return ((clerkUser?.firstName || '')[0] || '') + ((clerkUser?.lastName || '')[0] || '');
+    return ((user?.user_metadata?.first_name || '')[0] || '') + ((user?.user_metadata?.last_name || '')[0] || '');
   };
 
   // Check if the current user is an admin
@@ -143,7 +139,7 @@ const Profile = () => {
               <ProfileHeader
                 title={isEditing ? 'Edit Profile' : 'Profile'}
                 description="Manage your account details and preferences"
-                imageUrl={clerkUser?.imageUrl}
+                imageUrl={user?.user_metadata?.avatar_url}
                 initials={getInitials()}
               />
             </CardHeader>
