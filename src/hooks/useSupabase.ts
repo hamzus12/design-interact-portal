@@ -97,57 +97,79 @@ export function createSupabaseOperations<T>(table: string) {
   
   return {
     getById: (id: string | number) => 
-      executeQuery(() => 
-        supabase.from(table).select('*').eq('id', id).single()
-          .then(result => result as unknown as Promise<{ data: T | null, error: PostgrestError | null }>)
-      ),
+      executeQuery<T>(() => {
+        return new Promise((resolve) => {
+          supabase.from(table).select('*').eq('id', id).single()
+            .then(result => resolve({ 
+              data: result.data as T | null, 
+              error: result.error 
+            }));
+        });
+      }),
     
     getAll: (options?: { limit?: number, order?: { column: string, ascending?: boolean } }) => 
-      executeQuery(() => {
-        let query = supabase.from(table).select('*');
-        
-        if (options?.order) {
-          query = query.order(
-            options.order.column, 
-            { ascending: options.order.ascending ?? true }
-          );
-        }
-        
-        if (options?.limit) {
-          query = query.limit(options.limit);
-        }
-        
-        return query.then(result => result as unknown as Promise<{ data: T[] | null, error: PostgrestError | null }>);
+      executeQuery<T[]>(() => {
+        return new Promise((resolve) => {
+          let query = supabase.from(table).select('*');
+          
+          if (options?.order) {
+            query = query.order(
+              options.order.column, 
+              { ascending: options.order.ascending ?? true }
+            );
+          }
+          
+          if (options?.limit) {
+            query = query.limit(options.limit);
+          }
+          
+          query.then(result => resolve({ 
+            data: result.data as T[] | null, 
+            error: result.error 
+          }));
+        });
       }),
     
     create: (data: Partial<T>, options?: { successMessage?: string }) => 
-      executeQuery(
-        () => supabase.from(table).insert(data).select().single()
-          .then(result => result as unknown as Promise<{ data: T | null, error: PostgrestError | null }>),
-        { 
-          successMessage: options?.successMessage || "Record created successfully",
-          showSuccessToast: true
-        }
-      ),
+      executeQuery<T>(() => {
+        return new Promise((resolve) => {
+          supabase.from(table).insert(data).select().single()
+            .then(result => resolve({ 
+              data: result.data as T | null, 
+              error: result.error 
+            }));
+        });
+      }, { 
+        successMessage: options?.successMessage || "Record created successfully",
+        showSuccessToast: true
+      }),
     
     update: (id: string | number, data: Partial<T>, options?: { successMessage?: string }) => 
-      executeQuery(
-        () => supabase.from(table).update(data).eq('id', id).select().single()
-          .then(result => result as unknown as Promise<{ data: T | null, error: PostgrestError | null }>),
-        {
-          successMessage: options?.successMessage || "Record updated successfully",
-          showSuccessToast: true
-        }
-      ),
+      executeQuery<T>(() => {
+        return new Promise((resolve) => {
+          supabase.from(table).update(data).eq('id', id).select().single()
+            .then(result => resolve({ 
+              data: result.data as T | null, 
+              error: result.error 
+            }));
+        });
+      }, {
+        successMessage: options?.successMessage || "Record updated successfully",
+        showSuccessToast: true
+      }),
     
     delete: (id: string | number, options?: { successMessage?: string }) => 
-      executeQuery(
-        () => supabase.from(table).delete().eq('id', id)
-          .then(result => result as unknown as Promise<{ data: null, error: PostgrestError | null }>),
-        {
-          successMessage: options?.successMessage || "Record deleted successfully",
-          showSuccessToast: true
-        }
-      ),
+      executeQuery<null>(() => {
+        return new Promise((resolve) => {
+          supabase.from(table).delete().eq('id', id)
+            .then(result => resolve({ 
+              data: null, 
+              error: result.error 
+            }));
+        });
+      }, {
+        successMessage: options?.successMessage || "Record deleted successfully",
+        showSuccessToast: true
+      }),
   };
 }
