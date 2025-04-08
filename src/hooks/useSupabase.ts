@@ -97,7 +97,7 @@ export function createSupabaseOperations<T>(table: string) {
   
   return {
     getById: (id: string | number) => 
-      executeQuery(() => supabase.from(table).select('*').eq('id', id).single()),
+      executeQuery(() => supabase.from(table).select('*').eq('id', id).single().then(result => result)),
     
     getAll: (options?: { limit?: number, order?: { column: string, ascending?: boolean } }) => 
       executeQuery(() => {
@@ -114,12 +114,12 @@ export function createSupabaseOperations<T>(table: string) {
           query = query.limit(options.limit);
         }
         
-        return query;
+        return query.then(result => result);
       }),
     
     create: (data: Partial<T>, options?: { successMessage?: string }) => 
       executeQuery(
-        () => supabase.from(table).insert(data).select().single(),
+        () => supabase.from(table).insert(data).select().single().then(result => result),
         { 
           successMessage: options?.successMessage || "Record created successfully",
           showSuccessToast: true
@@ -128,7 +128,7 @@ export function createSupabaseOperations<T>(table: string) {
     
     update: (id: string | number, data: Partial<T>, options?: { successMessage?: string }) => 
       executeQuery(
-        () => supabase.from(table).update(data).eq('id', id).select().single(),
+        () => supabase.from(table).update(data).eq('id', id).select().single().then(result => result),
         {
           successMessage: options?.successMessage || "Record updated successfully",
           showSuccessToast: true
@@ -137,7 +137,7 @@ export function createSupabaseOperations<T>(table: string) {
     
     delete: (id: string | number, options?: { successMessage?: string }) => 
       executeQuery(
-        () => supabase.from(table).delete().eq('id', id),
+        () => supabase.from(table).delete().eq('id', id).then(result => result),
         {
           successMessage: options?.successMessage || "Record deleted successfully",
           showSuccessToast: true

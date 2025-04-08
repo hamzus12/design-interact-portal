@@ -70,10 +70,10 @@ const Profile = () => {
     const validationResult = validateForm(formData, {
       firstName: { required: true, minLength: 2 },
       lastName: { required: true, minLength: 2 },
-      // No need to validate email as it's read-only
+      email: {}, // Add validation rule for email (even if it's read-only)
       bio: { maxLength: 500 },
       skills: { maxLength: 200 },
-      // Role is selected from predefined options, so no validation needed
+      role: {} // Add validation rule for role
     });
     
     setFormErrors(validationResult.errors);

@@ -76,7 +76,7 @@ export function useFormState<T extends Record<string, any>>({
     }
     
     const result = validateForm(values, validationSchema);
-    setErrors(result.errors);
+    setErrors(prev => result.errors as Partial<Record<keyof T, string>>); // Fix: properly cast the type
     return result;
   }, [values, validationSchema]);
   

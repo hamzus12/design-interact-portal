@@ -373,7 +373,7 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
           candidate_id: user.id,
           cover_letter: coverLetter,
           status: 'pending',
-          resume_url: user.resume_url || null
+          resume_url: user.resumeUrl || null  // Fix: change resume_url to resumeUrl
         }])
         .select();
       

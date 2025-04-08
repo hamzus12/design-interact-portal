@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
@@ -82,7 +81,7 @@ const JobPersona = () => {
               const matchScore = Math.floor(Math.random() * 40) + 60; // Random score for demo
               
               return {
-                id: job.id,
+                id: job.id.toString(), // Convert id to string to ensure type compatibility
                 title: job.title,
                 company: job.company,
                 matchScore: matchScore,
@@ -91,7 +90,7 @@ const JobPersona = () => {
             } catch (error) {
               console.error(`Error analyzing job ${job.id}:`, error);
               return {
-                id: job.id,
+                id: job.id.toString(), // Convert id to string to ensure type compatibility
                 title: job.title,
                 company: job.company,
                 matchScore: 50, // Default score on error
@@ -105,7 +104,7 @@ const JobPersona = () => {
           // Sort by match score (highest first)
           matches.sort((a, b) => b.matchScore - a.matchScore);
           
-          setJobMatches(matches);
+          setJobMatches(matches as JobMatch[]);
         } catch (error) {
           console.error("Error getting job matches:", error);
           toast({
@@ -148,7 +147,7 @@ const JobPersona = () => {
     // Get new match scores
     setTimeout(() => {
       const matches = jobs.map(job => ({
-        id: job.id,
+        id: job.id.toString(), // Convert id to string to ensure type compatibility
         title: job.title,
         company: job.company,
         matchScore: Math.floor(Math.random() * 40) + 60, // Random score for demo
@@ -156,7 +155,7 @@ const JobPersona = () => {
       }));
       
       matches.sort((a, b) => b.matchScore - a.matchScore);
-      setJobMatches(matches);
+      setJobMatches(matches as JobMatch[]);
       setLoadingMatches(false);
       
       toast({
