@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DatabaseProvider } from "./context/DatabaseContext";
 import { AuthProvider } from "./context/AuthContext";
 import { UserProvider } from "./context/UserContext";
+import { JobPersonaProvider } from "./context/JobPersonaContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { Suspense, ReactNode, lazy } from "react";
 import { useAuth } from "./context/AuthContext";
@@ -31,6 +32,8 @@ const Profile = lazy(() => import("./pages/Profile"));
 const AddJob = lazy(() => import("./pages/AddJob"));
 const ManageUsers = lazy(() => import("./pages/ManageUsers"));
 const MyApplications = lazy(() => import("./pages/MyApplications"));
+const CreateJobPersona = lazy(() => import("./pages/CreateJobPersona"));
+const JobPersona = lazy(() => import("./pages/JobPersona"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -145,6 +148,28 @@ const AppRoutes = () => (
       } 
     />
     
+    {/* JobPersona AI routes */}
+    <Route 
+      path="/create-job-persona" 
+      element={
+        <RoleProtectedRoute allowedRoles={['candidate']}>
+          <Suspense fallback={<PageLoader />}>
+            <CreateJobPersona />
+          </Suspense>
+        </RoleProtectedRoute>
+      } 
+    />
+    <Route 
+      path="/job-persona" 
+      element={
+        <RoleProtectedRoute allowedRoles={['candidate']}>
+          <Suspense fallback={<PageLoader />}>
+            <JobPersona />
+          </Suspense>
+        </RoleProtectedRoute>
+      } 
+    />
+    
     {/* Protected routes for recruiters and admins */}
     <Route 
       path="/add-job" 
@@ -193,7 +218,9 @@ const App = () => (
           <AuthProvider>
             <UserProvider>
               <DatabaseProvider>
-                <AppRoutes />
+                <JobPersonaProvider>
+                  <AppRoutes />
+                </JobPersonaProvider>
               </DatabaseProvider>
             </UserProvider>
           </AuthProvider>

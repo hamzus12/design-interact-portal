@@ -63,7 +63,7 @@ export function useUserMetadata() {
     } finally {
       setIsUpdating(false);
     }
-  }, [isLoaded, user, toast]);
+  }, [isLoaded, user]);
 
   /**
    * Get a value from user metadata
@@ -73,9 +73,25 @@ export function useUserMetadata() {
     return user.user_metadata?.[key] ?? defaultValue;
   }, [isLoaded, user]);
 
+  /**
+   * Check if user has a JobPersona already created
+   */
+  const hasJobPersona = useCallback(() => {
+    return getMetadata('has_job_persona', false);
+  }, [getMetadata]);
+
+  /**
+   * Get JobPersona data
+   */
+  const getJobPersona = useCallback(() => {
+    return getMetadata('job_persona', null);
+  }, [getMetadata]);
+
   return {
     updateMetadata,
     getMetadata,
+    hasJobPersona,
+    getJobPersona,
     isUpdating,
     isLoaded
   };

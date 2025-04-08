@@ -1,375 +1,211 @@
 
-import React, { useEffect, useState } from 'react';
-import Layout from '@/components/Layout/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import { useUserRole } from '@/context/UserContext';
-import { useDatabase } from '@/context/DatabaseContext';
-import JobCard from '@/components/Jobs/JobCard';
-import UsersList from '@/components/UsersList';
-import { Job } from '@/models/job';
-import { supabase } from '@/integrations/supabase/client';
-import { Briefcase, Users, BookmarkIcon } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { useJobPersona } from '@/context/JobPersonaContext';
+import Layout from '@/components/Layout/Layout';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Building, Briefcase, Users, PenLine, Eye, MessageSquare, Brain, User } from 'lucide-react';
 
 const Dashboard = () => {
   const { user, role } = useUserRole();
-  const { jobs, favorites, toggleFavorite } = useDatabase();
-  const [userCount, setUserCount] = useState(0);
-  const [jobCount, setJobCount] = useState(0);
-  const [applicationCount, setApplicationCount] = useState(0);
-  const [recentJobs, setRecentJobs] = useState<Job[]>([]);
-  const [savedJobs, setSavedJobs] = useState<Job[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setIsLoading(true);
-        
-        // Fetch job count first (this should always work)
-        const { count: jobCountData, error: jobError } = await supabase
-          .from('jobs')
-          .select('*', { count: 'exact', head: true });
-        
-        if (jobError) throw jobError;
-        setJobCount(jobCountData || 0);
-        
-        // Only proceed with user-specific data if we have a user
-        if (!user) {
-          console.log('No user found, skipping user-specific data fetch');
-          setIsLoading(false);
-          return;
-        }
-        
-        console.log('Fetching dashboard data for user:', user.id, 'with role:', role);
-        
-        // Fetch counts for admin dashboard
-        if (role === 'admin') {
-          console.log('Fetching admin data');
-          // Get user count
-          const { count: userCountData, error: userError } = await supabase
-            .from('users')
-            .select('*', { count: 'exact', head: true });
-          
-          if (userError) {
-            console.error('Error fetching user count:', userError);
-          } else {
-            setUserCount(userCountData || 0);
-          }
-        }
-        
-        // Get application count based on user role
-        try {
-          if (role === 'admin') {
-            const { count: appCountData, error: appError } = await supabase
-              .from('applications')
-              .select('*', { count: 'exact', head: true });
-            
-            if (appError) throw appError;
-            setApplicationCount(appCountData || 0);
-          } else if (role === 'recruiter') {
-            // Only count applications for recruiter's jobs
-            const { count: appCountData, error: appError } = await supabase
-              .from('applications')
-              .select('*', { count: 'exact', head: true })
-              .eq('recruiter_id', user.id);
-            
-            if (appError) throw appError;
-            setApplicationCount(appCountData || 0);
-          } else {
-            // For candidates, count their applications
-            const { count: appCountData, error: appError } = await supabase
-              .from('applications')
-              .select('*', { count: 'exact', head: true })
-              .eq('candidate_id', user.id);
-            
-            if (appError) throw appError;
-            setApplicationCount(appCountData || 0);
-          }
-        } catch (error) {
-          console.error('Error fetching application count:', error);
-          // Don't fail the entire dashboard if just this part fails
-        }
-        
-        // Get recent jobs (5 most recent)
-        try {
-          let recentJobsQuery = supabase
-            .from('jobs')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(5);
-          
-          // Filter by recruiter if the user is a recruiter
-          if (role === 'recruiter') {
-            recentJobsQuery = recentJobsQuery.eq('recruiter_id', user.id);
-          }
-          
-          const { data: recentJobsData, error: recentError } = await recentJobsQuery;
-          
-          if (recentError) throw recentError;
-          
-          // Transform to Job type
-          const transformedRecentJobs: Job[] = recentJobsData.map(job => ({
-            id: job.id,
-            title: job.title,
-            company: job.company,
-            companyLogo: job.company_logo || 'V',
-            location: job.location,
-            category: job.category,
-            type: job.job_type,
-            jobType: job.job_type,
-            timeAgo: formatTimeAgo(job.created_at),
-            featured: false,
-            logoColor: getRandomLogoColor(),
-          }));
-          
-          setRecentJobs(transformedRecentJobs);
-        } catch (error) {
-          console.error('Error fetching recent jobs:', error);
-          // Don't fail the entire dashboard if just this part fails
-        }
-        
-        // Get saved jobs for candidates
-        if (role === 'candidate' && user) {
-          try {
-            const { data: bookmarksData, error: bookmarksError } = await supabase
-              .from('bookmarks')
-              .select('job_id')
-              .eq('user_id', user.id);
-            
-            if (bookmarksError) throw bookmarksError;
-            
-            if (bookmarksData && bookmarksData.length > 0) {
-              const jobIds = bookmarksData.map(bookmark => bookmark.job_id);
-              
-              const { data: savedJobsData, error: savedError } = await supabase
-                .from('jobs')
-                .select('*')
-                .in('id', jobIds);
-              
-              if (savedError) throw savedError;
-              
-              // Transform to Job type
-              const transformedSavedJobs: Job[] = savedJobsData.map(job => ({
-                id: job.id,
-                title: job.title,
-                company: job.company,
-                companyLogo: job.company_logo || 'V',
-                location: job.location,
-                category: job.category,
-                type: job.job_type,
-                jobType: job.job_type,
-                timeAgo: formatTimeAgo(job.created_at),
-                featured: false,
-                logoColor: getRandomLogoColor(),
-              }));
-              
-              setSavedJobs(transformedSavedJobs);
-            }
-          } catch (error) {
-            console.error('Error fetching saved jobs:', error);
-            // Don't fail the entire dashboard if just this part fails
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load dashboard data',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchDashboardData();
-  }, [user, role]);
-
-  // Helper function to format time ago
-  const formatTimeAgo = (dateString: string) => {
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffMs = now.getTime() - date.getTime();
-    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-    
-    if (diffHrs < 1) return 'Just now';
-    if (diffHrs === 1) return '1 Hr Ago';
-    if (diffHrs < 24) return `${diffHrs} Hrs Ago`;
-    
-    const diffDays = Math.floor(diffHrs / 24);
-    if (diffDays === 1) return '1 Day Ago';
-    if (diffDays < 30) return `${diffDays} Days Ago`;
-    
-    const diffMonths = Math.floor(diffDays / 30);
-    if (diffMonths === 1) return '1 Month Ago';
-    return `${diffMonths} Months Ago`;
-  };
-
-  // Helper function to generate random logo colors
-  const getRandomLogoColor = () => {
-    const colors = [
-      'bg-red', 
-      'bg-blue-500', 
-      'bg-green-500', 
-      'bg-purple-500', 
-      'bg-yellow-500', 
-      'bg-indigo-500', 
-      'bg-pink-500'
-    ];
-    return colors[Math.floor(Math.random() * colors.length)];
-  };
-
-  if (isLoading) {
-    return (
-      <Layout>
-        <div className="container mx-auto mt-8 px-4">
-          <div className="flex h-96 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
+  const { hasPersona } = useJobPersona();
+  
   return (
     <Layout>
-      <div className="container mx-auto mt-8 px-4">
-        <h1 className="mb-6 text-2xl font-bold">Dashboard</h1>
-        
-        {/* Stats Cards */}
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">Welcome, {user?.firstName || 'User'}!</h1>
+          <p className="mt-2 text-gray-600">
+            Manage your job search and applications from your personal dashboard
+          </p>
+        </div>
+
+        {/* Main dashboard grid */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {/* Profile section - for all users */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Jobs</CardTitle>
-              <Briefcase className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="pb-2">
+              <div className="flex items-center space-x-2">
+                <User className="h-5 w-5 text-primary" />
+                <CardTitle>Your Profile</CardTitle>
+              </div>
+              <CardDescription>Manage your personal information</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{jobCount}</div>
-              <p className="text-xs text-muted-foreground">
-                {role === 'recruiter' ? 'Jobs you posted' : 'Available jobs'}
+            <CardContent className="pt-4">
+              <p className="text-sm text-gray-600">
+                Keep your profile updated to make the most of our platform's features.
               </p>
             </CardContent>
+            <CardFooter>
+              <Button asChild variant="outline" className="w-full">
+                <Link to="/profile">View Profile</Link>
+              </Button>
+            </CardFooter>
           </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Applications</CardTitle>
-              <BookmarkIcon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{applicationCount}</div>
-              <p className="text-xs text-muted-foreground">
-                {role === 'candidate' ? 'Your applications' : 'Received applications'}
-              </p>
-            </CardContent>
-          </Card>
-          
-          {role === 'admin' && (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+
+          {/* JobPersona AI section - for candidates only */}
+          {role === 'candidate' && (
+            <Card className="border-primary bg-primary/5">
+              <CardHeader className="pb-2">
+                <div className="flex items-center space-x-2">
+                  <Brain className="h-5 w-5 text-primary" />
+                  <CardTitle>JobPersona AI</CardTitle>
+                </div>
+                <CardDescription>Your AI-powered job hunting assistant</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{userCount}</div>
-                <p className="text-xs text-muted-foreground">
-                  Registered platform users
+              <CardContent className="pt-4">
+                <p className="text-sm text-gray-600">
+                  {hasPersona
+                    ? "Your AI avatar is active and finding jobs that match your profile."
+                    : "Create your AI avatar to automate your job search and application process."}
                 </p>
               </CardContent>
+              <CardFooter>
+                <Button asChild className="w-full">
+                  <Link to={hasPersona ? "/job-persona" : "/create-job-persona"}>
+                    {hasPersona ? "Manage JobPersona" : "Create JobPersona"}
+                  </Link>
+                </Button>
+              </CardFooter>
             </Card>
           )}
-        </div>
-        
-        {/* Tabs for different dashboard sections */}
-        <Tabs defaultValue="recent">
-          <TabsList className="mb-4">
-            <TabsTrigger value="recent">Recent Jobs</TabsTrigger>
-            {role === 'candidate' && <TabsTrigger value="saved">Saved Jobs</TabsTrigger>}
-            {role === 'admin' && <TabsTrigger value="users">Users</TabsTrigger>}
-          </TabsList>
-          
-          {/* Recent Jobs Tab */}
-          <TabsContent value="recent">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Jobs</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {recentJobs.length > 0 ? (
-                  <div className="space-y-4">
-                    {recentJobs.map((job) => (
-                      <JobCard 
-                        key={job.id} 
-                        job={job} 
-                        isFavorite={favorites.includes(job.id)} 
-                        onToggleFavorite={toggleFavorite}
-                        showFavoriteButton={role === 'candidate'}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex h-40 flex-col items-center justify-center space-y-2 rounded-lg bg-gray-50 p-8 text-center">
-                    <h3 className="text-lg font-semibold">No jobs found</h3>
-                    <p className="text-gray-500">
-                      {role === 'recruiter' 
-                        ? "You haven't posted any jobs yet." 
-                        : "There are no jobs available at the moment."}
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Saved Jobs Tab (for candidates) */}
+
+          {/* Applications section - for candidates */}
           {role === 'candidate' && (
-            <TabsContent value="saved">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Saved Jobs</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {savedJobs.length > 0 ? (
-                    <div className="space-y-4">
-                      {savedJobs.map((job) => (
-                        <JobCard 
-                          key={job.id} 
-                          job={job} 
-                          isFavorite={true} 
-                          onToggleFavorite={toggleFavorite}
-                          showFavoriteButton={true}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex h-40 flex-col items-center justify-center space-y-2 rounded-lg bg-gray-50 p-8 text-center">
-                      <h3 className="text-lg font-semibold">No saved jobs</h3>
-                      <p className="text-gray-500">
-                        You haven't saved any jobs yet.
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center space-x-2">
+                  <Briefcase className="h-5 w-5 text-primary" />
+                  <CardTitle>My Applications</CardTitle>
+                </div>
+                <CardDescription>Track your job applications</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <p className="text-sm text-gray-600">
+                  View the status of your submitted applications and follow up on opportunities.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Button asChild variant="outline" className="w-full">
+                  <Link to="/my-applications">View Applications</Link>
+                </Button>
+              </CardFooter>
+            </Card>
           )}
-          
-          {/* Users Tab (for admin) */}
+
+          {/* Browse Jobs - for all users */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center space-x-2">
+                <Eye className="h-5 w-5 text-primary" />
+                <CardTitle>Browse Jobs</CardTitle>
+              </div>
+              <CardDescription>Explore available opportunities</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <p className="text-sm text-gray-600">
+                Browse through hundreds of job listings that match your skills and preferences.
+              </p>
+            </CardContent>
+            <CardFooter>
+              <Button asChild variant="outline" className="w-full">
+                <Link to="/jobs">Find Jobs</Link>
+              </Button>
+            </CardFooter>
+          </Card>
+
+          {/* Browse Candidates - for recruiters */}
+          {(role === 'recruiter' || role === 'admin') && (
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center space-x-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  <CardTitle>Candidates</CardTitle>
+                </div>
+                <CardDescription>Find potential employees</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <p className="text-sm text-gray-600">
+                  Browse through candidate profiles and find the perfect match for your openings.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Button asChild variant="outline" className="w-full">
+                  <Link to="/candidates">Browse Candidates</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
+
+          {/* Post a Job - for recruiters */}
+          {(role === 'recruiter' || role === 'admin') && (
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center space-x-2">
+                  <PenLine className="h-5 w-5 text-primary" />
+                  <CardTitle>Post a Job</CardTitle>
+                </div>
+                <CardDescription>Create a new job listing</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <p className="text-sm text-gray-600">
+                  Create a new job listing to find the perfect candidate for your company.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Button asChild className="w-full">
+                  <Link to="/add-job">Create Listing</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
+
+          {/* Manage Users - for admins */}
           {role === 'admin' && (
-            <TabsContent value="users">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Users</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <UsersList />
-                </CardContent>
-              </Card>
-            </TabsContent>
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center space-x-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  <CardTitle>Manage Users</CardTitle>
+                </div>
+                <CardDescription>Administrative controls</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <p className="text-sm text-gray-600">
+                  Review and manage platform users, roles, and permissions.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Button asChild variant="outline" className="w-full">
+                  <Link to="/manage-users">Manage Users</Link>
+                </Button>
+              </CardFooter>
+            </Card>
           )}
-        </Tabs>
+
+          {/* Messages - for all users */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center space-x-2">
+                <MessageSquare className="h-5 w-5 text-primary" />
+                <CardTitle>Messages</CardTitle>
+              </div>
+              <CardDescription>Your conversations</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <p className="text-sm text-gray-600">
+                Chat with recruiters or candidates about job opportunities and applications.
+              </p>
+            </CardContent>
+            <CardFooter>
+              <Button asChild variant="outline" className="w-full" disabled>
+                <Link to="/messages">Coming Soon</Link>
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
       </div>
     </Layout>
   );
