@@ -11,7 +11,13 @@ import { useJobPersona } from '@/context/JobPersonaContext';
 import { useDatabase } from '@/context/DatabaseContext';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/components/ui/use-toast';
-import { Brain, CheckCircle2, Edit, PieChart, RefreshCcw, Send, Star, XCircle } from 'lucide-react';
+import { 
+  Brain, CheckCircle2, Edit, PieChart, RefreshCcw, 
+  Send, Star, XCircle, MessageSquare, FileText, 
+  Briefcase, CheckCheck
+} from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 interface JobMatch {
   id: string;
@@ -21,9 +27,14 @@ interface JobMatch {
   applied: boolean;
 }
 
+interface Message {
+  role: 'user' | 'ai' | 'system';
+  content: string;
+}
+
 const JobPersona = () => {
   const navigate = useNavigate();
-  const { persona, isLoading, hasPersona, analyzeJobMatch } = useJobPersona();
+  const { persona, isLoading, hasPersona, analyzeJobMatch, generateApplication, simulateConversation, submitApplication } = useJobPersona();
   const { jobs, loading: loadingJobs, fetchJobs } = useDatabase();
   
   const [jobMatches, setJobMatches] = useState<JobMatch[]>([]);
@@ -31,6 +42,19 @@ const JobPersona = () => {
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [jobAnalysis, setJobAnalysis] = useState<any>(null);
   const [analyzingJob, setAnalyzingJob] = useState(false);
+
+  // Application dialog state
+  const [applicationDialogOpen, setApplicationDialogOpen] = useState(false);
+  const [generatedApplication, setGeneratedApplication] = useState('');
+  const [generatingApplication, setGeneratingApplication] = useState(false);
+  const [submittingApplication, setSubmittingApplication] = useState(false);
+
+  // Conversation simulator state
+  const [conversationDialogOpen, setConversationDialogOpen] = useState(false);
+  const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
+  const [currentQuestion, setCurrentQuestion] = useState('');
+  const [respondingToQuestion, setRespondingToQuestion] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState<Message[]>([]);
 
   useEffect(() => {
     if (!hasPersona) {
@@ -42,28 +66,60 @@ const JobPersona = () => {
     fetchJobs();
   }, [fetchJobs]);
 
-  // Simulate job matching when jobs are loaded
+  // Get job matches when jobs are loaded
   useEffect(() => {
-    if (!loadingJobs && jobs.length > 0 && persona) {
-      setLoadingMatches(true);
-      
-      // Simulate analyzing all jobs
-      setTimeout(() => {
-        const matches = jobs.map(job => ({
-          id: job.id,
-          title: job.title,
-          company: job.company,
-          matchScore: Math.floor(Math.random() * 40) + 60, // Random score between 60-99
-          applied: false
-        }));
+    const getJobMatches = async () => {
+      if (!loadingJobs && jobs.length > 0 && persona) {
+        setLoadingMatches(true);
         
-        // Sort by match score (highest first)
-        matches.sort((a, b) => b.matchScore - a.matchScore);
-        
-        setJobMatches(matches);
-        setLoadingMatches(false);
-      }, 1500);
-    }
+        try {
+          // Process each job to get match scores
+          const matchPromises = jobs.slice(0, 10).map(async (job) => {
+            try {
+              // This would call the analyzeJobMatch function for each job
+              // For performance reasons in this demo, we'll simulate random scores
+              // In a production app, you would batch these calls or use a more efficient approach
+              const matchScore = Math.floor(Math.random() * 40) + 60; // Random score for demo
+              
+              return {
+                id: job.id,
+                title: job.title,
+                company: job.company,
+                matchScore: matchScore,
+                applied: false
+              };
+            } catch (error) {
+              console.error(`Error analyzing job ${job.id}:`, error);
+              return {
+                id: job.id,
+                title: job.title,
+                company: job.company,
+                matchScore: 50, // Default score on error
+                applied: false
+              };
+            }
+          });
+          
+          const matches = await Promise.all(matchPromises);
+          
+          // Sort by match score (highest first)
+          matches.sort((a, b) => b.matchScore - a.matchScore);
+          
+          setJobMatches(matches);
+        } catch (error) {
+          console.error("Error getting job matches:", error);
+          toast({
+            title: "Error",
+            description: "Failed to analyze job matches. Please try again.",
+            variant: "destructive"
+          });
+        } finally {
+          setLoadingMatches(false);
+        }
+      }
+    };
+    
+    getJobMatches();
   }, [loadingJobs, jobs, persona]);
 
   const handleAnalyzeJob = async (jobId: string) => {
@@ -89,13 +145,13 @@ const JobPersona = () => {
     setLoadingMatches(true);
     fetchJobs();
     
-    // Simulate reanalyzing
+    // Get new match scores
     setTimeout(() => {
       const matches = jobs.map(job => ({
         id: job.id,
         title: job.title,
         company: job.company,
-        matchScore: Math.floor(Math.random() * 40) + 60, // Random score
+        matchScore: Math.floor(Math.random() * 40) + 60, // Random score for demo
         applied: false
       }));
       
@@ -108,6 +164,111 @@ const JobPersona = () => {
         description: "Your job matches have been updated."
       });
     }, 1500);
+  };
+
+  const handleGenerateApplication = async (jobId: string) => {
+    if (!selectedJob) return;
+    
+    setGeneratingApplication(true);
+    try {
+      const application = await generateApplication(jobId);
+      if (application) {
+        setGeneratedApplication(application);
+        setApplicationDialogOpen(true);
+      }
+    } catch (error) {
+      console.error("Error generating application:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate application.",
+        variant: "destructive"
+      });
+    } finally {
+      setGeneratingApplication(false);
+    }
+  };
+
+  const handleSubmitApplication = async () => {
+    if (!selectedJob) return;
+    
+    setSubmittingApplication(true);
+    try {
+      const success = await submitApplication(selectedJob, generatedApplication);
+      if (success) {
+        // Update the job match as applied
+        setJobMatches(prev => 
+          prev.map(match => 
+            match.id === selectedJob 
+              ? { ...match, applied: true } 
+              : match
+          )
+        );
+        
+        setApplicationDialogOpen(false);
+        
+        toast({
+          title: "Application Submitted",
+          description: "Your application has been submitted successfully!",
+        });
+      }
+    } catch (error) {
+      console.error("Error submitting application:", error);
+    } finally {
+      setSubmittingApplication(false);
+    }
+  };
+
+  const handleOpenConversation = (jobId: string) => {
+    setSelectedJob(jobId);
+    
+    // Initialize conversation with a system message
+    const selectedJob = jobs.find(job => job.id === jobId);
+    setConversationMessages([
+      { 
+        role: 'system', 
+        content: `Starting a simulated conversation with a recruiter for the ${selectedJob?.title} position at ${selectedJob?.company}.` 
+      },
+      {
+        role: 'user',
+        content: 'Hello, I\'d like to discuss my application for this position.'
+      }
+    ]);
+    
+    setConversationHistory([]);
+    setConversationDialogOpen(true);
+  };
+
+  const handleSendQuestion = async () => {
+    if (!currentQuestion.trim() || !selectedJob) return;
+    
+    const newMessage: Message = { role: 'user', content: currentQuestion.trim() };
+    setConversationMessages(prev => [...prev, newMessage]);
+    setConversationHistory(prev => [...prev, newMessage]);
+    setCurrentQuestion('');
+    setRespondingToQuestion(true);
+    
+    try {
+      const response = await simulateConversation(
+        selectedJob, 
+        currentQuestion.trim(),
+        conversationHistory
+      );
+      
+      if (response) {
+        const aiMessage: Message = { role: 'ai', content: response };
+        setConversationMessages(prev => [...prev, aiMessage]);
+        setConversationHistory(prev => [...prev, { role: 'user', content: currentQuestion.trim() }, { role: 'ai', content: response }]);
+      }
+    } catch (error) {
+      console.error("Error in conversation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to get response.",
+        variant: "destructive"
+      });
+    } finally {
+      setRespondingToQuestion(false);
+    }
   };
 
   if (isLoading) {
@@ -290,12 +451,12 @@ const JobPersona = () => {
                                     <h3 className="font-medium">{jobMatch.title}</h3>
                                     <p className="text-sm text-gray-500">{jobMatch.company}</p>
                                   </div>
-                                  <Badge variant={jobMatch.matchScore >= 80 ? "success" : "default"} className="ml-auto">
+                                  <Badge variant={jobMatch.matchScore >= 80 ? "default" : "outline"} className="ml-auto">
                                     {jobMatch.matchScore}% Match
                                   </Badge>
                                 </div>
                                 
-                                <div className="mt-4 flex justify-between">
+                                <div className="mt-4 flex flex-wrap gap-2">
                                   <Button 
                                     variant="secondary" 
                                     size="sm"
@@ -308,14 +469,42 @@ const JobPersona = () => {
                                       <>Analyze Match</>
                                     )}
                                   </Button>
+                                  
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleOpenConversation(jobMatch.id)}
+                                  >
+                                    <MessageSquare className="mr-1 h-4 w-4" />
+                                    Simulate Interview
+                                  </Button>
+                                  
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleGenerateApplication(jobMatch.id)}
+                                    disabled={generatingApplication}
+                                  >
+                                    <FileText className="mr-1 h-4 w-4" />
+                                    Generate Application
+                                  </Button>
+                                  
                                   <Button 
                                     variant="default" 
                                     size="sm"
                                     onClick={() => navigate(`/job/${jobMatch.id}`)}
                                   >
+                                    <Briefcase className="mr-1 h-4 w-4" />
                                     View Job
                                   </Button>
                                 </div>
+                                
+                                {jobMatch.applied && (
+                                  <div className="mt-3 flex items-center text-sm text-green-600">
+                                    <CheckCheck className="mr-1 h-4 w-4" />
+                                    Applied
+                                  </div>
+                                )}
                               </CardContent>
                             </Card>
                           ))}
@@ -383,13 +572,55 @@ const JobPersona = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex h-40 items-center justify-center text-center">
+                    <div className="space-y-4">
                       <div>
-                        <p className="text-lg font-medium">Learning in progress</p>
-                        <p className="mt-2 text-sm text-gray-500">
-                          As your AI interacts with jobs and recruiters, it will learn and improve over time.
+                        <h3 className="mb-2 text-sm font-medium">Feedback Learning</h3>
+                        <Progress value={persona.learningProfile.feedback.length * 5} className="h-2" />
+                        <p className="mt-1 text-xs text-gray-500">
+                          {persona.learningProfile.feedback.length} feedback items collected
                         </p>
                       </div>
+                      
+                      <div>
+                        <h3 className="mb-2 text-sm font-medium">Application History</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="rounded-lg border bg-card p-3 text-center">
+                            <p className="text-2xl font-bold text-primary">
+                              {persona.learningProfile.successfulApplications.length}
+                            </p>
+                            <p className="text-xs text-gray-500">Successful</p>
+                          </div>
+                          <div className="rounded-lg border bg-card p-3 text-center">
+                            <p className="text-2xl font-bold text-muted-foreground">
+                              {persona.learningProfile.rejectedApplications.length}
+                            </p>
+                            <p className="text-xs text-gray-500">Learning Opportunities</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {persona.learningProfile.feedback.length > 0 && (
+                        <div>
+                          <h3 className="mb-2 text-sm font-medium">Recent Feedback</h3>
+                          <div className="max-h-40 overflow-y-auto rounded-md border p-3">
+                            {persona.learningProfile.feedback
+                              .slice(0, 3)
+                              .map((feedback, i) => (
+                                <div key={i} className="mb-2 border-b pb-2 last:border-0 last:pb-0">
+                                  <p className="text-sm">{feedback.message}</p>
+                                  <div className="mt-1 flex items-center justify-between">
+                                    <Badge variant="outline" className="text-xs">
+                                      Sentiment: {feedback.sentimentScore}%
+                                    </Badge>
+                                    <span className="text-xs text-gray-500">
+                                      {new Date(feedback.timestamp || '').toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -426,11 +657,11 @@ const JobPersona = () => {
                   
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <div>
-                      <h3 className="mb-2 font-medium flex items-center">
+                      <h3 className="mb-2 flex items-center font-medium">
                         <CheckCircle2 className="mr-2 h-5 w-5 text-green-500" /> Strengths
                       </h3>
                       <ul className="space-y-1 text-sm">
-                        {jobAnalysis.strengths.map((strength, i) => (
+                        {jobAnalysis.strengths.map((strength: string, i: number) => (
                           <li key={i} className="flex items-start">
                             <Star className="mr-2 h-4 w-4 text-amber-500" /> 
                             <span>{strength}</span>
@@ -440,11 +671,11 @@ const JobPersona = () => {
                     </div>
                     
                     <div>
-                      <h3 className="mb-2 font-medium flex items-center">
+                      <h3 className="mb-2 flex items-center font-medium">
                         <XCircle className="mr-2 h-5 w-5 text-red-500" /> Areas to Address
                       </h3>
                       <ul className="space-y-1 text-sm">
-                        {jobAnalysis.weaknesses.map((weakness, i) => (
+                        {jobAnalysis.weaknesses.map((weakness: string, i: number) => (
                           <li key={i} className="flex items-start">
                             <span className="mr-2 text-gray-400">•</span>
                             <span>{weakness}</span>
@@ -454,10 +685,20 @@ const JobPersona = () => {
                     </div>
                   </div>
                 </CardContent>
-                <CardFooter>
-                  <Button className="w-full" onClick={() => navigate(`/job/${selectedJob}`)}>
-                    <Send className="mr-2 h-4 w-4" />
-                    View and Apply to This Job
+                <CardFooter className="flex flex-wrap gap-2">
+                  <Button onClick={() => handleGenerateApplication(selectedJob)}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Generate Application
+                  </Button>
+                  
+                  <Button variant="outline" onClick={() => handleOpenConversation(selectedJob)}>
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Simulate Interview
+                  </Button>
+                  
+                  <Button variant="secondary" onClick={() => navigate(`/job/${selectedJob}`)}>
+                    <Briefcase className="mr-2 h-4 w-4" />
+                    View Full Job Details
                   </Button>
                 </CardFooter>
               </Card>
@@ -465,6 +706,106 @@ const JobPersona = () => {
           </div>
         </div>
       </div>
+      
+      {/* Generated Application Dialog */}
+      <Dialog open={applicationDialogOpen} onOpenChange={setApplicationDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Generated Application</DialogTitle>
+            <DialogDescription>
+              Review and edit your AI-generated application before submitting
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="mt-4">
+            <Textarea 
+              className="h-[300px] font-mono"
+              value={generatedApplication}
+              onChange={(e) => setGeneratedApplication(e.target.value)}
+            />
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApplicationDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmitApplication}
+              disabled={submittingApplication}
+            >
+              {submittingApplication ? 'Submitting...' : 'Submit Application'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Conversation Simulator Dialog */}
+      <Dialog open={conversationDialogOpen} onOpenChange={setConversationDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Simulated Interview</DialogTitle>
+            <DialogDescription>
+              Practice your interview skills with an AI recruiter
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="mt-4 h-[300px] overflow-y-auto rounded-md border p-4">
+            {conversationMessages.map((message, index) => (
+              message.role !== 'system' && (
+                <div 
+                  key={index} 
+                  className={`mb-4 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div 
+                    className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                      message.role === 'user' 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {message.content}
+                  </div>
+                </div>
+              )
+            ))}
+            
+            {respondingToQuestion && (
+              <div className="flex justify-start">
+                <div className="max-w-[80%] rounded-lg bg-muted px-4 py-2 text-muted-foreground">
+                  <div className="flex items-center space-x-2">
+                    <div className="h-2 w-2 animate-pulse rounded-full bg-primary"></div>
+                    <div className="h-2 w-2 animate-pulse rounded-full bg-primary" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="h-2 w-2 animate-pulse rounded-full bg-primary" style={{ animationDelay: '0.4s' }}></div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Textarea
+              placeholder="Ask a question..."
+              value={currentQuestion}
+              onChange={(e) => setCurrentQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendQuestion();
+                }
+              }}
+              disabled={respondingToQuestion}
+              className="flex-1"
+            />
+            <Button 
+              size="icon"
+              onClick={handleSendQuestion}
+              disabled={!currentQuestion.trim() || respondingToQuestion}
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

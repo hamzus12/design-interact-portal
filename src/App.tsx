@@ -34,6 +34,7 @@ const ManageUsers = lazy(() => import("./pages/ManageUsers"));
 const MyApplications = lazy(() => import("./pages/MyApplications"));
 const CreateJobPersona = lazy(() => import("./pages/CreateJobPersona"));
 const JobPersona = lazy(() => import("./pages/JobPersona"));
+const EditJobPersona = lazy(() => import("./pages/EditJobPersona"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -165,6 +166,16 @@ const AppRoutes = () => (
         <RoleProtectedRoute allowedRoles={['candidate']}>
           <Suspense fallback={<PageLoader />}>
             <JobPersona />
+          </Suspense>
+        </RoleProtectedRoute>
+      } 
+    />
+    <Route 
+      path="/edit-job-persona" 
+      element={
+        <RoleProtectedRoute allowedRoles={['candidate']}>
+          <Suspense fallback={<PageLoader />}>
+            <EditJobPersona />
           </Suspense>
         </RoleProtectedRoute>
       } 

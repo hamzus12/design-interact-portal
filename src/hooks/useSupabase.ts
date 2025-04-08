@@ -2,6 +2,7 @@
 import { useState, useCallback } from 'react';
 import { supabase, handleSupabaseError } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { PostgrestError } from '@supabase/supabase-js';
 
 /**
  * Custom hook for Supabase data operations with loading and error states
@@ -12,7 +13,7 @@ export function useSupabase() {
   const { toast } = useToast();
 
   const executeQuery = useCallback(async <T>(
-    queryFn: () => Promise<{ data: T | null, error: any }>,
+    queryFn: () => Promise<{ data: T | null, error: PostgrestError | null }>,
     options?: {
       loadingMessage?: string;
       successMessage?: string;

@@ -24,9 +24,29 @@ interface JobPersonaProfile {
       jobId: string;
       message: string;
       sentimentScore: number;
+      timestamp?: string;
     }>;
   };
   lastUpdated: string;
+}
+
+interface JobMatchAnalysis {
+  score: number;
+  strengths: string[];
+  weaknesses: string[];
+  recommendation: string;
+  detailedAnalysis?: {
+    skillsMatch: number;
+    experienceMatch: number;
+    locationMatch: number;
+    salaryMatch: number;
+  };
+}
+
+interface FeedbackData {
+  message: string;
+  sentimentScore?: number;
+  suggestedSkills?: string[];
 }
 
 interface JobPersonaContextType {
@@ -36,14 +56,12 @@ interface JobPersonaContextType {
   hasPersona: boolean;
   createPersona: (initialData: Partial<JobPersonaProfile>) => Promise<boolean>;
   updatePersona: (updates: Partial<JobPersonaProfile>) => Promise<boolean>;
-  generateApplication: (jobId: string) => Promise<string | null>;
-  simulateConversation: (jobId: string, question: string) => Promise<string | null>;
-  analyzeJobMatch: (jobId: string) => Promise<{ 
-    score: number; 
-    strengths: string[]; 
-    weaknesses: string[];
-    recommendation: string;
-  } | null>;
+  generateApplication: (jobId: string, type?: string) => Promise<string | null>;
+  simulateConversation: (jobId: string, question: string, history?: Array<{role: string, content: string}>) => Promise<string | null>;
+  analyzeJobMatch: (jobId: string) => Promise<JobMatchAnalysis | null>;
+  submitApplication: (jobId: string, coverLetter: string) => Promise<boolean>;
+  processFeedback: (jobId: string, feedback: FeedbackData, result?: string) => Promise<boolean>;
+  learningPoints: string[];
 }
 
 const defaultPersonaContext: JobPersonaContextType = {
@@ -56,6 +74,9 @@ const defaultPersonaContext: JobPersonaContextType = {
   generateApplication: async () => null,
   simulateConversation: async () => null,
   analyzeJobMatch: async () => null,
+  submitApplication: async () => false,
+  processFeedback: async () => false,
+  learningPoints: [],
 };
 
 const JobPersonaContext = createContext<JobPersonaContextType>(defaultPersonaContext);
@@ -66,6 +87,7 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
   const [persona, setPersona] = useState<JobPersonaProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [learningPoints, setLearningPoints] = useState<string[]>([]);
 
   // Load persona on mount if it exists
   useEffect(() => {
@@ -178,7 +200,7 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const generateApplication = async (jobId: string): Promise<string | null> => {
+  const analyzeJobMatch = async (jobId: string): Promise<JobMatchAnalysis | null> => {
     if (!user || !persona) {
       toast({
         title: "Error",
@@ -189,93 +211,258 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // In a real implementation, this would call an AI function through Supabase Edge Function
-      // For now, we'll return a placeholder
-      const { data, error } = await supabase
+      // Fetch the job data first
+      const { data: jobData, error: jobError } = await supabase
         .from('jobs')
         .select('*')
         .eq('id', jobId)
         .single();
       
-      if (error) throw error;
-      
-      // Simulate a response for now
-      return `Dear Hiring Manager,\n\nI am writing to express my interest in the ${data.title} position at ${data.company}. With my experience in ${persona.skills.slice(0, 3).join(', ')}, I believe I would be a valuable addition to your team.\n\n[This is a placeholder. In the full implementation, this would be an AI-generated cover letter tailored to the job and the candidate's profile.]\n\nSincerely,\n${user.firstName} ${user.lastName}`;
-      
-    } catch (error) {
-      console.error("Error generating application:", error);
-      toast({
-        title: "Error",
-        description: "Failed to generate application. Please try again.",
-        variant: "destructive"
+      if (jobError) {
+        console.error("Error fetching job:", jobError);
+        throw new Error("Failed to fetch job details");
+      }
+
+      // Call the job-match-analysis edge function
+      const { data, error } = await supabase.functions.invoke('job-match-analysis', {
+        body: {
+          jobData,
+          personaData: persona
+        }
       });
-      return null;
-    }
-  };
 
-  const simulateConversation = async (jobId: string, question: string): Promise<string | null> => {
-    if (!user || !persona) {
-      toast({
-        title: "Error",
-        description: "You need to create a JobPersona first",
-        variant: "destructive"
-      });
-      return null;
-    }
-
-    try {
-      // In a real implementation, this would call an AI function
-      // For now, we'll return a placeholder
-      return "This is a simulated response from the JobPersona AI. In the full implementation, this would be an AI-generated response to the recruiter's question, based on the candidate's profile and the job requirements.";
+      if (error) {
+        console.error("Error analyzing job match:", error);
+        throw new Error(error.message || "Failed to analyze job match");
+      }
       
-    } catch (error) {
-      console.error("Error simulating conversation:", error);
-      toast({
-        title: "Error",
-        description: "Failed to simulate conversation. Please try again.",
-        variant: "destructive"
-      });
-      return null;
-    }
-  };
-
-  const analyzeJobMatch = async (jobId: string) => {
-    if (!user || !persona) {
-      toast({
-        title: "Error",
-        description: "You need to create a JobPersona first",
-        variant: "destructive"
-      });
-      return null;
-    }
-
-    try {
-      // In a real implementation, this would call an AI function
-      // For now, we'll return a placeholder
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('id', jobId)
-        .single();
+      return data as JobMatchAnalysis;
       
-      if (error) throw error;
-
-      // Simulate analysis for now
-      return {
-        score: Math.floor(Math.random() * 40) + 60, // Random score between 60 and 99
-        strengths: ["Relevant skills match", "Experience in similar roles", "Location preference match"],
-        weaknesses: ["Missing some technical skills", "Salary expectations may be high"],
-        recommendation: "This job appears to be a good match for your profile. Consider applying with a custom cover letter highlighting your relevant experience."
-      };
-      
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error analyzing job match:", error);
       toast({
         title: "Error",
-        description: "Failed to analyze job match. Please try again.",
+        description: error.message || "Failed to analyze job match. Please try again.",
         variant: "destructive"
       });
       return null;
+    }
+  };
+
+  const generateApplication = async (jobId: string, type = "cover_letter"): Promise<string | null> => {
+    if (!user || !persona) {
+      toast({
+        title: "Error",
+        description: "You need to create a JobPersona first",
+        variant: "destructive"
+      });
+      return null;
+    }
+
+    try {
+      // Fetch the job data
+      const { data: jobData, error: jobError } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('id', jobId)
+        .single();
+      
+      if (jobError) {
+        console.error("Error fetching job:", jobError);
+        throw new Error("Failed to fetch job details");
+      }
+
+      // Call the generate-application edge function
+      const { data, error } = await supabase.functions.invoke('generate-application', {
+        body: {
+          jobData,
+          personaData: persona,
+          applicationType: type
+        }
+      });
+
+      if (error) {
+        console.error("Error generating application:", error);
+        throw new Error(error.message || "Failed to generate application content");
+      }
+      
+      return data.content;
+      
+    } catch (error: any) {
+      console.error("Error generating application:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate application. Please try again.",
+        variant: "destructive"
+      });
+      return null;
+    }
+  };
+
+  const simulateConversation = async (
+    jobId: string, 
+    question: string,
+    history: Array<{role: string, content: string}> = []
+  ): Promise<string | null> => {
+    if (!user || !persona) {
+      toast({
+        title: "Error",
+        description: "You need to create a JobPersona first",
+        variant: "destructive"
+      });
+      return null;
+    }
+
+    try {
+      // Fetch the job data
+      const { data: jobData, error: jobError } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('id', jobId)
+        .single();
+      
+      if (jobError) {
+        console.error("Error fetching job:", jobError);
+        throw new Error("Failed to fetch job details");
+      }
+
+      // Call the simulate-conversation edge function
+      const { data, error } = await supabase.functions.invoke('simulate-conversation', {
+        body: {
+          jobData,
+          personaData: persona,
+          question,
+          conversationHistory: history
+        }
+      });
+
+      if (error) {
+        console.error("Error simulating conversation:", error);
+        throw new Error(error.message || "Failed to simulate conversation");
+      }
+      
+      return data.response;
+      
+    } catch (error: any) {
+      console.error("Error simulating conversation:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to simulate conversation. Please try again.",
+        variant: "destructive"
+      });
+      return null;
+    }
+  };
+
+  const submitApplication = async (jobId: string, coverLetter: string): Promise<boolean> => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be signed in to submit an application",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    try {
+      // Submit the application to the database
+      const { data, error } = await supabase
+        .from('applications')
+        .insert([{
+          job_id: jobId,
+          candidate_id: user.id,
+          cover_letter: coverLetter,
+          status: 'pending',
+          resume_url: user.resume_url || null
+        }])
+        .select();
+      
+      if (error) {
+        console.error("Error submitting application:", error);
+        throw new Error("Failed to submit application");
+      }
+      
+      toast({
+        title: "Success",
+        description: "Your application has been submitted successfully!",
+      });
+      
+      return true;
+    } catch (error: any) {
+      console.error("Error submitting application:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit application. Please try again.",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
+  const processFeedback = async (jobId: string, feedback: FeedbackData, result = "pending"): Promise<boolean> => {
+    if (!user || !persona) {
+      toast({
+        title: "Error",
+        description: "You need to create a JobPersona first",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    try {
+      // Fetch the job data
+      const { data: jobData, error: jobError } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('id', jobId)
+        .single();
+      
+      if (jobError) {
+        console.error("Error fetching job:", jobError);
+        throw new Error("Failed to fetch job details");
+      }
+
+      // Call the update-learning-profile edge function
+      const { data, error } = await supabase.functions.invoke('update-learning-profile', {
+        body: {
+          user_id: user.id,
+          jobData,
+          feedbackData: feedback,
+          applicationResult: result
+        }
+      });
+
+      if (error) {
+        console.error("Error processing feedback:", error);
+        throw new Error(error.message || "Failed to process feedback");
+      }
+      
+      // Refresh the persona data
+      const refreshedPersona = getJobPersona();
+      if (refreshedPersona) {
+        setPersona(refreshedPersona);
+      }
+      
+      // Update learning points from the response
+      if (data.learningPoints) {
+        setLearningPoints(data.learningPoints);
+      }
+      
+      toast({
+        title: "Success",
+        description: "Your JobPersona has learned from this feedback!",
+      });
+      
+      return true;
+      
+    } catch (error: any) {
+      console.error("Error processing feedback:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process feedback. Please try again.",
+        variant: "destructive"
+      });
+      return false;
     }
   };
 
@@ -289,7 +476,10 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
       updatePersona,
       generateApplication,
       simulateConversation,
-      analyzeJobMatch
+      analyzeJobMatch,
+      submitApplication,
+      processFeedback,
+      learningPoints
     }}>
       {children}
     </JobPersonaContext.Provider>
