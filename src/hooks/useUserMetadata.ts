@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/context/AuthContext';
@@ -8,8 +8,16 @@ import { useAuth } from '@/context/AuthContext';
  * Custom hook for managing Supabase user metadata
  */
 export function useUserMetadata() {
-  const { user, loading: isLoaded } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Set isLoaded based on authentication status
+  useEffect(() => {
+    if (!authLoading) {
+      setIsLoaded(true);
+    }
+  }, [authLoading]);
 
   /**
    * Update user metadata with automatic error handling

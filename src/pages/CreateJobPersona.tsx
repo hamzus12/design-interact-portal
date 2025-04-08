@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -12,10 +11,12 @@ import { LoadingButton } from '@/components/ui/loading-button';
 import { Separator } from '@/components/ui/separator';
 import { useJobPersona } from '@/context/JobPersonaContext';
 import { toast } from '@/components/ui/use-toast';
-import { Brain, CheckCircle, Cpu } from 'lucide-react';
+import { Brain, CheckCircle, Cpu, Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 const CreateJobPersona = () => {
   const { createPersona, isCreating } = useJobPersona();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   // Form state
@@ -28,8 +29,30 @@ const CreateJobPersona = () => {
   const [remote, setRemote] = useState(false);
   const [additionalInfo, setAdditionalInfo] = useState('');
 
+  // Check authentication state
+  useEffect(() => {
+    if (!authLoading && !user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to create a JobPersona",
+        variant: "destructive"
+      });
+      navigate('/signin');
+    }
+  }, [authLoading, user, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "You must be signed in to create a JobPersona",
+        variant: "destructive"
+      });
+      navigate('/signin');
+      return;
+    }
     
     try {
       // Validate form
@@ -69,6 +92,25 @@ const CreateJobPersona = () => {
       });
     }
   };
+
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="container mx-auto py-12 flex items-center justify-center">
+          <div className="flex flex-col items-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-lg">Loading...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Don't render the form if not authenticated
+  if (!user) {
+    return null;
+  }
 
   return (
     <Layout>

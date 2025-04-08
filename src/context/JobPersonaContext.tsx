@@ -1,9 +1,9 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useUserRole } from './UserContext';
 import { useUserMetadata } from '@/hooks/useUserMetadata';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
 interface JobPersonaProfile {
   skills: string[];
@@ -82,23 +82,33 @@ const defaultPersonaContext: JobPersonaContextType = {
 const JobPersonaContext = createContext<JobPersonaContextType>(defaultPersonaContext);
 
 export function JobPersonaProvider({ children }: { children: ReactNode }) {
-  const { user } = useUserRole();
+  const { user, loading: authLoading } = useAuth();
   const { updateMetadata, getJobPersona, hasJobPersona } = useUserMetadata();
   const [persona, setPersona] = useState<JobPersonaProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [learningPoints, setLearningPoints] = useState<string[]>([]);
 
-  // Load persona on mount if it exists
   useEffect(() => {
-    if (user) {
-      const existingPersona = getJobPersona();
-      if (existingPersona) {
-        setPersona(existingPersona);
+    const loadPersona = async () => {
+      try {
+        if (user) {
+          const existingPersona = getJobPersona();
+          if (existingPersona) {
+            setPersona(existingPersona);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading job persona:", error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
+    };
+
+    if (!authLoading) {
+      loadPersona();
     }
-  }, [user, getJobPersona]);
+  }, [user, getJobPersona, authLoading]);
 
   const createPersona = async (initialData: Partial<JobPersonaProfile>): Promise<boolean> => {
     if (!user) {
@@ -211,7 +221,6 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Fetch the job data first
       const { data: jobData, error: jobError } = await supabase
         .from('jobs')
         .select('*')
@@ -223,7 +232,6 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
         throw new Error("Failed to fetch job details");
       }
 
-      // Call the job-match-analysis edge function
       const { data, error } = await supabase.functions.invoke('job-match-analysis', {
         body: {
           jobData,
@@ -260,7 +268,6 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Fetch the job data
       const { data: jobData, error: jobError } = await supabase
         .from('jobs')
         .select('*')
@@ -272,7 +279,6 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
         throw new Error("Failed to fetch job details");
       }
 
-      // Call the generate-application edge function
       const { data, error } = await supabase.functions.invoke('generate-application', {
         body: {
           jobData,
@@ -314,7 +320,6 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Fetch the job data
       const { data: jobData, error: jobError } = await supabase
         .from('jobs')
         .select('*')
@@ -326,7 +331,6 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
         throw new Error("Failed to fetch job details");
       }
 
-      // Call the simulate-conversation edge function
       const { data, error } = await supabase.functions.invoke('simulate-conversation', {
         body: {
           jobData,
@@ -365,7 +369,6 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Submit the application to the database
       const { data, error } = await supabase
         .from('applications')
         .insert([{
@@ -373,7 +376,7 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
           candidate_id: user.id,
           cover_letter: coverLetter,
           status: 'pending',
-          resume_url: user.resumeUrl || null  // Fix: change resume_url to resumeUrl
+          resume_url: user.resumeUrl || null
         }])
         .select();
       
@@ -410,7 +413,6 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Fetch the job data
       const { data: jobData, error: jobError } = await supabase
         .from('jobs')
         .select('*')
@@ -422,7 +424,6 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
         throw new Error("Failed to fetch job details");
       }
 
-      // Call the update-learning-profile edge function
       const { data, error } = await supabase.functions.invoke('update-learning-profile', {
         body: {
           user_id: user.id,
@@ -437,13 +438,11 @@ export function JobPersonaProvider({ children }: { children: ReactNode }) {
         throw new Error(error.message || "Failed to process feedback");
       }
       
-      // Refresh the persona data
       const refreshedPersona = getJobPersona();
       if (refreshedPersona) {
         setPersona(refreshedPersona);
       }
       
-      // Update learning points from the response
       if (data.learningPoints) {
         setLearningPoints(data.learningPoints);
       }
