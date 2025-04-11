@@ -1,16 +1,16 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase, handleSupabaseError } from '@/integrations/supabase/client';
-import { useUserRole } from '@/context/UserContext';
+import { useAuth } from '@/context/AuthContext';
 import JobForm, { JobFormData } from '@/components/Jobs/JobForm';
 import { validateJobData } from '@/utils/jobValidation';
+import { jobService } from '@/services/JobService';
 
 const AddJob = () => {
-  const { user } = useUserRole();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -27,6 +27,18 @@ const AddJob = () => {
   });
 
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof JobFormData, string>>>({});
+
+  // Redirect to sign in if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      toast({
+        title: "Authentication Required",
+        description: "You must be logged in to post a job",
+        variant: "destructive"
+      });
+      navigate('/signin');
+    }
+  }, [authLoading, user, navigate, toast]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -76,6 +88,7 @@ const AddJob = () => {
         description: "You must be logged in to post a job",
         variant: "destructive"
       });
+      navigate('/signin');
       return;
     }
     
@@ -91,16 +104,7 @@ const AddJob = () => {
     try {
       setLoading(true);
       
-      console.log('Starting job submission process with user ID:', user.id);
-      
-      // First, check if this user already exists in our users table
-      const { data: existingUser, error: userLookupError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-        
-      console.log('User lookup result:', { existingUser, userLookupError });
+      console.log('Submitting job with data:', formData);
       
       // Build job payload
       const jobPayload = {
@@ -114,54 +118,14 @@ const AddJob = () => {
         is_active: true // Ensure job is active by default
       };
       
-      // Only add recruiter_id if we have a valid user in the database
-      if (existingUser?.id) {
-        console.log('Found existing user with database ID:', existingUser.id);
-        // @ts-ignore - Typescript might complain but this is valid
-        jobPayload.recruiter_id = existingUser.id;
-      } else {
-        console.log('No existing user found, creating user record first');
-        // Create a user record first
-        const { data: newUser, error: createUserError } = await supabase
-          .from('users')
-          .insert({
-            user_id: user.id,
-            email: user.email,
-            first_name: user.firstName,
-            last_name: user.lastName,
-            role: user.role
-          })
-          .select('id')
-          .single();
-          
-        if (createUserError) {
-          console.error('Error creating user record:', createUserError);
-          throw new Error(handleSupabaseError(createUserError, "Failed to create user record"));
-        }
-        
-        if (!newUser?.id) {
-          throw new Error('Failed to create user: No ID returned');
-        }
-        
-        console.log('Created new user with database ID:', newUser.id);
-        // @ts-ignore - Typescript might complain but this is valid
-        jobPayload.recruiter_id = newUser.id;
+      // Use the job service to create the job
+      const { data, error } = await jobService.createJob(jobPayload, user.id);
+      
+      if (error) {
+        throw new Error(error);
       }
       
-      console.log('Final job payload:', jobPayload);
-      
-      // Now create the job with the proper UUID from our users table  
-      const { data: jobData, error: jobError } = await supabase
-        .from('jobs')
-        .insert(jobPayload)
-        .select();
-      
-      if (jobError) {
-        console.error('Error creating job posting:', jobError);
-        throw new Error(handleSupabaseError(jobError, "Failed to create job posting"));
-      }
-      
-      console.log('Job posted successfully:', jobData);
+      console.log('Job posted successfully:', data);
       
       toast({
         title: "Success",
@@ -180,6 +144,24 @@ const AddJob = () => {
       setLoading(false);
     }
   };
+
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="container mx-auto py-12">
+          <div className="flex items-center justify-center">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Don't render the form if not authenticated
+  if (!user) {
+    return null;
+  }
 
   return (
     <Layout>

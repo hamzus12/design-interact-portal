@@ -5,6 +5,7 @@ import { Job } from '../models/job';
 import { toast } from '@/components/ui/use-toast';
 import { formatTimeAgo } from '@/utils/dateUtils';
 import { useUserRole } from '@/context/UserContext';
+import { useAuth } from '@/context/AuthContext';
 
 interface DatabaseContextType {
   jobs: Job[];
@@ -45,9 +46,14 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [error, setError] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<(number | string)[]>([]);
   const { user } = useUserRole();
+  const { user: authUser } = useAuth();
 
   // Transform job data from Supabase to our Job interface
   const transformJobData = useCallback((data: any[]): Job[] => {
+    if (!data || data.length === 0) return [];
+    
+    console.log('Transforming job data:', data);
+    
     return data.map((job, index) => ({
       id: job.id,
       title: job.title,
@@ -62,7 +68,8 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
       jobType: job.job_type,
       description: job.description,
       salaryRange: job.salary_range,
-      recruiterId: job.recruiter_id
+      recruiterId: job.recruiter_id,
+      isActive: job.is_active
     }));
   }, []);
 
@@ -71,6 +78,8 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
     try {
       setLoading(true);
       setError(null);
+      
+      console.log('Fetching all active jobs');
       
       const { data, error: supabaseError } = await supabase
         .from('jobs')
@@ -82,6 +91,7 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
         throw new Error(handleSupabaseError(supabaseError));
       }
       
+      console.log('Jobs fetched:', data?.length || 0);
       setJobs(transformJobData(data || []));
     } catch (err: any) {
       console.error('Error fetching jobs:', err);
@@ -96,6 +106,8 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
     try {
       setLoading(true);
       setError(null);
+      
+      console.log('Fetching jobs with filters:', filters);
       
       let query = supabase
         .from('jobs')
@@ -141,6 +153,7 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
         throw new Error(handleSupabaseError(supabaseError));
       }
       
+      console.log('Filtered jobs fetched:', data?.length || 0);
       setJobs(transformJobData(data || []));
     } catch (err: any) {
       console.error('Error fetching filtered jobs:', err);
@@ -153,7 +166,7 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
   // Load favorites from database or localStorage
   const loadFavorites = useCallback(async () => {
     try {
-      if (!user?.id) {
+      if (!authUser?.id) {
         // User is not logged in, use local storage
         const storedFavorites = localStorage.getItem('favorites');
         if (storedFavorites) {
@@ -162,14 +175,17 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
         return;
       }
       
+      console.log('Loading favorites for user:', authUser.id);
+      
       // User is logged in, load from database
       const { data, error } = await supabase
         .from('bookmarks')
         .select('job_id')
-        .eq('user_id', user.id);
+        .eq('user_id', authUser.id);
         
       if (error) throw new Error(handleSupabaseError(error));
       
+      console.log('Favorites loaded:', data.length);
       setFavorites(data.map(item => item.job_id));
     } catch (err: any) {
       console.error('Error loading favorites:', err);
@@ -179,12 +195,12 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
         variant: "destructive"
       });
     }
-  }, [user?.id]);
+  }, [authUser?.id]);
 
   // Toggle job favorite status
   const toggleFavorite = useCallback(async (jobId: number | string) => {
     try {
-      if (!user?.id) {
+      if (!authUser?.id) {
         // User is not logged in, use local storage
         const newFavorites = favorites.includes(jobId)
           ? favorites.filter(id => id !== jobId)
@@ -200,6 +216,8 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
         return;
       }
       
+      console.log(`Toggle favorite for job ID ${jobId} and user ID ${authUser.id}`);
+      
       // User is logged in, toggle in database
       if (favorites.includes(jobId)) {
         // Remove from favorites
@@ -207,7 +225,7 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
           .from('bookmarks')
           .delete()
           .eq('job_id', jobId)
-          .eq('user_id', user.id);
+          .eq('user_id', authUser.id);
           
         if (error) throw new Error(handleSupabaseError(error));
           
@@ -221,7 +239,7 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
         // Add to favorites
         const { error } = await supabase
           .from('bookmarks')
-          .insert({ job_id: jobId, user_id: user.id });
+          .insert({ job_id: jobId, user_id: authUser.id });
           
         if (error) throw new Error(handleSupabaseError(error));
           
@@ -240,7 +258,7 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
         variant: "destructive"
       });
     }
-  }, [favorites, user?.id]);
+  }, [favorites, authUser?.id]);
 
   // Initial fetch on mount
   useEffect(() => {
@@ -250,7 +268,7 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
   // Load favorites when user changes
   useEffect(() => {
     loadFavorites();
-  }, [loadFavorites, user?.id]);
+  }, [loadFavorites, authUser?.id]);
 
   // Use memoized value to prevent unnecessary re-renders
   const value = useMemo(() => ({

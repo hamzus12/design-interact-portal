@@ -1,11 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useUserRole } from './UserContext';
-import { useUserMetadata } from '@/hooks/useUserMetadata';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/components/ui/use-toast';
-import { useAuth } from '@/context/AuthContext';
 
-interface JobPersonaProfile {
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from '@/components/ui/use-toast';
+import { useUserMetadata } from '@/hooks/useUserMetadata';
+
+// Define the shape of a JobPersona
+export interface JobPersona {
   skills: string[];
   experience: string[];
   preferences: {
@@ -17,478 +18,212 @@ interface JobPersonaProfile {
     };
     remote: boolean;
   };
-  learningProfile: {
-    successfulApplications: string[];
-    rejectedApplications: string[];
-    feedback: Array<{
-      jobId: string;
-      message: string;
-      sentimentScore: number;
-      timestamp?: string;
-    }>;
-  };
-  lastUpdated: string;
 }
 
-interface JobMatchAnalysis {
-  score: number;
-  strengths: string[];
-  weaknesses: string[];
-  recommendation: string;
-  detailedAnalysis?: {
-    skillsMatch: number;
-    experienceMatch: number;
-    locationMatch: number;
-    salaryMatch: number;
-  };
-}
-
-interface FeedbackData {
-  message: string;
-  sentimentScore?: number;
-  suggestedSkills?: string[];
-}
-
+// Define the shape of the JobPersonaContext
 interface JobPersonaContextType {
-  persona: JobPersonaProfile | null;
+  persona: JobPersona | null;
   isLoading: boolean;
   isCreating: boolean;
-  hasPersona: boolean;
-  createPersona: (initialData: Partial<JobPersonaProfile>) => Promise<boolean>;
-  updatePersona: (updates: Partial<JobPersonaProfile>) => Promise<boolean>;
-  generateApplication: (jobId: string, type?: string) => Promise<string | null>;
-  simulateConversation: (jobId: string, question: string, history?: Array<{role: string, content: string}>) => Promise<string | null>;
-  analyzeJobMatch: (jobId: string) => Promise<JobMatchAnalysis | null>;
-  submitApplication: (jobId: string, coverLetter: string) => Promise<boolean>;
-  processFeedback: (jobId: string, feedback: FeedbackData, result?: string) => Promise<boolean>;
-  learningPoints: string[];
+  isUpdating: boolean;
+  error: string | null;
+  createPersona: (data: JobPersona) => Promise<boolean>;
+  updatePersona: (data: Partial<JobPersona>) => Promise<boolean>;
+  loadPersona: () => Promise<JobPersona | null>;
 }
 
-const defaultPersonaContext: JobPersonaContextType = {
-  persona: null,
-  isLoading: true,
-  isCreating: false,
-  hasPersona: false,
-  createPersona: async () => false,
-  updatePersona: async () => false,
-  generateApplication: async () => null,
-  simulateConversation: async () => null,
-  analyzeJobMatch: async () => null,
-  submitApplication: async () => false,
-  processFeedback: async () => false,
-  learningPoints: [],
+// Default JobPersona
+const defaultPersona: JobPersona = {
+  skills: [],
+  experience: [],
+  preferences: {
+    jobTypes: [],
+    locations: [],
+    salary: {
+      min: 0,
+      max: 0
+    },
+    remote: false
+  }
 };
 
-const JobPersonaContext = createContext<JobPersonaContextType>(defaultPersonaContext);
+// Create the context
+const JobPersonaContext = createContext<JobPersonaContextType | undefined>(undefined);
 
-export function JobPersonaProvider({ children }: { children: ReactNode }) {
+export const JobPersonaProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [persona, setPersona] = useState<JobPersona | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isCreating, setIsCreating] = useState<boolean>(false);
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  
   const { user, loading: authLoading } = useAuth();
-  const { updateMetadata, getJobPersona, hasJobPersona } = useUserMetadata();
-  const [persona, setPersona] = useState<JobPersonaProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
-  const [learningPoints, setLearningPoints] = useState<string[]>([]);
-
-  useEffect(() => {
-    const loadPersona = async () => {
-      try {
-        if (user) {
-          const existingPersona = getJobPersona();
-          if (existingPersona) {
-            setPersona(existingPersona);
-          }
-        }
-      } catch (error) {
-        console.error("Error loading job persona:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (!authLoading) {
-      loadPersona();
-    }
-  }, [user, getJobPersona, authLoading]);
-
-  const createPersona = async (initialData: Partial<JobPersonaProfile>): Promise<boolean> => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "You must be signed in to create a JobPersona",
-        variant: "destructive"
-      });
-      return false;
-    }
-
+  const { updateMetadata, getMetadata } = useUserMetadata();
+  
+  // Load the user's JobPersona from Supabase Auth metadata
+  const loadPersona = useCallback(async (): Promise<JobPersona | null> => {
     try {
-      setIsCreating(true);
+      setIsLoading(true);
+      setError(null);
       
-      const newPersona: JobPersonaProfile = {
-        skills: initialData.skills || [],
-        experience: initialData.experience || [],
-        preferences: initialData.preferences || {
-          jobTypes: [],
-          locations: [],
-          salary: { min: 0, max: 0 },
-          remote: false
-        },
-        learningProfile: {
-          successfulApplications: [],
-          rejectedApplications: [],
-          feedback: []
-        },
-        lastUpdated: new Date().toISOString()
-      };
-
-      const result = await updateMetadata({
-        job_persona: newPersona,
+      if (!user) {
+        setPersona(null);
+        return null;
+      }
+      
+      const storedPersona = getMetadata('job_persona', null);
+      
+      if (storedPersona) {
+        setPersona(storedPersona);
+        return storedPersona;
+      } else {
+        setPersona(null);
+        return null;
+      }
+    } catch (err: any) {
+      console.error('Error loading JobPersona:', err);
+      setError(err.message || 'Failed to load JobPersona');
+      setPersona(null);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, getMetadata]);
+  
+  // Create a new JobPersona
+  const createPersona = useCallback(async (data: JobPersona): Promise<boolean> => {
+    try {
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "You must be logged in to create a JobPersona",
+          variant: "destructive"
+        });
+        return false;
+      }
+      
+      setIsCreating(true);
+      setError(null);
+      
+      // Save the JobPersona to user metadata
+      const { success } = await updateMetadata({
+        job_persona: data,
         has_job_persona: true
       }, {
-        successMessage: "JobPersona AI created successfully!"
+        showSuccessToast: true,
+        successMessage: "JobPersona created successfully!"
       });
-
-      if (result.success) {
-        setPersona(newPersona);
-        return true;
-      }
       
-      return false;
-    } catch (error) {
-      console.error("Error creating JobPersona:", error);
+      if (!success) throw new Error("Failed to save JobPersona to user metadata");
+      
+      setPersona(data);
+      return true;
+    } catch (err: any) {
+      console.error('Error creating JobPersona:', err);
+      setError(err.message || 'Failed to create JobPersona');
+      
       toast({
         title: "Error",
-        description: "Failed to create JobPersona. Please try again.",
+        description: err.message || "Failed to create JobPersona",
         variant: "destructive"
       });
+      
       return false;
     } finally {
       setIsCreating(false);
     }
-  };
-
-  const updatePersona = async (updates: Partial<JobPersonaProfile>): Promise<boolean> => {
-    if (!user || !persona) {
-      toast({
-        title: "Error",
-        description: "No JobPersona found to update",
-        variant: "destructive"
-      });
-      return false;
-    }
-
+  }, [user, updateMetadata]);
+  
+  // Update an existing JobPersona
+  const updatePersona = useCallback(async (data: Partial<JobPersona>): Promise<boolean> => {
     try {
-      setIsCreating(true);
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "You must be logged in to update your JobPersona",
+          variant: "destructive"
+        });
+        return false;
+      }
       
+      if (!persona) {
+        toast({
+          title: "JobPersona Not Found",
+          description: "You need to create a JobPersona first",
+          variant: "destructive"
+        });
+        return false;
+      }
+      
+      setIsUpdating(true);
+      setError(null);
+      
+      // Merge the current persona with the updated data
       const updatedPersona = {
         ...persona,
-        ...updates,
-        lastUpdated: new Date().toISOString()
+        ...data,
+        preferences: {
+          ...persona.preferences,
+          ...(data.preferences || {})
+        }
       };
-
-      const result = await updateMetadata({
+      
+      // Save the updated JobPersona to user metadata
+      const { success } = await updateMetadata({
         job_persona: updatedPersona
       }, {
+        showSuccessToast: true,
         successMessage: "JobPersona updated successfully!"
       });
-
-      if (result.success) {
-        setPersona(updatedPersona);
-        return true;
-      }
       
-      return false;
-    } catch (error) {
-      console.error("Error updating JobPersona:", error);
+      if (!success) throw new Error("Failed to update JobPersona");
+      
+      setPersona(updatedPersona);
+      return true;
+    } catch (err: any) {
+      console.error('Error updating JobPersona:', err);
+      setError(err.message || 'Failed to update JobPersona');
+      
       toast({
         title: "Error",
-        description: "Failed to update JobPersona. Please try again.",
+        description: err.message || "Failed to update JobPersona",
         variant: "destructive"
       });
+      
       return false;
     } finally {
-      setIsCreating(false);
+      setIsUpdating(false);
     }
-  };
+  }, [user, persona, updateMetadata]);
 
-  const analyzeJobMatch = async (jobId: string): Promise<JobMatchAnalysis | null> => {
-    if (!user || !persona) {
-      toast({
-        title: "Error",
-        description: "You need to create a JobPersona first",
-        variant: "destructive"
-      });
-      return null;
+  // Initialize on mount and whenever auth status changes
+  React.useEffect(() => {
+    if (!authLoading) {
+      loadPersona().catch(console.error);
     }
-
-    try {
-      const { data: jobData, error: jobError } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('id', jobId)
-        .single();
-      
-      if (jobError) {
-        console.error("Error fetching job:", jobError);
-        throw new Error("Failed to fetch job details");
-      }
-
-      const { data, error } = await supabase.functions.invoke('job-match-analysis', {
-        body: {
-          jobData,
-          personaData: persona
-        }
-      });
-
-      if (error) {
-        console.error("Error analyzing job match:", error);
-        throw new Error(error.message || "Failed to analyze job match");
-      }
-      
-      return data as JobMatchAnalysis;
-      
-    } catch (error: any) {
-      console.error("Error analyzing job match:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to analyze job match. Please try again.",
-        variant: "destructive"
-      });
-      return null;
-    }
-  };
-
-  const generateApplication = async (jobId: string, type = "cover_letter"): Promise<string | null> => {
-    if (!user || !persona) {
-      toast({
-        title: "Error",
-        description: "You need to create a JobPersona first",
-        variant: "destructive"
-      });
-      return null;
-    }
-
-    try {
-      const { data: jobData, error: jobError } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('id', jobId)
-        .single();
-      
-      if (jobError) {
-        console.error("Error fetching job:", jobError);
-        throw new Error("Failed to fetch job details");
-      }
-
-      const { data, error } = await supabase.functions.invoke('generate-application', {
-        body: {
-          jobData,
-          personaData: persona,
-          applicationType: type
-        }
-      });
-
-      if (error) {
-        console.error("Error generating application:", error);
-        throw new Error(error.message || "Failed to generate application content");
-      }
-      
-      return data.content;
-      
-    } catch (error: any) {
-      console.error("Error generating application:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to generate application. Please try again.",
-        variant: "destructive"
-      });
-      return null;
-    }
-  };
-
-  const simulateConversation = async (
-    jobId: string, 
-    question: string,
-    history: Array<{role: string, content: string}> = []
-  ): Promise<string | null> => {
-    if (!user || !persona) {
-      toast({
-        title: "Error",
-        description: "You need to create a JobPersona first",
-        variant: "destructive"
-      });
-      return null;
-    }
-
-    try {
-      const { data: jobData, error: jobError } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('id', jobId)
-        .single();
-      
-      if (jobError) {
-        console.error("Error fetching job:", jobError);
-        throw new Error("Failed to fetch job details");
-      }
-
-      const { data, error } = await supabase.functions.invoke('simulate-conversation', {
-        body: {
-          jobData,
-          personaData: persona,
-          question,
-          conversationHistory: history
-        }
-      });
-
-      if (error) {
-        console.error("Error simulating conversation:", error);
-        throw new Error(error.message || "Failed to simulate conversation");
-      }
-      
-      return data.response;
-      
-    } catch (error: any) {
-      console.error("Error simulating conversation:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to simulate conversation. Please try again.",
-        variant: "destructive"
-      });
-      return null;
-    }
-  };
-
-  const submitApplication = async (jobId: string, coverLetter: string): Promise<boolean> => {
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "You must be signed in to submit an application",
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('applications')
-        .insert([{
-          job_id: jobId,
-          candidate_id: user.id,
-          cover_letter: coverLetter,
-          status: 'pending',
-          resume_url: user.resumeUrl || null
-        }])
-        .select();
-      
-      if (error) {
-        console.error("Error submitting application:", error);
-        throw new Error("Failed to submit application");
-      }
-      
-      toast({
-        title: "Success",
-        description: "Your application has been submitted successfully!",
-      });
-      
-      return true;
-    } catch (error: any) {
-      console.error("Error submitting application:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to submit application. Please try again.",
-        variant: "destructive"
-      });
-      return false;
-    }
-  };
-
-  const processFeedback = async (jobId: string, feedback: FeedbackData, result = "pending"): Promise<boolean> => {
-    if (!user || !persona) {
-      toast({
-        title: "Error",
-        description: "You need to create a JobPersona first",
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    try {
-      const { data: jobData, error: jobError } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('id', jobId)
-        .single();
-      
-      if (jobError) {
-        console.error("Error fetching job:", jobError);
-        throw new Error("Failed to fetch job details");
-      }
-
-      const { data, error } = await supabase.functions.invoke('update-learning-profile', {
-        body: {
-          user_id: user.id,
-          jobData,
-          feedbackData: feedback,
-          applicationResult: result
-        }
-      });
-
-      if (error) {
-        console.error("Error processing feedback:", error);
-        throw new Error(error.message || "Failed to process feedback");
-      }
-      
-      const refreshedPersona = getJobPersona();
-      if (refreshedPersona) {
-        setPersona(refreshedPersona);
-      }
-      
-      if (data.learningPoints) {
-        setLearningPoints(data.learningPoints);
-      }
-      
-      toast({
-        title: "Success",
-        description: "Your JobPersona has learned from this feedback!",
-      });
-      
-      return true;
-      
-    } catch (error: any) {
-      console.error("Error processing feedback:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to process feedback. Please try again.",
-        variant: "destructive"
-      });
-      return false;
-    }
-  };
+  }, [authLoading, loadPersona]);
 
   return (
     <JobPersonaContext.Provider value={{
       persona,
       isLoading,
       isCreating,
-      hasPersona: hasJobPersona(),
+      isUpdating,
+      error,
       createPersona,
       updatePersona,
-      generateApplication,
-      simulateConversation,
-      analyzeJobMatch,
-      submitApplication,
-      processFeedback,
-      learningPoints
+      loadPersona
     }}>
       {children}
     </JobPersonaContext.Provider>
   );
-}
+};
 
+// Hook to use the JobPersona context
 export const useJobPersona = () => {
   const context = useContext(JobPersonaContext);
   if (context === undefined) {
-    throw new Error("useJobPersona must be used within a JobPersonaProvider");
+    throw new Error('useJobPersona must be used within a JobPersonaProvider');
   }
   return context;
 };

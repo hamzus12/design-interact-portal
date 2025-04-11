@@ -1,6 +1,6 @@
-
 import { supabase, handleSupabaseError } from '@/integrations/supabase/client';
 import { Job } from '@/models/job';
+import { toast } from '@/components/ui/use-toast';
 
 export interface CreateJobData {
   title: string;
@@ -32,6 +32,7 @@ class JobService {
    */
   async getJobs(filters?: JobFilter) {
     try {
+      console.log('Fetching jobs with filters:', filters);
       let query = supabase
         .from('jobs')
         .select('*');
@@ -88,6 +89,7 @@ class JobService {
         throw new Error(handleSupabaseError(error));
       }
       
+      console.log('Jobs fetched successfully:', data?.length || 0);
       return { data, error: null };
     } catch (err: any) {
       console.error('Error fetching jobs:', err);
@@ -100,6 +102,7 @@ class JobService {
    */
   async getJobById(id: string | number) {
     try {
+      console.log(`Fetching job with ID ${id}`);
       const { data, error } = await supabase
         .from('jobs')
         .select('*, users(first_name, last_name, email)')
@@ -110,6 +113,7 @@ class JobService {
         throw new Error(handleSupabaseError(error));
       }
       
+      console.log('Job fetched successfully:', data);
       return { data, error: null };
     } catch (err: any) {
       console.error(`Error fetching job with ID ${id}:`, err);
@@ -122,7 +126,9 @@ class JobService {
    */
   async createJob(jobData: CreateJobData, userId: string) {
     try {
-      // First, find the database user ID for the given Clerk user ID
+      console.log('Creating new job with data:', { ...jobData, userId });
+      
+      // First, find the database user ID for the given user ID
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('id')
@@ -134,6 +140,7 @@ class JobService {
       }
       
       if (!userData) {
+        console.log('User not found, creating user record first');
         // User not found, create user record first
         const { data: newUser, error: createUserError } = await supabase
           .from('users')
@@ -149,9 +156,11 @@ class JobService {
           throw new Error(handleSupabaseError(createUserError, "Failed to create user record"));
         }
         
+        console.log('Created new user with ID:', newUser?.id);
         // Set the recruiter_id to the newly created user
         jobData.recruiter_id = newUser.id;
       } else {
+        console.log('Found existing user with ID:', userData.id);
         // Set the recruiter_id to the existing user
         jobData.recruiter_id = userData.id;
       }
@@ -171,9 +180,20 @@ class JobService {
         throw new Error(handleSupabaseError(error));
       }
       
+      console.log('Job created successfully:', data);
+      toast({
+        title: "Success",
+        description: "Job created successfully!",
+      });
+      
       return { data, error: null };
     } catch (err: any) {
       console.error('Error creating job:', err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to create job",
+        variant: "destructive"
+      });
       return { data: null, error: err.message };
     }
   }
