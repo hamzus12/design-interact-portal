@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { supabase, handleSupabaseError } from '@/integrations/supabase/client';
 import { Job } from '../models/job';
@@ -15,6 +14,8 @@ interface DatabaseContextType {
   fetchJobsByFilters: (filters: JobFilters) => Promise<void>;
   toggleFavorite: (jobId: number | string) => Promise<void>;
   favorites: (number | string)[];
+  getJobById: (id: string) => Promise<Job | null>;
+  submitApplication: (jobId: string | number) => Promise<void>;
 }
 
 export interface JobFilters {
@@ -260,6 +261,73 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   }, [favorites, authUser?.id]);
 
+  // Get job by ID
+  const getJobById = useCallback(async (id: string): Promise<Job | null> => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log(`Fetching job with ID ${id}`);
+      
+      const { data, error: supabaseError } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (supabaseError) {
+        throw new Error(handleSupabaseError(supabaseError));
+      }
+      
+      if (!data) {
+        console.log('Job not found');
+        return null;
+      }
+      
+      console.log('Job fetched:', data);
+      const transformedJob = transformJobData([data])[0];
+      return transformedJob;
+    } catch (err: any) {
+      console.error(`Error fetching job with ID ${id}:`, err);
+      setError(err.message || 'Failed to fetch job details.');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [transformJobData]);
+
+  // Submit job application
+  const submitApplication = useCallback(async (jobId: string | number): Promise<void> => {
+    try {
+      if (!authUser?.id) {
+        throw new Error('You must be logged in to apply for jobs.');
+      }
+      
+      console.log(`Submitting application for job ID ${jobId}`);
+      
+      const { error: supabaseError } = await supabase
+        .from('applications')
+        .insert({
+          job_id: jobId,
+          candidate_id: authUser.id,
+          status: 'pending'
+        });
+      
+      if (supabaseError) {
+        throw new Error(handleSupabaseError(supabaseError));
+      }
+      
+      console.log('Application submitted successfully');
+      toast({
+        title: "Application Submitted",
+        description: "Your application has been successfully submitted."
+      });
+    } catch (err: any) {
+      console.error('Error submitting application:', err);
+      throw new Error(err.message || 'Failed to submit application.');
+    }
+  }, [authUser?.id]);
+
   // Initial fetch on mount
   useEffect(() => {
     fetchJobs();
@@ -278,8 +346,10 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
     fetchJobs,
     fetchJobsByFilters,
     toggleFavorite,
-    favorites
-  }), [jobs, loading, error, fetchJobs, fetchJobsByFilters, toggleFavorite, favorites]);
+    favorites,
+    getJobById,
+    submitApplication
+  }), [jobs, loading, error, fetchJobs, fetchJobsByFilters, toggleFavorite, favorites, getJobById, submitApplication]);
 
   return (
     <DatabaseContext.Provider value={value}>
