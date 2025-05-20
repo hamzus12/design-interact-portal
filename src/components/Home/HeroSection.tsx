@@ -23,7 +23,7 @@ const HeroSection: React.FC = () => {
   };
 
   return (
-    <div className="relative bg-navy pb-10 text-white">
+    <div className="relative bg-gradient-to-r from-blue-600 to-primary pb-10 text-white">
       {/* Background image with overlay */}
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-20"
@@ -36,52 +36,52 @@ const HeroSection: React.FC = () => {
       <div className="container relative mx-auto px-4 py-20">
         <div className="mx-auto max-w-4xl text-center">
           <h3 className="mb-4 text-lg font-medium animate-fade-in">
-            Find Jobs, Employment & Career Opportunities
+            Trouvez des Emplois, Opportunités de Carrière
           </h3>
           
           <h1 className="mb-6 text-4xl font-bold leading-tight sm:text-5xl md:text-6xl animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            Drop Resume & Get <br /> Your Desire Job!
+            Déposez Votre CV & <br /> Trouvez Votre Job Idéal!
           </h1>
           
           {/* Search Box */}
           <div className="mt-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            <form onSubmit={handleSearch} className="mx-auto max-w-3xl overflow-hidden rounded-md bg-white shadow-lg">
+            <form onSubmit={handleSearch} className="mx-auto max-w-3xl overflow-hidden rounded-xl bg-white shadow-lg">
               <div className="grid grid-cols-1 md:grid-cols-7">
                 {/* Keyword Search */}
                 <div className="col-span-3 p-4">
                   <label htmlFor="keyword" className="mb-1 block text-left text-sm font-medium text-gray-700">
-                    Keyword:
+                    Mot-clé:
                   </label>
                   <input
                     type="text"
                     id="keyword"
-                    placeholder="Job Title"
+                    placeholder="Titre du poste"
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-red focus:outline-none"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-primary focus:outline-none"
                   />
                 </div>
                 
                 {/* Location Search */}
                 <div className="col-span-3 border-t md:border-l md:border-t-0 p-4">
                   <label htmlFor="location" className="mb-1 block text-left text-sm font-medium text-gray-700">
-                    Location:
+                    Lieu:
                   </label>
                   <input
                     type="text"
                     id="location"
-                    placeholder="City or State"
+                    placeholder="Ville ou Région"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-red focus:outline-none"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 focus:border-primary focus:outline-none"
                   />
                 </div>
                 
                 {/* Search Button */}
                 <div className="col-span-1 flex items-end p-4">
-                  <Button type="submit" className="w-full bg-red-600 text-white hover:bg-red-700">
+                  <Button type="submit" className="w-full bg-primary text-white hover:bg-primary/90">
                     <Search className="mr-2 h-4 w-4" />
-                    <span className="hidden sm:inline">FIND A JOB</span>
+                    <span className="hidden sm:inline">RECHERCHER</span>
                   </Button>
                 </div>
               </div>
@@ -91,12 +91,12 @@ const HeroSection: React.FC = () => {
           {/* Trending Keywords */}
           <div className="mt-8 text-sm animate-fade-in" style={{ animationDelay: '0.3s' }}>
             <p className="text-white/80">
-              Trending Keywords: 
+              Recherches populaires: 
               <span className="ml-2 space-x-2">
-                <a href="#" className="text-white underline decoration-dotted hover:text-red-600">Automotive</a>,
-                <a href="#" className="text-white underline decoration-dotted hover:text-red-600">Education</a>,
-                <a href="#" className="text-white underline decoration-dotted hover:text-red-600">Health</a> and
-                <a href="#" className="text-white underline decoration-dotted hover:text-red-600">Care Engineering</a>
+                <a href="#" className="text-white underline decoration-dotted hover:text-primary-foreground">Informatique</a>,
+                <a href="#" className="text-white underline decoration-dotted hover:text-primary-foreground">Éducation</a>,
+                <a href="#" className="text-white underline decoration-dotted hover:text-primary-foreground">Santé</a> et
+                <a href="#" className="text-white underline decoration-dotted hover:text-primary-foreground">Ingénierie</a>
               </span>
             </p>
           </div>

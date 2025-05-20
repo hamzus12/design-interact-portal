@@ -5,10 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { useDatabase } from '@/context/DatabaseContext';
 import { Button } from '@/components/ui/button';
+import { useLanguage } from '@/context/LanguageContext';
+import JobCard from '@/components/Jobs/JobCard';
 
 const JobsSection: React.FC = () => {
   const { jobs, loading, favorites, toggleFavorite, fetchJobs } = useDatabase();
   const [displayedJobs, setDisplayedJobs] = useState([]);
+  const { language } = useLanguage();
 
   useEffect(() => {
     // Fetch jobs when component mounts
@@ -20,16 +23,46 @@ const JobsSection: React.FC = () => {
     setDisplayedJobs(jobs.slice(0, 6));
   }, [jobs]);
 
+  // Translations based on selected language
+  const sectionTitle = {
+    'en': 'Jobs You May Be Interested In',
+    'fr': 'Emplois Qui Pourraient Vous Intéresser',
+    'ar': 'وظائف قد تهمك'
+  }[language] || 'Jobs You May Be Interested In';
+
+  const sectionSubtitle = {
+    'en': 'Explore our curated selection of job openings across various industries and locations.',
+    'fr': 'Explorez notre sélection d\'offres d\'emploi dans différentes industries et localisations.',
+    'ar': 'استكشف مجموعة مختارة من فرص العمل عبر مختلف الصناعات والمواقع.'
+  }[language] || 'Explore our curated selection of job openings across various industries and locations.';
+
+  const browseBtnText = {
+    'en': 'Browse All Jobs',
+    'fr': 'Parcourir Tous les Emplois',
+    'ar': 'تصفح جميع الوظائف'
+  }[language] || 'Browse All Jobs';
+
+  const noJobsText = {
+    'en': 'No jobs available',
+    'fr': 'Aucun emploi disponible',
+    'ar': 'لا توجد وظائف متاحة'
+  }[language] || 'No jobs available';
+
+  const checkBackText = {
+    'en': 'Check back soon for new opportunities.',
+    'fr': 'Revenez bientôt pour de nouvelles opportunités.',
+    'ar': 'تحقق قريبًا للحصول على فرص جديدة.'
+  }[language] || 'Check back soon for new opportunities.';
+
   return (
-    <section className="bg-gray-50 py-20 dark:bg-gray-900">
+    <section className="py-20 bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-900">
       <div className="container mx-auto px-4">
         <div className="mx-auto mb-12 max-w-xl text-center">
           <h2 className="mb-4 text-3xl font-bold text-gray-900 sm:text-4xl animate-fade-in dark:text-white">
-            Jobs You May Be Interested In
+            {sectionTitle}
           </h2>
           <p className="text-gray-600 animate-fade-in dark:text-gray-300" style={{ animationDelay: '0.1s' }}>
-            Explore our curated selection of job openings across various industries and locations.
-            Find opportunities that match your skills and career aspirations.
+            {sectionSubtitle}
           </p>
         </div>
 
@@ -42,76 +75,20 @@ const JobsSection: React.FC = () => {
             displayedJobs.map((job, index) => (
               <div
                 key={job.id}
-                className="job-card overflow-hidden rounded-lg border border-gray-100 bg-white transition-all hover:border-red dark:bg-gray-800 dark:border-gray-700 animate-fade-in"
+                className="animate-fade-in"
                 style={{ animationDelay: `${0.1 + index * 0.05}s` }}
               >
-                <div className="bg-red-50 p-4 dark:bg-gray-800">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center">
-                      <div className={`mr-3 flex h-10 w-10 items-center justify-center rounded-full ${job.logoColor} text-white`}>
-                        {job.companyLogo}
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900 dark:text-white">
-                          <Link to={`/job/${job.id}`} className="hover:text-red transition-colors">
-                            {job.title}
-                          </Link>
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">via {job.company}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => toggleFavorite(job.id)}
-                      className="rounded-full p-1 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700"
-                      aria-label={favorites.includes(job.id) ? "Remove from favorites" : "Add to favorites"}
-                    >
-                      <Heart
-                        className={`h-5 w-5 ${
-                          favorites.includes(job.id) ? 'fill-red text-red' : 'text-gray-400'
-                        } transition-colors`}
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-4">
-                  {job.jobType && (
-                    <div className="mb-3">
-                      <Badge variant="outline" className="border-red text-red dark:border-red/70 dark:text-red/90">
-                        {job.jobType}
-                      </Badge>
-                    </div>
-                  )}
-                  
-                  <div className="mb-3 flex items-center text-sm text-gray-600 dark:text-gray-400">
-                    <MapPin className="mr-1 h-4 w-4 text-gray-400" />
-                    {job.location}
-                  </div>
-                  
-                  <div className="mb-3 flex items-center text-sm text-gray-600 dark:text-gray-400">
-                    <Building className="mr-1 h-4 w-4 text-gray-400" />
-                    {job.category}
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      <Badge variant="secondary" className="font-normal dark:bg-gray-700 dark:text-gray-300">
-                        {job.type}
-                      </Badge>
-                    </div>
-                    
-                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                      <Clock className="mr-1 h-4 w-4 text-gray-400" />
-                      {job.timeAgo}
-                    </div>
-                  </div>
-                </div>
+                <JobCard 
+                  job={job} 
+                  isFavorite={favorites.includes(job.id)}
+                  onToggleFavorite={toggleFavorite}
+                />
               </div>
             ))
           ) : (
             <div className="col-span-3 flex h-40 flex-col items-center justify-center space-y-2 rounded-lg bg-white p-8 text-center shadow dark:bg-gray-800">
-              <h3 className="text-lg font-semibold dark:text-white">No jobs available</h3>
-              <p className="text-gray-500 dark:text-gray-400">Check back soon for new opportunities.</p>
+              <h3 className="text-lg font-semibold dark:text-white">{noJobsText}</h3>
+              <p className="text-gray-500 dark:text-gray-400">{checkBackText}</p>
             </div>
           )}
         </div>
@@ -119,10 +96,10 @@ const JobsSection: React.FC = () => {
         <div className="mt-12 text-center">
           <Link
             to="/jobs"
-            className="inline-block rounded-md border border-red bg-white px-6 py-3 font-medium text-red transition-colors hover:bg-red hover:text-white animate-fade-in dark:bg-gray-800 dark:border-red/70 dark:hover:bg-red/90"
+            className="inline-block rounded-md bg-primary px-6 py-3 font-medium text-white transition-colors hover:bg-primary/90 animate-fade-in"
             style={{ animationDelay: '0.4s' }}
           >
-            Browse All Jobs
+            {browseBtnText}
           </Link>
         </div>
       </div>

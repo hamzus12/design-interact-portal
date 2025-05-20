@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -28,6 +27,7 @@ const EditJob = lazy(() => import("./pages/EditJob"));
 const Candidates = lazy(() => import("./pages/Candidates"));
 const About = lazy(() => import("./pages/About"));
 const Blog = lazy(() => import("./pages/Blog"));
+const Chat = lazy(() => import("./pages/Chat"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Profile = lazy(() => import("./pages/Profile"));
@@ -118,6 +118,28 @@ const AppRoutes = () => (
     
     {/* Add Verification routes */}
     <Route path="/signup/verify-email-address" element={<VerifyEmail />} />
+    
+    {/* Add Chat route */}
+    <Route 
+      path="/chat" 
+      element={
+        <ProtectedRoute>
+          <Suspense fallback={<PageLoader />}>
+            <Chat />
+          </Suspense>
+        </ProtectedRoute>
+      } 
+    />
+    <Route 
+      path="/chat/:id" 
+      element={
+        <ProtectedRoute>
+          <Suspense fallback={<PageLoader />}>
+            <Chat />
+          </Suspense>
+        </ProtectedRoute>
+      } 
+    />
     
     {/* Protected routes for all authenticated users */}
     <Route 
