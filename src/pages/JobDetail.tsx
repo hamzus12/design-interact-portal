@@ -76,10 +76,10 @@ const JobDetail: React.FC = () => {
       return;
     }
 
-    if (role === 'recruiter' || role === 'admin') {
+    if (role !== 'candidate') {
       toast({
         title: "Action not allowed",
-        description: "Recruiters cannot apply for jobs.",
+        description: "Only candidates can apply for jobs.",
         variant: "destructive",
       });
       return;
@@ -115,10 +115,10 @@ const JobDetail: React.FC = () => {
       return;
     }
 
-    if (role === 'recruiter' || role === 'admin') {
+    if (role !== 'candidate') {
       toast({
         title: "Action not allowed",
-        description: "Recruiters cannot contact other recruiters for job applications.",
+        description: "Only candidates can contact recruiters for job applications.",
         variant: "destructive",
       });
       return;
@@ -126,7 +126,7 @@ const JobDetail: React.FC = () => {
 
     try {
       // Check if job has a recruiter_id
-      if (!job.recruiter_id) {
+      if (!job.recruiterId) {
         toast({
           title: "Contact Not Available",
           description: "The recruiter contact information is not available for this job.",
@@ -139,7 +139,7 @@ const JobDetail: React.FC = () => {
       const conversation = await chatService.createConversation(
         job.id, 
         user.id, 
-        job.recruiter_id
+        job.recruiterId
       );
       
       // Navigate to the conversation
@@ -199,26 +199,26 @@ const JobDetail: React.FC = () => {
         <div className="mb-8 rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
           <div className="md:flex md:items-start md:justify-between">
             <div className="md:flex md:items-start md:space-x-6">
-              <div className={`flex h-16 w-16 items-center justify-center rounded-lg ${job.logoColor || 'bg-primary'} text-white`}>
-                {job.companyLogo || job.company.charAt(0).toUpperCase()}
+              <div className={`flex h-16 w-16 items-center justify-center rounded-lg ${job?.logoColor || 'bg-primary'} text-white`}>
+                {job?.companyLogo || job?.company?.charAt(0).toUpperCase()}
               </div>
               
               <div>
-                <h1 className="mt-4 text-2xl font-bold md:mt-0">{job.title}</h1>
+                <h1 className="mt-4 text-2xl font-bold md:mt-0">{job?.title}</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-3">
                   <div className="flex items-center text-gray-600 dark:text-gray-300">
                     <Building className="mr-1 h-4 w-4" />
-                    {job.company}
+                    {job?.company}
                   </div>
                   
                   <div className="flex items-center text-gray-600 dark:text-gray-300">
                     <MapPin className="mr-1 h-4 w-4" />
-                    {job.location}
+                    {job?.location}
                   </div>
                   
                   <div className="flex items-center text-gray-600 dark:text-gray-300">
                     <Clock className="mr-1 h-4 w-4" />
-                    {job.timeAgo}
+                    {job?.timeAgo}
                   </div>
                 </div>
               </div>
@@ -248,16 +248,16 @@ const JobDetail: React.FC = () => {
           <div className="mt-6">
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
-                {job.jobType || job.type}
+                {job?.jobType || job?.type}
               </Badge>
               
               <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300">
-                {job.category}
+                {job?.category}
               </Badge>
               
-              {job.salary_range && (
+              {job?.salaryRange && (
                 <Badge variant="outline" className="bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300">
-                  {job.salary_range}
+                  {job?.salaryRange}
                 </Badge>
               )}
             </div>
@@ -265,7 +265,7 @@ const JobDetail: React.FC = () => {
             <div className="mt-6 flex flex-wrap gap-4">
               <Button 
                 onClick={handleApplyClick}
-                disabled={applying || (role === 'recruiter' || role === 'admin')}
+                disabled={applying || role !== 'candidate'}
                 className="bg-primary hover:bg-primary/90"
               >
                 {applying ? "Submitting..." : "Apply Now"}
@@ -274,7 +274,7 @@ const JobDetail: React.FC = () => {
               <Button 
                 variant="outline" 
                 onClick={handleContactRecruiter}
-                disabled={role === 'recruiter' || role === 'admin'}
+                disabled={role !== 'candidate'}
                 className="flex items-center"
               >
                 <MessageSquare className="mr-2 h-4 w-4" />
