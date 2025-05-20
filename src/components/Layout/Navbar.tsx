@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -14,6 +13,9 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useUserRole } from '@/context/UserContext';
 import { useAuth } from '@/context/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import ThemeToggle from '@/components/ThemeToggle';
+import LanguageSelector from '@/components/LanguageSelector';
+import { useLanguage } from '@/context/LanguageContext';
 
 const Navbar = () => {
   const isMobile = useIsMobile();
@@ -22,6 +24,7 @@ const Navbar = () => {
   const { isLoading, user, role, signOut } = useUserRole();
   const { user: authUser } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { t } = useLanguage();
 
   const isActive = (path: string): boolean => location.pathname === path;
 
@@ -132,7 +135,7 @@ const Navbar = () => {
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2" onClick={() => setIsMenuOpen(false)}>
             <Briefcase className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">JobConnect</span>
+            <span className="text-xl font-bold dark:text-white">JobConnect</span>
           </Link>
           <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(false)}>
             <X className="h-6 w-6" />
@@ -143,29 +146,29 @@ const Navbar = () => {
             <Link
               key={link.path}
               to={link.path}
-              className={`rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 ${
-                isActive(link.path) ? 'bg-gray-100 text-primary' : 'text-gray-700'
+              className={`rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 ${
+                isActive(link.path) ? 'bg-gray-100 text-primary dark:bg-gray-800' : 'text-gray-700 dark:text-gray-300'
               }`}
               onClick={() => setIsMenuOpen(false)}
             >
-              {link.name}
+              {t(`nav.${link.name.toLowerCase().replace(' ', '')}`)}
             </Link>
           ))}
           {!isLoading && !authUser && (
             <>
               <Link
                 to="/signin"
-                className="rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100"
+                className="rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800"
                 onClick={() => setIsMenuOpen(false)}
               >
-                Sign In
+                {t('nav.signin')}
               </Link>
               <Link
                 to="/signup"
                 className="rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-white hover:bg-primary/90"
                 onClick={() => setIsMenuOpen(false)}
               >
-                Sign Up
+                {t('nav.signup')}
               </Link>
             </>
           )}
@@ -175,8 +178,8 @@ const Navbar = () => {
                 <Link
                   key={link.path}
                   to={link.path}
-                  className={`flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 ${
-                    isActive(link.path) ? 'bg-gray-100 text-primary' : 'text-gray-700'
+                  className={`flex items-center rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 ${
+                    isActive(link.path) ? 'bg-gray-100 text-primary dark:bg-gray-800' : 'text-gray-700 dark:text-gray-300'
                   }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
@@ -185,26 +188,30 @@ const Navbar = () => {
                 </Link>
               ))}
               <button
-                className="flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-red-600 hover:bg-gray-100"
+                className="flex w-full items-center rounded-md px-3 py-2 text-sm font-medium text-red-600 hover:bg-gray-100 dark:hover:bg-gray-800"
                 onClick={handleSignOut}
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
+                {t('nav.signout')}
               </button>
             </>
           )}
+          <div className="flex items-center space-x-2 px-3 pt-4">
+            <ThemeToggle />
+            <LanguageSelector />
+          </div>
         </nav>
       </SheetContent>
     </Sheet>
   );
 
   return (
-    <header className="sticky top-0 z-50 flex h-16 items-center border-b bg-white">
+    <header className="sticky top-0 z-50 flex h-16 items-center border-b bg-white dark:bg-gray-900 dark:border-gray-800">
       <div className="container mx-auto flex items-center justify-between px-4">
         <div className="flex items-center space-x-8">
           <Link to="/" className="flex items-center space-x-2">
             <Briefcase className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">JobConnect</span>
+            <span className="text-xl font-bold dark:text-white">JobConnect</span>
           </Link>
 
           {!isMobile && (
@@ -214,24 +221,24 @@ const Navbar = () => {
                   key={link.path}
                   to={link.path}
                   className={`text-sm font-medium hover:text-primary ${
-                    isActive(link.path) ? 'text-primary' : 'text-gray-700'
+                    isActive(link.path) ? 'text-primary' : 'text-gray-700 dark:text-gray-300'
                   }`}
                 >
-                  {link.name}
+                  {t(`nav.${link.name.toLowerCase().replace(' ', '')}`)}
                 </Link>
               ))}
               {!isLoading && authUser && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex items-center space-x-1 text-sm font-medium text-gray-700 hover:text-primary">
-                      <span>Dashboard</span>
+                    <button className="flex items-center space-x-1 text-sm font-medium text-gray-700 hover:text-primary dark:text-gray-300">
+                      <span>{t('nav.dashboard')}</span>
                       <ChevronDown className="h-4 w-4" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="dark:bg-gray-800 dark:border-gray-700">
                     {dashboardLinks.map((link) => (
                       <DropdownMenuItem key={link.path} asChild>
-                        <Link to={link.path} className="flex w-full cursor-pointer items-center">
+                        <Link to={link.path} className="flex w-full cursor-pointer items-center dark:text-gray-300 dark:hover:text-white">
                           <link.icon className="mr-2 h-4 w-4" />
                           {link.name}
                         </Link>
@@ -244,7 +251,14 @@ const Navbar = () => {
           )}
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2">
+          {!isMobile && (
+            <>
+              <ThemeToggle />
+              <LanguageSelector />
+            </>
+          )}
+          
           {isMobile ? (
             <MobileMenu />
           ) : (
@@ -254,13 +268,13 @@ const Navbar = () => {
                   <Button variant="ghost" asChild>
                     <Link to="/signin" className="hidden sm:flex">
                       <LogIn className="mr-2 h-4 w-4" />
-                      Sign In
+                      {t('nav.signin')}
                     </Link>
                   </Button>
                   <Button asChild>
                     <Link to="/signup" className="hidden sm:flex">
                       <User className="mr-2 h-4 w-4" />
-                      Sign Up
+                      {t('nav.signup')}
                     </Link>
                   </Button>
                 </>
@@ -271,7 +285,7 @@ const Navbar = () => {
                       <Button asChild>
                         <Link to="/add-job">
                           <PlusCircle className="mr-2 h-4 w-4" />
-                          Post a Job
+                          {t('jobs.post')}
                         </Link>
                       </Button>
                     )}
@@ -284,20 +298,20 @@ const Navbar = () => {
                           </AvatarFallback>
                         </Avatar>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="dark:bg-gray-800 dark:border-gray-700">
                         <DropdownMenuItem asChild>
-                          <Link to="/profile" className="flex cursor-pointer items-center">
+                          <Link to="/profile" className="flex cursor-pointer items-center dark:text-gray-300 dark:hover:text-white">
                             <User className="mr-2 h-4 w-4" />
                             Profile
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link to="/dashboard" className="flex cursor-pointer items-center">
+                          <Link to="/dashboard" className="flex cursor-pointer items-center dark:text-gray-300 dark:hover:text-white">
                             <LayoutDashboard className="mr-2 h-4 w-4" />
                             Dashboard
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
+                        <DropdownMenuItem onClick={handleSignOut} className="text-red-600 dark:text-red-400">
                           <LogOut className="mr-2 h-4 w-4" />
                           Sign Out
                         </DropdownMenuItem>

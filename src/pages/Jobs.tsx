@@ -7,22 +7,43 @@ import JobCard from '@/components/Jobs/JobCard';
 import { useDatabase } from '@/context/DatabaseContext';
 import { useUserRole } from '@/context/UserContext';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, MapPin } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 const Jobs = () => {
   const { jobs, loading, error, fetchJobs, fetchJobsByFilters, favorites, toggleFavorite } = useDatabase();
   const { user, role } = useUserRole();
+  const { toast } = useToast();
   const [filters, setFilters] = useState({
     keyword: '',
     category: [],
     jobType: [],
     location: []
   });
+  const [currentLocation, setCurrentLocation] = useState<string | null>(null);
 
   useEffect(() => {
     // Load all jobs on initial page load
     fetchJobs();
-  }, [fetchJobs]);
+    
+    // Try to get user's geolocation if browser supports it
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          // This would typically use a reverse geocoding service
+          // For now, we'll just show coordinates
+          setCurrentLocation(`${position.coords.latitude.toFixed(2)}, ${position.coords.longitude.toFixed(2)}`);
+          toast({
+            title: "Location detected",
+            description: "We can show you local job opportunities",
+          });
+        },
+        error => {
+          console.log("Geolocation error:", error);
+        }
+      );
+    }
+  }, [fetchJobs, toast]);
 
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
@@ -41,10 +62,18 @@ const Jobs = () => {
 
   return (
     <Layout>
-      <div className="bg-gray-50 py-8">
+      <div className="bg-gray-50 py-8 dark:bg-gray-900">
         <div className="container mx-auto px-4">
           <div className="mb-6 flex items-center justify-between">
-            <h1 className="text-2xl font-bold sm:text-3xl">Browse Jobs</h1>
+            <div>
+              <h1 className="text-2xl font-bold sm:text-3xl dark:text-white">Browse Jobs</h1>
+              {currentLocation && (
+                <div className="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400">
+                  <MapPin className="mr-1 h-4 w-4" />
+                  <span>Your location: {currentLocation}</span>
+                </div>
+              )}
+            </div>
             
             {user && (role === 'recruiter' || role === 'admin') && (
               <Button asChild className="bg-primary text-white">
@@ -70,7 +99,7 @@ const Jobs = () => {
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
                 </div>
               ) : error ? (
-                <div className="rounded-lg bg-red-50 p-4 text-red-800">
+                <div className="rounded-lg bg-red-50 p-4 text-red-800 dark:bg-red-900/30 dark:text-red-300">
                   {error}
                 </div>
               ) : jobs.length > 0 ? (
@@ -85,9 +114,9 @@ const Jobs = () => {
                   ))}
                 </div>
               ) : (
-                <div className="flex h-40 flex-col items-center justify-center space-y-2 rounded-lg bg-white p-8 text-center shadow">
+                <div className="flex h-40 flex-col items-center justify-center space-y-2 rounded-lg bg-white p-8 text-center shadow dark:bg-gray-800 dark:text-gray-200">
                   <h3 className="text-lg font-semibold">No jobs found</h3>
-                  <p className="text-gray-500">Try adjusting your search filters.</p>
+                  <p className="text-gray-500 dark:text-gray-400">Try adjusting your search filters.</p>
                 </div>
               )}
             </div>

@@ -8,6 +8,8 @@ import { DatabaseProvider } from "./context/DatabaseContext";
 import { AuthProvider } from "./context/AuthContext";
 import { UserProvider } from "./context/UserContext";
 import { JobPersonaProvider } from "./context/JobPersonaContext";
+import { ThemeProvider } from "./context/ThemeContext";
+import { LanguageProvider } from "./context/LanguageContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { Suspense, ReactNode, lazy } from "react";
 import { useAuth } from "./context/AuthContext";
@@ -226,15 +228,19 @@ const App = () => (
       <Sonner />
       <ErrorBoundary>
         <BrowserRouter>
-          <AuthProvider>
-            <UserProvider>
-              <DatabaseProvider>
-                <JobPersonaProvider>
-                  <AppRoutes />
-                </JobPersonaProvider>
-              </DatabaseProvider>
-            </UserProvider>
-          </AuthProvider>
+          <ThemeProvider>
+            <LanguageProvider>
+              <AuthProvider>
+                <UserProvider>
+                  <DatabaseProvider>
+                    <JobPersonaProvider>
+                      <AppRoutes />
+                    </JobPersonaProvider>
+                  </DatabaseProvider>
+                </UserProvider>
+              </AuthProvider>
+            </LanguageProvider>
+          </ThemeProvider>
         </BrowserRouter>
       </ErrorBoundary>
     </TooltipProvider>
