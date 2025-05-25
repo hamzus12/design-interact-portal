@@ -135,10 +135,10 @@ const JobDetail: React.FC = () => {
         return;
       }
 
-      // Create or find existing conversation
+      // Create or find existing conversation using auth user ID
       const conversation = await chatService.createConversation(
         job.id, 
-        user.id, 
+        user.id, // Use auth user ID directly
         job.recruiterId
       );
       

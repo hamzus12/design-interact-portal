@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { supabase, handleSupabaseError } from '@/integrations/supabase/client';
 import { Job } from '../models/job';
@@ -178,7 +179,7 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
       
       console.log('Loading favorites for user:', authUser.id);
       
-      // User is logged in, load from database
+      // User is logged in, load from database using auth.uid()
       const { data, error } = await supabase
         .from('bookmarks')
         .select('job_id')
@@ -219,7 +220,7 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
       
       console.log(`Toggle favorite for job ID ${jobId} and user ID ${authUser.id}`);
       
-      // User is logged in, toggle in database
+      // User is logged in, toggle in database using auth.uid()
       if (favorites.includes(jobId)) {
         // Remove from favorites
         const { error } = await supabase
@@ -237,10 +238,13 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
           description: "Job removed from your saved listings"
         });
       } else {
-        // Add to favorites
+        // Add to favorites using auth.uid()
         const { error } = await supabase
           .from('bookmarks')
-          .insert({ job_id: jobId, user_id: authUser.id });
+          .insert({ 
+            job_id: jobId, 
+            user_id: authUser.id 
+          });
           
         if (error) throw new Error(handleSupabaseError(error));
           
@@ -303,13 +307,14 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
         throw new Error('You must be logged in to apply for jobs.');
       }
       
-      console.log(`Submitting application for job ID ${jobId}`);
+      console.log(`Submitting application for job ID ${jobId} with candidate_id ${authUser.id}`);
       
+      // Use auth.uid() directly for the candidate_id
       const { error: supabaseError } = await supabase
         .from('applications')
         .insert({
           job_id: jobId,
-          candidate_id: authUser.id,
+          candidate_id: authUser.id, // This will use auth.uid() which matches our RLS policy
           status: 'pending'
         });
       
