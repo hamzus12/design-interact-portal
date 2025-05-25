@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { supabase, handleSupabaseError } from '@/integrations/supabase/client';
 import { Job } from '../models/job';
@@ -49,6 +48,27 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [favorites, setFavorites] = useState<(number | string)[]>([]);
   const { user } = useUserRole();
   const { user: authUser } = useAuth();
+
+  // Helper function to get database user ID from auth user ID
+  const getDatabaseUserId = useCallback(async (authUserId: string): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('user_id', authUserId)
+        .single();
+      
+      if (error || !data) {
+        console.error('Error getting database user ID:', error);
+        return null;
+      }
+      
+      return data.id;
+    } catch (err) {
+      console.error('Error getting database user ID:', err);
+      return null;
+    }
+  }, []);
 
   // Transform job data from Supabase to our Job interface
   const transformJobData = useCallback((data: any[]): Job[] => {
@@ -179,11 +199,18 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
       
       console.log('Loading favorites for user:', authUser.id);
       
-      // User is logged in, load from database using auth.uid()
+      // Get database user ID first
+      const dbUserId = await getDatabaseUserId(authUser.id);
+      if (!dbUserId) {
+        console.error('Could not find database user ID for auth user:', authUser.id);
+        return;
+      }
+      
+      // User is logged in, load from database using database user ID
       const { data, error } = await supabase
         .from('bookmarks')
         .select('job_id')
-        .eq('user_id', authUser.id);
+        .eq('user_id', dbUserId);
         
       if (error) throw new Error(handleSupabaseError(error));
       
@@ -197,7 +224,7 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
         variant: "destructive"
       });
     }
-  }, [authUser?.id]);
+  }, [authUser?.id, getDatabaseUserId]);
 
   // Toggle job favorite status
   const toggleFavorite = useCallback(async (jobId: number | string) => {
@@ -220,14 +247,20 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
       
       console.log(`Toggle favorite for job ID ${jobId} and user ID ${authUser.id}`);
       
-      // User is logged in, toggle in database using auth.uid()
+      // Get database user ID first
+      const dbUserId = await getDatabaseUserId(authUser.id);
+      if (!dbUserId) {
+        throw new Error('Could not find your user profile. Please try refreshing the page.');
+      }
+      
+      // User is logged in, toggle in database using database user ID
       if (favorites.includes(jobId)) {
         // Remove from favorites
         const { error } = await supabase
           .from('bookmarks')
           .delete()
           .eq('job_id', jobId)
-          .eq('user_id', authUser.id);
+          .eq('user_id', dbUserId);
           
         if (error) throw new Error(handleSupabaseError(error));
           
@@ -238,12 +271,12 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
           description: "Job removed from your saved listings"
         });
       } else {
-        // Add to favorites using auth.uid()
+        // Add to favorites using database user ID
         const { error } = await supabase
           .from('bookmarks')
           .insert({ 
             job_id: jobId, 
-            user_id: authUser.id 
+            user_id: dbUserId 
           });
           
         if (error) throw new Error(handleSupabaseError(error));
@@ -263,7 +296,7 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
         variant: "destructive"
       });
     }
-  }, [favorites, authUser?.id]);
+  }, [favorites, authUser?.id, getDatabaseUserId]);
 
   // Get job by ID
   const getJobById = useCallback(async (id: string): Promise<Job | null> => {
@@ -307,14 +340,20 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
         throw new Error('You must be logged in to apply for jobs.');
       }
       
-      console.log(`Submitting application for job ID ${jobId} with candidate_id ${authUser.id}`);
+      console.log(`Submitting application for job ID ${jobId} with auth user ID ${authUser.id}`);
       
-      // Use auth.uid() directly for the candidate_id
+      // Get database user ID first
+      const dbUserId = await getDatabaseUserId(authUser.id);
+      if (!dbUserId) {
+        throw new Error('Could not find your user profile. Please try refreshing the page.');
+      }
+      
+      // Use database user ID for the candidate_id
       const { error: supabaseError } = await supabase
         .from('applications')
         .insert({
           job_id: jobId,
-          candidate_id: authUser.id, // This will use auth.uid() which matches our RLS policy
+          candidate_id: dbUserId, // Use database user ID which matches our foreign key
           status: 'pending'
         });
       
@@ -331,7 +370,7 @@ export const DatabaseProvider: React.FC<{ children: ReactNode }> = ({ children }
       console.error('Error submitting application:', err);
       throw new Error(err.message || 'Failed to submit application.');
     }
-  }, [authUser?.id]);
+  }, [authUser?.id, getDatabaseUserId]);
 
   // Initial fetch on mount
   useEffect(() => {

@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDatabase } from '@/context/DatabaseContext';
 import { useAuth } from '@/context/AuthContext';
 import { useUserRole } from '@/context/UserContext';
+import { supabase, handleSupabaseError } from '@/integrations/supabase/client';
 import Layout from '@/components/Layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +34,27 @@ const JobDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isFavorite, setIsFavorite] = useState<boolean>(false);
   const [applying, setApplying] = useState<boolean>(false);
+
+  // Helper function to get database user ID from auth user ID
+  const getDatabaseUserId = async (authUserId: string): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('user_id', authUserId)
+        .single();
+      
+      if (error || !data) {
+        console.error('Error getting database user ID:', error);
+        return null;
+      }
+      
+      return data.id;
+    } catch (err) {
+      console.error('Error getting database user ID:', err);
+      return null;
+    }
+  };
 
   useEffect(() => {
     const loadJob = async () => {
@@ -135,11 +156,22 @@ const JobDetail: React.FC = () => {
         return;
       }
 
-      // Create or find existing conversation using auth user ID
+      // Get database user ID for the candidate
+      const candidateDbId = await getDatabaseUserId(user.id);
+      if (!candidateDbId) {
+        toast({
+          title: "Error",
+          description: "Could not find your user profile. Please try refreshing the page.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create or find existing conversation using database user IDs
       const conversation = await chatService.createConversation(
         job.id, 
-        user.id, // Use auth user ID directly
-        job.recruiterId
+        candidateDbId, // Use database user ID for candidate
+        job.recruiterId // This is already a database user ID from the job
       );
       
       // Navigate to the conversation
