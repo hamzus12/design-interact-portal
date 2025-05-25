@@ -14,8 +14,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 355 95% 54%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -31,9 +31,9 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 221 83% 53%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -55,8 +55,8 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
     
-    --primary: 355 95% 54%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
     
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -86,69 +86,61 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
   
-  /* RTL support for Arabic language */
-  [dir="rtl"] {
-    text-align: right;
-  }
-  
-  [dir="rtl"] .mr-1, 
-  [dir="rtl"] .mr-2, 
-  [dir="rtl"] .mr-3, 
-  [dir="rtl"] .mr-4 {
-    margin-right: 0 !important;
-  }
-  
-  [dir="rtl"] .ml-1 {
-    margin-right: 0.25rem !important;
-    margin-left: 0 !important;
-  }
-  
-  [dir="rtl"] .ml-2 {
-    margin-right: 0.5rem !important;
-    margin-left: 0 !important;
-  }
-  
-  [dir="rtl"] .mr-1 {
-    margin-left: 0.25rem !important;
-    margin-right: 0 !important;
-  }
-  
-  [dir="rtl"] .mr-2 {
-    margin-left: 0.5rem !important;
-    margin-right: 0 !important;
-  }
-  
-  [dir="rtl"] .mr-3 {
-    margin-left: 0.75rem !important;
-    margin-right: 0 !important;
-  }
-  
-  [dir="rtl"] .mr-4 {
-    margin-left: 1rem !important;
-    margin-right: 0 !important;
-  }
-  
   /* Custom transition styles */
   .hover-card {
-    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-2;
   }
   
   .nav-link {
-    @apply relative after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-red after:transition-all after:duration-300 hover:after:w-full;
+    @apply relative after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-primary after:transition-all after:duration-300 hover:after:w-full;
   }
   
   .category-card {
-    @apply rounded-lg bg-white p-6 shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-1 dark:bg-gray-800 dark:shadow-gray-900/30;
+    @apply rounded-xl bg-gradient-to-br from-white to-gray-50/50 p-8 shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 dark:from-gray-800 dark:to-gray-900 dark:shadow-gray-900/30 border border-gray-100 dark:border-gray-700;
   }
   
   .job-card {
-    @apply rounded-lg bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md dark:bg-gray-800 dark:shadow-gray-900/30;
+    @apply rounded-xl bg-white/80 backdrop-blur-sm p-6 shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1 dark:bg-gray-800/80 dark:shadow-gray-900/30 border border-gray-100/50 dark:border-gray-700/50;
+  }
+  
+  .hero-gradient {
+    @apply bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-purple-900/20;
+  }
+  
+  .feature-card {
+    @apply rounded-2xl bg-white/70 backdrop-blur-lg p-8 shadow-lg transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 border border-white/20;
+  }
+  
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-lg border border-white/20 shadow-xl;
   }
 }
 
 /* Added font styling */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 body {
   font-family: 'Inter', sans-serif;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
 }
