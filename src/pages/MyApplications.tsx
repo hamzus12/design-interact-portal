@@ -16,7 +16,9 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useUserRole } from '@/context/UserContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, AlertCircle, MessageSquare } from 'lucide-react';
+import { chatService } from '@/services/ChatService';
+import { useNavigate } from 'react-router-dom';
 
 interface Application {
   id: string;
@@ -29,14 +31,32 @@ interface Application {
     title: string;
     company: string;
     location: string;
+    recruiter_id: string;
   };
 }
 
 const MyApplications = () => {
   const { user, role } = useUserRole();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Get database user ID
+  const getDatabaseUserId = async (authUserId: string): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('user_id', authUserId)
+        .single();
+      
+      if (error || !data) return null;
+      return data.id;
+    } catch (err) {
+      return null;
+    }
+  };
 
   useEffect(() => {
     const fetchApplications = async () => {
@@ -45,40 +65,30 @@ const MyApplications = () => {
       try {
         setLoading(true);
         
-        // For candidates, show their applications
-        // For recruiters, show applications for their job listings
-        const query = role === 'candidate'
-          ? supabase
-              .from('applications')
-              .select(`
-                *,
-                job:job_id (
-                  id,
-                  title,
-                  company,
-                  location
-                )
-              `)
-              .eq('candidate_id', user.id)
-              .order('created_at', { ascending: false })
-          : supabase
-              .from('applications')
-              .select(`
-                *,
-                job:job_id (
-                  id,
-                  title,
-                  company,
-                  location
-                )
-              `)
-              .eq('job.recruiter_id', user.id)
-              .order('created_at', { ascending: false });
+        const dbUserId = await getDatabaseUserId(user.id);
+        if (!dbUserId) {
+          throw new Error('Could not find user profile');
+        }
         
-        const { data, error } = await query;
+        // For candidates, show their applications
+        const { data, error } = await supabase
+          .from('applications')
+          .select(`
+            *,
+            job:jobs!inner(
+              id,
+              title,
+              company,
+              location,
+              recruiter_id
+            )
+          `)
+          .eq('candidate_id', dbUserId)
+          .order('created_at', { ascending: false });
         
         if (error) throw error;
         
+        console.log('Fetched candidate applications:', data);
         setApplications(data as Application[]);
       } catch (error) {
         console.error('Error fetching applications:', error);
@@ -93,7 +103,53 @@ const MyApplications = () => {
     };
     
     fetchApplications();
-  }, [user, role, toast]);
+  }, [user, toast]);
+
+  const handleContactRecruiter = async (application: Application) => {
+    try {
+      if (!user?.id) return;
+      
+      const dbUserId = await getDatabaseUserId(user.id);
+      if (!dbUserId) {
+        toast({
+          title: 'Error',
+          description: 'Could not find your user profile',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      console.log('Creating conversation between candidate and recruiter:', {
+        jobId: application.job.id,
+        candidateId: dbUserId,
+        recruiterId: application.job.recruiter_id
+      });
+
+      // Create or find existing conversation
+      const conversation = await chatService.createConversation(
+        application.job.id, 
+        dbUserId,
+        application.job.recruiter_id
+      );
+      
+      console.log('Conversation created/found:', conversation);
+      
+      // Navigate to the conversation
+      navigate(`/chat/${conversation.id}`);
+      
+      toast({
+        title: 'Conversation Started',
+        description: 'You can now chat with the recruiter',
+      });
+    } catch (error: any) {
+      console.error('Error creating conversation:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to start conversation',
+        variant: 'destructive'
+      });
+    }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -141,9 +197,7 @@ const MyApplications = () => {
     <Layout>
       <div className="container mx-auto py-12">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">
-            {role === 'candidate' ? 'My Applications' : 'Job Applications'}
-          </h1>
+          <h1 className="text-2xl font-bold">My Applications</h1>
           <Button asChild>
             <Link to="/jobs">Browse Jobs</Link>
           </Button>
@@ -151,28 +205,18 @@ const MyApplications = () => {
         
         <Card>
           <CardHeader>
-            <CardTitle>
-              {role === 'candidate' 
-                ? 'Your Job Applications' 
-                : 'Applications for Your Job Listings'}
-            </CardTitle>
+            <CardTitle>Your Job Applications</CardTitle>
           </CardHeader>
           <CardContent>
             {applications.length === 0 ? (
               <div className="flex h-40 flex-col items-center justify-center rounded-lg bg-gray-50 p-8 text-center">
                 <h3 className="text-lg font-semibold">No applications found</h3>
-                {role === 'candidate' ? (
-                  <p className="text-gray-500 mt-2">
-                    You haven't applied to any jobs yet. 
-                    <Link to="/jobs" className="text-primary ml-1 hover:underline">
-                      Browse available jobs
-                    </Link>
-                  </p>
-                ) : (
-                  <p className="text-gray-500 mt-2">
-                    No applications have been submitted for your job listings yet.
-                  </p>
-                )}
+                <p className="text-gray-500 mt-2">
+                  You haven't applied to any jobs yet. 
+                  <Link to="/jobs" className="text-primary ml-1 hover:underline">
+                    Browse available jobs
+                  </Link>
+                </p>
               </div>
             ) : (
               <div className="rounded-md border">
@@ -203,11 +247,21 @@ const MyApplications = () => {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button asChild size="sm" variant="outline">
-                            <Link to={`/job/${application.job_id}`}>
-                              View Job
-                            </Link>
-                          </Button>
+                          <div className="flex items-center justify-end space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleContactRecruiter(application)}
+                            >
+                              <MessageSquare className="h-4 w-4 mr-1" />
+                              Contact Recruiter
+                            </Button>
+                            <Button asChild size="sm" variant="outline">
+                              <Link to={`/job/${application.job_id}`}>
+                                View Job
+                              </Link>
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

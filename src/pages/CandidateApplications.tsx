@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
@@ -102,6 +101,7 @@ const CandidateApplications = () => {
         
         if (error) throw error;
         
+        console.log('Fetched applications:', data);
         setApplications(data as Application[]);
       } catch (error) {
         console.error('Error fetching applications:', error);
@@ -120,14 +120,22 @@ const CandidateApplications = () => {
 
   const handleStatusUpdate = async (applicationId: string, newStatus: string) => {
     try {
+      console.log(`Updating application ${applicationId} to status ${newStatus}`);
+      
       const { error } = await supabase
         .from('applications')
-        .update({ status: newStatus })
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', applicationId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
-      // Update local state
+      // Update local state immediately
       setApplications(prev => 
         prev.map(app => 
           app.id === applicationId 
@@ -140,11 +148,13 @@ const CandidateApplications = () => {
         title: 'Status Updated',
         description: `Application status changed to ${newStatus}`,
       });
-    } catch (error) {
+      
+      console.log('Application status updated successfully');
+    } catch (error: any) {
       console.error('Error updating application status:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update application status',
+        description: error.message || 'Failed to update application status',
         variant: 'destructive'
       });
     }
@@ -164,12 +174,20 @@ const CandidateApplications = () => {
         return;
       }
 
+      console.log('Creating conversation between recruiter and candidate:', {
+        jobId: application.job.id,
+        candidateId: application.candidate_id,
+        recruiterId: dbUserId
+      });
+
       // Create or find existing conversation
       const conversation = await chatService.createConversation(
         application.job.id, 
         application.candidate_id, 
         dbUserId
       );
+      
+      console.log('Conversation created/found:', conversation);
       
       // Navigate to the conversation
       navigate(`/chat/${conversation.id}`);
@@ -179,6 +197,7 @@ const CandidateApplications = () => {
         description: 'You can now chat with the candidate',
       });
     } catch (error: any) {
+      console.error('Error creating conversation:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to start conversation',

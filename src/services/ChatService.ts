@@ -1,18 +1,32 @@
 
-import { supabase, handleSupabaseError } from '@/integrations/supabase/client';
-import { toast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface Conversation {
   id: string;
-  job_id: string;
+  job_id: string | null;
   candidate_id: string;
   recruiter_id: string;
   created_at: string;
   updated_at: string;
-  last_message_at: string;
-  job?: any;
-  candidate?: any;
-  recruiter?: any;
+  last_message_at: string | null;
+  job?: {
+    id: string;
+    title: string;
+    company: string;
+  };
+  candidate?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+  recruiter?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+  unread_count?: number;
 }
 
 export interface ChatMessage {
@@ -20,140 +34,194 @@ export interface ChatMessage {
   conversation_id: string;
   sender_id: string;
   content: string;
-  created_at: string;
   is_read: boolean;
+  created_at: string;
+  sender?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
 }
 
 class ChatService {
-  /**
-   * Get conversations for a user
-   */
-  async getConversations(userId: string): Promise<Conversation[]> {
+  async createConversation(jobId: string, candidateId: string, recruiterId: string): Promise<Conversation> {
     try {
-      const { data, error } = await supabase
+      console.log('Creating conversation with params:', { jobId, candidateId, recruiterId });
+      
+      // First, check if a conversation already exists for this job and users
+      const { data: existingConversation, error: searchError } = await supabase
         .from('conversations')
         .select(`
           *,
-          job:jobs(*),
-          candidate:users!conversations_candidate_id_fkey(*),
-          recruiter:users!conversations_recruiter_id_fkey(*)
+          job:jobs(id, title, company),
+          candidate:users!conversations_candidate_id_fkey(id, first_name, last_name, email),
+          recruiter:users!conversations_recruiter_id_fkey(id, first_name, last_name, email)
         `)
-        .or(`candidate_id.eq.${userId},recruiter_id.eq.${userId}`)
-        .order('last_message_at', { ascending: false });
-      
-      if (error) throw new Error(handleSupabaseError(error));
-      
-      return data || [];
-    } catch (err: any) {
-      console.error('Error fetching conversations:', err);
-      throw new Error(err.message || 'Failed to fetch conversations');
-    }
-  }
-
-  /**
-   * Get messages for a conversation
-   */
-  async getMessages(conversationId: string): Promise<ChatMessage[]> {
-    try {
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
-      
-      if (error) throw new Error(handleSupabaseError(error));
-      
-      return data || [];
-    } catch (err: any) {
-      console.error('Error fetching messages:', err);
-      throw new Error(err.message || 'Failed to fetch messages');
-    }
-  }
-
-  /**
-   * Create a new conversation or get existing one between candidate and recruiter
-   */
-  async createConversation(jobId: string | number, candidateId: string, recruiterId: string): Promise<Conversation> {
-    try {
-      // Check if conversation already exists
-      const { data: existingConversation, error: checkError } = await supabase
-        .from('conversations')
-        .select('*')
         .eq('job_id', jobId)
         .eq('candidate_id', candidateId)
         .eq('recruiter_id', recruiterId)
-        .single();
-      
-      if (!checkError && existingConversation) {
-        console.log('Conversation already exists:', existingConversation);
-        return existingConversation;
+        .maybeSingle();
+
+      if (searchError) {
+        console.error('Error searching for existing conversation:', searchError);
+        throw new Error('Failed to search for existing conversation');
       }
-      
+
+      if (existingConversation) {
+        console.log('Found existing conversation:', existingConversation);
+        return existingConversation as Conversation;
+      }
+
       // Create new conversation
-      const { data: newConversation, error: insertError } = await supabase
+      const { data: newConversation, error: createError } = await supabase
         .from('conversations')
         .insert({
           job_id: jobId,
           candidate_id: candidateId,
-          recruiter_id: recruiterId
+          recruiter_id: recruiterId,
+          last_message_at: new Date().toISOString()
         })
-        .select()
+        .select(`
+          *,
+          job:jobs(id, title, company),
+          candidate:users!conversations_candidate_id_fkey(id, first_name, last_name, email),
+          recruiter:users!conversations_recruiter_id_fkey(id, first_name, last_name, email)
+        `)
         .single();
-      
-      if (insertError) throw new Error(handleSupabaseError(insertError));
-      
-      if (!newConversation) throw new Error('Failed to create conversation');
-      
-      return newConversation;
-    } catch (err: any) {
-      console.error('Error creating conversation:', err);
-      throw new Error(err.message || 'Failed to create conversation');
+
+      if (createError) {
+        console.error('Error creating conversation:', createError);
+        throw new Error('Failed to create conversation');
+      }
+
+      console.log('Created new conversation:', newConversation);
+      return newConversation as Conversation;
+    } catch (error) {
+      console.error('Error in createConversation:', error);
+      throw error;
     }
   }
 
-  /**
-   * Send a message in a conversation
-   */
-  async sendMessage(conversationId: string, senderId: string, content: string): Promise<void> {
+  async getConversations(userId: string): Promise<Conversation[]> {
     try {
-      const { error: messageError } = await supabase
+      console.log('Fetching conversations for user:', userId);
+      
+      const { data, error } = await supabase
+        .from('conversations')
+        .select(`
+          *,
+          job:jobs(id, title, company),
+          candidate:users!conversations_candidate_id_fkey(id, first_name, last_name, email),
+          recruiter:users!conversations_recruiter_id_fkey(id, first_name, last_name, email)
+        `)
+        .or(`candidate_id.eq.${userId},recruiter_id.eq.${userId}`)
+        .order('last_message_at', { ascending: false, nullsFirst: false });
+
+      if (error) {
+        console.error('Error fetching conversations:', error);
+        throw new Error('Failed to fetch conversations');
+      }
+
+      console.log('Fetched conversations:', data);
+      return data as Conversation[];
+    } catch (error) {
+      console.error('Error in getConversations:', error);
+      throw error;
+    }
+  }
+
+  async getMessages(conversationId: string): Promise<ChatMessage[]> {
+    try {
+      console.log('Fetching messages for conversation:', conversationId);
+      
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select(`
+          *,
+          sender:users!chat_messages_sender_id_fkey(id, first_name, last_name, email)
+        `)
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching messages:', error);
+        throw new Error('Failed to fetch messages');
+      }
+
+      console.log('Fetched messages:', data?.length || 0);
+      return data as ChatMessage[];
+    } catch (error) {
+      console.error('Error in getMessages:', error);
+      throw error;
+    }
+  }
+
+  async sendMessage(conversationId: string, senderId: string, content: string): Promise<ChatMessage> {
+    try {
+      console.log('Sending message:', { conversationId, senderId, content: content.substring(0, 50) + '...' });
+      
+      // Insert the message
+      const { data: message, error: messageError } = await supabase
         .from('chat_messages')
         .insert({
           conversation_id: conversationId,
           sender_id: senderId,
           content: content
-        });
-      
-      if (messageError) throw new Error(handleSupabaseError(messageError));
-      
-      // Update conversation's last_message_at timestamp
+        })
+        .select(`
+          *,
+          sender:users!chat_messages_sender_id_fkey(id, first_name, last_name, email)
+        `)
+        .single();
+
+      if (messageError) {
+        console.error('Error sending message:', messageError);
+        throw new Error('Failed to send message');
+      }
+
+      // Update conversation's last_message_at
       const { error: updateError } = await supabase
         .from('conversations')
-        .update({ last_message_at: new Date().toISOString() })
+        .update({ 
+          last_message_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
         .eq('id', conversationId);
-      
-      if (updateError) throw new Error(handleSupabaseError(updateError));
-    } catch (err: any) {
-      console.error('Error sending message:', err);
-      throw new Error(err.message || 'Failed to send message');
+
+      if (updateError) {
+        console.error('Error updating conversation timestamp:', updateError);
+        // Don't throw here as the message was sent successfully
+      }
+
+      console.log('Message sent successfully:', message);
+      return message as ChatMessage;
+    } catch (error) {
+      console.error('Error in sendMessage:', error);
+      throw error;
     }
   }
 
-  /**
-   * Mark all messages in a conversation as read for a user
-   */
   async markMessagesAsRead(conversationId: string, userId: string): Promise<void> {
     try {
+      console.log('Marking messages as read:', { conversationId, userId });
+      
       const { error } = await supabase
         .from('chat_messages')
         .update({ is_read: true })
         .eq('conversation_id', conversationId)
-        .neq('sender_id', userId);
-      
-      if (error) throw new Error(handleSupabaseError(error));
-    } catch (err: any) {
-      console.error('Error marking messages as read:', err);
-      // Don't throw an error here as this is not a critical function
+        .neq('sender_id', userId)
+        .eq('is_read', false);
+
+      if (error) {
+        console.error('Error marking messages as read:', error);
+        throw new Error('Failed to mark messages as read');
+      }
+
+      console.log('Messages marked as read successfully');
+    } catch (error) {
+      console.error('Error in markMessagesAsRead:', error);
+      throw error;
     }
   }
 }
