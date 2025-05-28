@@ -65,10 +65,11 @@ class ChatService {
 
       if (searchError) {
         console.error('Error searching for existing conversation:', searchError);
-        throw new Error('Failed to search for existing conversation');
+        // Don't throw error, continue to create new conversation
+        console.log('Continuing to create new conversation despite search error');
       }
 
-      if (existingConversation) {
+      if (existingConversation && !searchError) {
         console.log('Found existing conversation:', existingConversation);
         return existingConversation as Conversation;
       }
@@ -92,7 +93,7 @@ class ChatService {
 
       if (createError) {
         console.error('Error creating conversation:', createError);
-        throw new Error('Failed to create conversation');
+        throw new Error(`Failed to create conversation: ${createError.message}`);
       }
 
       console.log('Created new conversation:', newConversation);
@@ -107,6 +108,18 @@ class ChatService {
     try {
       console.log('Fetching conversations for user:', userId);
       
+      // First verify the user exists
+      const { data: userCheck, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', userId)
+        .single();
+
+      if (userError || !userCheck) {
+        console.error('User not found:', userError);
+        throw new Error('User profile not found');
+      }
+
       const { data, error } = await supabase
         .from('conversations')
         .select(`
@@ -120,11 +133,11 @@ class ChatService {
 
       if (error) {
         console.error('Error fetching conversations:', error);
-        throw new Error('Failed to fetch conversations');
+        throw new Error(`Failed to fetch conversations: ${error.message}`);
       }
 
-      console.log('Fetched conversations:', data);
-      return data as Conversation[];
+      console.log('Fetched conversations:', data?.length || 0);
+      return (data || []) as Conversation[];
     } catch (error) {
       console.error('Error in getConversations:', error);
       throw error;
@@ -146,11 +159,11 @@ class ChatService {
 
       if (error) {
         console.error('Error fetching messages:', error);
-        throw new Error('Failed to fetch messages');
+        throw new Error(`Failed to fetch messages: ${error.message}`);
       }
 
       console.log('Fetched messages:', data?.length || 0);
-      return data as ChatMessage[];
+      return (data || []) as ChatMessage[];
     } catch (error) {
       console.error('Error in getMessages:', error);
       throw error;
@@ -177,7 +190,7 @@ class ChatService {
 
       if (messageError) {
         console.error('Error sending message:', messageError);
-        throw new Error('Failed to send message');
+        throw new Error(`Failed to send message: ${messageError.message}`);
       }
 
       // Update conversation's last_message_at
@@ -215,7 +228,7 @@ class ChatService {
 
       if (error) {
         console.error('Error marking messages as read:', error);
-        throw new Error('Failed to mark messages as read');
+        throw new Error(`Failed to mark messages as read: ${error.message}`);
       }
 
       console.log('Messages marked as read successfully');

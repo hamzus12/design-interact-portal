@@ -37,9 +37,13 @@ const Chat: React.FC = () => {
         .eq('user_id', authUserId)
         .single();
       
-      if (error || !data) return null;
+      if (error || !data) {
+        console.error('Error getting database user ID:', error);
+        return null;
+      }
       return data.id;
     } catch (err) {
+      console.error('Exception getting database user ID:', err);
       return null;
     }
   };
@@ -57,7 +61,7 @@ const Chat: React.FC = () => {
           toast({
             variant: "destructive",
             title: "Error",
-            description: "Could not find your user profile"
+            description: "Could not find your user profile. Please make sure you're properly logged in."
           });
           return;
         }
@@ -74,16 +78,21 @@ const Chat: React.FC = () => {
           } else {
             // If conversation not found, redirect to main chat page
             navigate('/chat');
+            toast({
+              variant: "destructive",
+              title: "Conversation not found",
+              description: "The requested conversation could not be found."
+            });
           }
         }
         
         setLoading(false);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error loading conversations:', error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to load conversations."
+          description: error.message || "Failed to load conversations."
         });
         setLoading(false);
       }
@@ -109,12 +118,12 @@ const Chat: React.FC = () => {
         await chatService.markMessagesAsRead(activeConversation.id, dbUserId);
         
         setLoading(false);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error loading messages:', error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to load messages."
+          description: error.message || "Failed to load messages."
         });
         setLoading(false);
       }
@@ -169,12 +178,12 @@ const Chat: React.FC = () => {
       setSendingMessage(true);
       await chatService.sendMessage(activeConversation.id, dbUserId, content);
       setSendingMessage(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to send message."
+        description: error.message || "Failed to send message."
       });
       setSendingMessage(false);
     }
@@ -201,11 +210,17 @@ const Chat: React.FC = () => {
                   <h2 className="font-semibold">Conversations</h2>
                 </div>
                 <div className="flex-1 overflow-y-auto">
-                  <ConversationList 
-                    conversations={conversations} 
-                    activeConversationId={activeConversation?.id || null}
-                    onSelectConversation={handleSelectConversation}
-                  />
+                  {loading ? (
+                    <div className="flex h-full items-center justify-center">
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                    </div>
+                  ) : (
+                    <ConversationList 
+                      conversations={conversations} 
+                      activeConversationId={activeConversation?.id || null}
+                      onSelectConversation={handleSelectConversation}
+                    />
+                  )}
                 </div>
               </div>
             </Card>

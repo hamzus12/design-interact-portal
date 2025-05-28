@@ -3,7 +3,7 @@ import React from 'react';
 import { Conversation } from '@/services/ChatService';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { useAuth } from '@/context/AuthContext';
+import { useUserRole } from '@/context/UserContext';
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -16,14 +16,14 @@ const ConversationList: React.FC<ConversationListProps> = ({
   activeConversationId, 
   onSelectConversation 
 }) => {
-  const { user } = useAuth();
+  const { role } = useUserRole();
 
   if (!conversations.length) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-8 text-center">
         <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200">No conversations yet</h3>
         <p className="text-gray-500 dark:text-gray-400">
-          Your conversations with recruiters or candidates will appear here
+          Your conversations with {role === 'candidate' ? 'recruiters' : 'candidates'} will appear here
         </p>
       </div>
     );
@@ -33,8 +33,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
     <div className="divide-y divide-gray-200 dark:divide-gray-700">
       {conversations.map((conversation) => {
         // Determine if the current user is the candidate or recruiter
-        const isCandidate = user?.id === conversation.candidate_id;
-        const otherPartyName = isCandidate 
+        const otherPartyName = role === 'candidate'
           ? `${conversation.recruiter?.first_name || ''} ${conversation.recruiter?.last_name || ''}` 
           : `${conversation.candidate?.first_name || ''} ${conversation.candidate?.last_name || ''}`;
         
@@ -48,8 +47,8 @@ const ConversationList: React.FC<ConversationListProps> = ({
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700">
-                  {/* Profile image would go here */}
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-medium">
+                  {otherPartyName.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="truncate font-medium text-gray-900 dark:text-white">
