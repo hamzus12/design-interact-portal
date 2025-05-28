@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -37,6 +38,7 @@ const MyApplications = lazy(() => import("./pages/MyApplications"));
 const CreateJobPersona = lazy(() => import("./pages/CreateJobPersona"));
 const JobPersona = lazy(() => import("./pages/JobPersona"));
 const EditJobPersona = lazy(() => import("./pages/EditJobPersona"));
+const CandidateApplications = lazy(() => import("./pages/CandidateApplications"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -222,6 +224,18 @@ const AppRoutes = () => (
         <RoleProtectedRoute allowedRoles={['recruiter', 'admin']}>
           <Suspense fallback={<PageLoader />}>
             <EditJob />
+          </Suspense>
+        </RoleProtectedRoute>
+      } 
+    />
+    
+    {/* Candidate Applications page for recruiters */}
+    <Route 
+      path="/candidate-applications" 
+      element={
+        <RoleProtectedRoute allowedRoles={['recruiter', 'admin']}>
+          <Suspense fallback={<PageLoader />}>
+            <CandidateApplications />
           </Suspense>
         </RoleProtectedRoute>
       } 

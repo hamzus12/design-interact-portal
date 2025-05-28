@@ -6,7 +6,7 @@ import { useJobPersona } from '@/context/JobPersonaContext';
 import Layout from '@/components/Layout/Layout';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building, Briefcase, Users, PenLine, Eye, MessageSquare, Brain, User } from 'lucide-react';
+import { Building, Briefcase, Users, PenLine, Eye, MessageSquare, Brain, User, FileText } from 'lucide-react';
 
 const Dashboard = () => {
   const { user, role } = useUserRole();
@@ -162,6 +162,29 @@ const Dashboard = () => {
             </Card>
           )}
 
+          {/* Candidate Applications - for recruiters */}
+          {(role === 'recruiter' || role === 'admin') && (
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center space-x-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <CardTitle>Applications</CardTitle>
+                </div>
+                <CardDescription>Review candidate applications</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <p className="text-sm text-gray-600">
+                  Review and manage applications submitted for your job postings.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Button asChild variant="outline" className="w-full">
+                  <Link to="/candidate-applications">View Applications</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
+
           {/* Manage Users - for admins */}
           {role === 'admin' && (
             <Card>
@@ -200,8 +223,8 @@ const Dashboard = () => {
               </p>
             </CardContent>
             <CardFooter>
-              <Button asChild variant="outline" className="w-full" disabled>
-                <Link to="/messages">Coming Soon</Link>
+              <Button asChild variant="outline" className="w-full">
+                <Link to="/chat">Open Messages</Link>
               </Button>
             </CardFooter>
           </Card>
