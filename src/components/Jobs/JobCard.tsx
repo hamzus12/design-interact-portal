@@ -19,7 +19,7 @@ import { Job } from '@/models/job';
 interface JobCardProps {
   job: Job;
   isFavorite?: boolean;
-  onToggleFavorite?: (jobId: string) => void;
+  onToggleFavorite?: (jobId: string | number) => void;
 }
 
 const JobCard: React.FC<JobCardProps> = ({ job, isFavorite = false, onToggleFavorite }) => {
@@ -32,7 +32,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, isFavorite = false, onToggleFavo
   };
 
   const isNewJob = () => {
-    const jobDate = new Date(job.created_at);
+    const jobDate = new Date(job.createdAt || job.timeAgo);
     const threeDaysAgo = new Date();
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
     return jobDate > threeDaysAgo;
@@ -112,20 +112,20 @@ const JobCard: React.FC<JobCardProps> = ({ job, isFavorite = false, onToggleFavo
               <span className="text-sm">{job.type}</span>
             </div>
             
-            {job.salary_range && (
+            {job.salaryRange && (
               <div className="flex items-center text-gray-600">
                 <DollarSign className="h-4 w-4 mr-2 text-green-500" />
-                <span className="text-sm font-medium">{job.salary_range}</span>
+                <span className="text-sm font-medium">{job.salaryRange}</span>
               </div>
             )}
             
             <div className="flex items-center text-gray-600">
               <Clock className="h-4 w-4 mr-2 text-orange-500" />
               <span className="text-sm">
-                {new Date(job.created_at).toLocaleDateString('fr-FR', {
+                {job.createdAt ? new Date(job.createdAt).toLocaleDateString('fr-FR', {
                   day: 'numeric',
                   month: 'short'
-                })}
+                }) : job.timeAgo}
               </span>
             </div>
           </div>
@@ -135,24 +135,23 @@ const JobCard: React.FC<JobCardProps> = ({ job, isFavorite = false, onToggleFavo
             {job.description}
           </p>
           
-          {/* Requirements preview */}
-          {job.requirements && (
-            <div className="mb-6">
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">Compétences requises:</h4>
-              <div className="flex flex-wrap gap-2">
-                {job.requirements.split(',').slice(0, 3).map((req, index) => (
-                  <Badge key={index} variant="secondary" className="text-xs bg-gray-100 text-gray-700">
-                    {req.trim()}
-                  </Badge>
-                ))}
-                {job.requirements.split(',').length > 3 && (
-                  <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
-                    +{job.requirements.split(',').length - 3} autres
-                  </Badge>
-                )}
-              </div>
+          {/* Skills/Category tags instead of requirements */}
+          <div className="mb-6">
+            <h4 className="text-sm font-semibold text-gray-900 mb-2">Domaine:</h4>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
+                {job.category}
+              </Badge>
+              <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
+                {job.type}
+              </Badge>
+              {job.jobType && job.jobType !== job.type && (
+                <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
+                  {job.jobType}
+                </Badge>
+              )}
             </div>
-          )}
+          </div>
           
           {/* Action button */}
           <Button 
