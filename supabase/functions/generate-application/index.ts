@@ -17,7 +17,7 @@ serve(async (req) => {
     const { jobData, personaData, applicationType } = await req.json();
 
     if (!jobData || !personaData) {
-      throw new Error("Missing required data");
+      throw new Error("Données manquantes");
     }
 
     console.log("Application generation request received:", { 
@@ -48,83 +48,87 @@ serve(async (req) => {
   } catch (error) {
     console.error("Error generating application:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "An error occurred during generation" }),
+      JSON.stringify({ error: error.message || "Une erreur s'est produite lors de la génération" }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
 
 function generateCoverLetter(jobData: any, personaData: any) {
-  const { title, company } = jobData;
-  const { skills = [], experience = [] } = personaData;
+  const { title, company, description, location } = jobData;
+  const { skills = [], experience = [], preferences = {} } = personaData;
   
   const topSkills = skills.slice(0, 3).join(", ");
-  const mostRecentExperience = experience[0] || "relevant experience";
+  const mostRecentExperience = experience[0] || "une expérience pertinente";
   
-  return `Dear Hiring Manager,
+  // Enhanced French cover letter generation
+  return `Madame, Monsieur,
 
-I am writing to express my interest in the ${title} position at ${company}. With my background in ${topSkills}, I believe I would be a valuable addition to your team.
+Je me permets de vous adresser ma candidature pour le poste de ${title} au sein de ${company}.
 
-${generateExperienceParagraph(experience, title)}
+${generateExperienceParagraph(experience, title, description)}
 
-${generateSkillsParagraph(skills, jobData.description)}
+${generateSkillsParagraph(skills, description)}
+
+${generateMotivationParagraph(company, title, preferences, location)}
 
 ${generateClosingParagraph(company)}
 
-Sincerely,
-[Your Name]`;
+Je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.
+
+[Votre Nom]`;
 }
 
 function generateEmail(jobData: any, personaData: any) {
   const { title, company } = jobData;
   
-  return `Subject: Application for ${title} Position at ${company}
+  return `Objet : Candidature pour le poste de ${title} chez ${company}
 
-Dear Hiring Manager,
+Madame, Monsieur,
 
-I hope this email finds you well. I am reaching out to apply for the ${title} position at ${company} that I found on your careers page.
+J'espère que ce message vous trouve en bonne santé. Je vous contacte pour postuler au poste de ${title} chez ${company} que j'ai découvert sur votre site carrières.
 
-Please find attached my resume and cover letter for your consideration. I am excited about the opportunity to contribute to ${company} and would welcome the chance to discuss how my skills and experience align with your needs.
+Veuillez trouver ci-joint mon CV et ma lettre de motivation pour votre considération. Je suis très enthousiaste à l'idée de contribuer à ${company} et serais ravi de discuter de la manière dont mes compétences et mon expérience correspondent à vos besoins.
 
-Thank you for considering my application. I look forward to the possibility of speaking with you soon.
+Je vous remercie de l'attention que vous porterez à ma candidature et j'espère avoir l'opportunité de vous rencontrer prochainement.
 
-Best regards,
-[Your Name]
-[Your Phone]
-[Your Email]`;
+Cordialement,
+[Votre Nom]
+[Votre Téléphone]
+[Votre Email]`;
 }
 
 function generateFollowUp(jobData: any, personaData: any) {
   const { title, company } = jobData;
   
-  return `Subject: Following Up on ${title} Application at ${company}
+  return `Objet : Suivi de ma candidature pour le poste de ${title} chez ${company}
 
-Dear Hiring Manager,
+Madame, Monsieur,
 
-I hope this email finds you well. I recently submitted my application for the ${title} position at ${company} and wanted to follow up to express my continued interest in the role.
+J'espère que ce message vous trouve en bonne santé. J'ai récemment soumis ma candidature pour le poste de ${title} chez ${company} et souhaitais faire un suivi pour exprimer mon intérêt continu pour ce rôle.
 
-I remain very excited about the opportunity to contribute to your team and am confident that my skills and experience would be a great fit for this position. If you need any additional information from me, please don't hesitate to ask.
+Je reste très enthousiaste à l'idée de rejoindre votre équipe et suis convaincu que mes compétences et mon expérience seraient un excellent ajout à ce poste. Si vous avez besoin d'informations supplémentaires de ma part, n'hésitez pas à me le faire savoir.
 
-Thank you for considering my application. I look forward to the possibility of discussing my qualifications with you further.
+Je vous remercie de l'attention portée à ma candidature et j'espère avoir l'opportunité de discuter davantage de mes qualifications avec vous.
 
-Best regards,
-[Your Name]
-[Your Phone]
-[Your Email]`;
+Cordialement,
+[Votre Nom]
+[Votre Téléphone]
+[Votre Email]`;
 }
 
-function generateExperienceParagraph(experience: string[], jobTitle: string) {
+function generateExperienceParagraph(experience: string[], jobTitle: string, jobDescription: string) {
   if (!experience.length) {
-    return `Throughout my career, I have developed skills that I believe would transfer well to the ${jobTitle} role.`;
+    return `Au cours de ma carrière, j'ai développé des compétences qui, je pense, se transfereraient bien au rôle de ${jobTitle}.`;
   }
   
   const recentExperience = experience[0];
-  return `Most recently, ${recentExperience}. This experience has prepared me well for the ${jobTitle} role, as I have developed strong skills in problem-solving, collaboration, and delivering high-quality results.`;
+  return `Plus récemment, ${recentExperience}. Cette expérience m'a bien préparé pour le rôle de ${jobTitle}, car j'ai développé de solides compétences en résolution de problèmes, collaboration et livraison de résultats de haute qualité.`;
 }
 
 function generateSkillsParagraph(skills: string[], jobDescription: string) {
   if (!skills.length) {
-    return "I am particularly skilled in adapting to new environments and learning new technologies quickly.";
+    return "Je suis particulièrement doué pour m'adapter à de nouveaux environnements et apprendre rapidement de nouvelles technologies.";
   }
   
   // Identify most relevant skills based on job description
@@ -136,9 +140,24 @@ function generateSkillsParagraph(skills: string[], jobDescription: string) {
     relevantSkills.slice(0, 3) : 
     skills.slice(0, 3);
   
-  return `I am particularly skilled in ${skillsToHighlight.join(", ")}, which I understand are key requirements for this position. Throughout my career, I have consistently applied these skills to deliver impactful results.`;
+  return `Je maîtrise particulièrement ${skillsToHighlight.join(", ")}, compétences que je comprends être essentielles pour ce poste. Tout au long de ma carrière, j'ai constamment appliqué ces compétences pour obtenir des résultats impactants.`;
+}
+
+function generateMotivationParagraph(company: string, jobTitle: string, preferences: any, location: string) {
+  let motivation = `Ce qui m'attire particulièrement chez ${company}, c'est `;
+  
+  // Add motivation based on preferences
+  if (preferences.remote && location.toLowerCase().includes('remote')) {
+    motivation += "votre approche flexible du travail qui permet l'équilibre vie professionnelle-vie privée. ";
+  } else {
+    motivation += "votre réputation d'excellence et d'innovation dans le secteur. ";
+  }
+  
+  motivation += `Le poste de ${jobTitle} représente une opportunité parfaite pour moi de contribuer à vos objectifs tout en développant mes compétences professionnelles.`;
+  
+  return motivation;
 }
 
 function generateClosingParagraph(company: string) {
-  return `I am excited about the opportunity to bring my unique skills and experiences to ${company} and help contribute to your continued success. I am confident that my background makes me well-suited for this position, and I am eager to discuss how I can make an immediate impact on your team.`;
+  return `Je suis enthousiaste à l'idée d'apporter mes compétences uniques et mes expériences à ${company} et d'aider à contribuer à votre succès continu. Je suis convaincu que mon profil me rend bien adapté à ce poste, et j'ai hâte de discuter de la façon dont je peux avoir un impact immédiat sur votre équipe.`;
 }
