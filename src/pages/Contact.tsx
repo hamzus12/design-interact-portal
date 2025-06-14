@@ -29,7 +29,7 @@ const Contact = () => {
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">Our Location</p>
-                        <p className="text-gray-600">123 Job Avenue, Career City, CA 94103</p>
+                        <p className="text-gray-600">Avenue Habib Bourguiba, Tunis 1001, Tunisia</p>
                       </div>
                     </div>
                     
@@ -39,8 +39,8 @@ const Contact = () => {
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">Email Us</p>
-                        <p className="text-gray-600">hello@jovie.com</p>
-                        <p className="text-gray-600">support@jovie.com</p>
+                        <p className="text-gray-600">hello@jovie.tn</p>
+                        <p className="text-gray-600">support@jovie.tn</p>
                       </div>
                     </div>
                     
@@ -50,8 +50,8 @@ const Contact = () => {
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">Call Us</p>
-                        <p className="text-gray-600">+1 (555) 123-4567</p>
-                        <p className="text-gray-600">+1 (555) 765-4321</p>
+                        <p className="text-gray-600">+216 70 123 456</p>
+                        <p className="text-gray-600">+216 71 987 654</p>
                       </div>
                     </div>
                   </div>
@@ -71,7 +71,7 @@ const Contact = () => {
                         </label>
                         <Input
                           id="name"
-                          placeholder="John Doe"
+                          placeholder="Ahmed Ben Ali"
                           className="w-full border-gray-300 focus:border-red focus:ring-red"
                         />
                       </div>
@@ -83,7 +83,7 @@ const Contact = () => {
                         <Input
                           id="email"
                           type="email"
-                          placeholder="john@example.com"
+                          placeholder="ahmed@example.tn"
                           className="w-full border-gray-300 focus:border-red focus:ring-red"
                         />
                       </div>
@@ -124,7 +124,7 @@ const Contact = () => {
             {/* Map or Additional Info */}
             <div className="mt-8 rounded-lg bg-white p-6 shadow-md animate-fade-in" style={{ animationDelay: '0.3s' }}>
               <div className="bg-gray-100 h-64 rounded-lg flex items-center justify-center">
-                <p className="text-gray-500">Interactive Map Would Go Here</p>
+                <p className="text-gray-500">Tunisia Map Would Go Here</p>
               </div>
             </div>
           </div>

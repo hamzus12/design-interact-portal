@@ -17,7 +17,7 @@ const Footer: React.FC = () => {
               <span className="text-xl font-bold">JobFinder</span>
             </Link>
             <p className="text-gray-300 leading-relaxed">
-              Connecting talented professionals with amazing opportunities. 
+              Connecting talented professionals with amazing opportunities in Tunisia. 
               Find your dream job or discover the perfect candidate for your team.
             </p>
             <div className="flex space-x-4">
@@ -96,18 +96,18 @@ const Footer: React.FC = () => {
             <ul className="space-y-4">
               <li className="flex items-center text-gray-300">
                 <MapPin className="mr-3 h-5 w-5 text-blue-400" />
-                <span>123 Innovation Drive, Tech City, TC 12345</span>
+                <span>Avenue Habib Bourguiba, Tunis 1001, Tunisia</span>
               </li>
               <li className="flex items-center text-gray-300">
                 <Mail className="mr-3 h-5 w-5 text-blue-400" />
-                <a href="mailto:hello@jobfinder.com" className="hover:text-white transition-colors">
-                  hello@jobfinder.com
+                <a href="mailto:hello@jobfinder.tn" className="hover:text-white transition-colors">
+                  hello@jobfinder.tn
                 </a>
               </li>
               <li className="flex items-center text-gray-300">
                 <Phone className="mr-3 h-5 w-5 text-blue-400" />
-                <a href="tel:+1234567890" className="hover:text-white transition-colors">
-                  +1 (234) 567-8900
+                <a href="tel:+21670123456" className="hover:text-white transition-colors">
+                  +216 70 123 456
                 </a>
               </li>
             </ul>

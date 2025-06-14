@@ -331,10 +331,10 @@ const JobPersonaStats = () => {
                   <h4 className="mb-3 font-medium">Salary Range</h4>
                   <div className="space-y-2">
                     <p className="text-sm">
-                      <span className="font-medium">Min:</span> ${persona.preferences.salary.min.toLocaleString()}
+                      <span className="font-medium">Min:</span> {persona.preferences.salary.min.toLocaleString()} TND
                     </p>
                     <p className="text-sm">
-                      <span className="font-medium">Max:</span> ${persona.preferences.salary.max.toLocaleString()}
+                      <span className="font-medium">Max:</span> {persona.preferences.salary.max.toLocaleString()} TND
                     </p>
                     <p className="text-sm">
                       <span className="font-medium">Remote:</span> {persona.preferences.remote ? 'Yes' : 'No'}

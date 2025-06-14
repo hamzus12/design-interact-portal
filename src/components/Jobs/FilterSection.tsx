@@ -45,15 +45,15 @@ const FilterSection: React.FC<FilterSectionProps> = ({
     "Remote",
   ];
 
-  // Locations
+  // Tunisia locations
   const locations = [
-    "New York",
-    "San Francisco",
-    "Los Angeles",
-    "Chicago",
-    "Austin",
-    "Boston",
-    "Seattle",
+    "Tunis",
+    "Sfax",
+    "Sousse",
+    "Kairouan",
+    "Bizerte",
+    "Gabès",
+    "Ariana",
     "Remote",
   ];
 
