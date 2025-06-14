@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -39,6 +38,7 @@ const CreateJobPersona = lazy(() => import("./pages/CreateJobPersona"));
 const JobPersona = lazy(() => import("./pages/JobPersona"));
 const EditJobPersona = lazy(() => import("./pages/EditJobPersona"));
 const CandidateApplications = lazy(() => import("./pages/CandidateApplications"));
+const JobPersonaStats = lazy(() => import("./pages/JobPersonaStats"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -202,6 +202,16 @@ const AppRoutes = () => (
         <RoleProtectedRoute allowedRoles={['candidate']}>
           <Suspense fallback={<PageLoader />}>
             <EditJobPersona />
+          </Suspense>
+        </RoleProtectedRoute>
+      } 
+    />
+    <Route 
+      path="/job-persona-stats" 
+      element={
+        <RoleProtectedRoute allowedRoles={['candidate']}>
+          <Suspense fallback={<PageLoader />}>
+            <JobPersonaStats />
           </Suspense>
         </RoleProtectedRoute>
       } 
