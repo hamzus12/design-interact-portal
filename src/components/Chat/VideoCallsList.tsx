@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Video, Calendar, Clock, ExternalLink } from 'lucide-react';
+import { Video, Calendar, Clock, ExternalLink, Phone } from 'lucide-react';
 
 interface VideoCall {
   id: string;
@@ -71,8 +71,58 @@ const VideoCallsList: React.FC<VideoCallsListProps> = ({
     };
   }, [conversationId]);
 
+  const handleStartCall = async (callId: string, meetingUrl: string) => {
+    try {
+      // Update call status to ongoing
+      const { error } = await supabase
+        .from('video_calls')
+        .update({ status: 'ongoing' })
+        .eq('id', callId);
+
+      if (error) throw error;
+
+      // Open the meeting URL
+      window.open(meetingUrl, '_blank');
+
+      toast({
+        title: 'Appel vidéo démarré',
+        description: 'L\'entretien vidéo a commencé avec succès',
+      });
+    } catch (error) {
+      console.error('Error starting video call:', error);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de démarrer l\'appel vidéo',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleJoinCall = (meetingUrl: string) => {
     window.open(meetingUrl, '_blank');
+  };
+
+  const handleEndCall = async (callId: string) => {
+    try {
+      const { error } = await supabase
+        .from('video_calls')
+        .update({ status: 'completed' })
+        .eq('id', callId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Appel terminé',
+        description: 'L\'entretien vidéo a été marqué comme terminé',
+      });
+    } catch (error) {
+      console.error('Error ending video call:', error);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de terminer l\'appel vidéo',
+        variant: 'destructive'
+      });
+    }
   };
 
   const getStatusBadge = (status: string, scheduledFor: string) => {
@@ -81,24 +131,80 @@ const VideoCallsList: React.FC<VideoCallsListProps> = ({
     const isCallTime = Math.abs(now.getTime() - callTime.getTime()) < 15 * 60 * 1000; // 15 minutes window
 
     if (status === 'cancelled') {
-      return <Badge variant="destructive">Cancelled</Badge>;
+      return <Badge variant="destructive">Annulé</Badge>;
     } else if (status === 'completed') {
-      return <Badge variant="outline" className="bg-green-50 text-green-700">Completed</Badge>;
+      return <Badge variant="outline" className="bg-green-50 text-green-700">Terminé</Badge>;
+    } else if (status === 'ongoing') {
+      return <Badge className="bg-red-600">En cours</Badge>;
     } else if (callTime < now && status !== 'ongoing') {
-      return <Badge variant="outline" className="bg-gray-50 text-gray-700">Missed</Badge>;
-    } else if (isCallTime || status === 'ongoing') {
-      return <Badge className="bg-blue-600">Ready to Join</Badge>;
+      return <Badge variant="outline" className="bg-gray-50 text-gray-700">Manqué</Badge>;
+    } else if (isCallTime) {
+      return <Badge className="bg-blue-600">Prêt à démarrer</Badge>;
     } else {
-      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700">Scheduled</Badge>;
+      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700">Planifié</Badge>;
     }
   };
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
     return {
-      date: date.toLocaleDateString(),
+      date: date.toLocaleDateString('fr-FR'),
       time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
+  };
+
+  const getCallActions = (call: VideoCall) => {
+    const now = new Date();
+    const callTime = new Date(call.scheduled_for);
+    const isCallTime = Math.abs(now.getTime() - callTime.getTime()) < 15 * 60 * 1000; // 15 minutes window
+
+    if (call.status === 'ongoing') {
+      return (
+        <div className="flex space-x-2">
+          <Button
+            onClick={() => handleJoinCall(call.meeting_url)}
+            className="flex-1 bg-green-600 hover:bg-green-700"
+            size="sm"
+          >
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Rejoindre
+          </Button>
+          <Button
+            onClick={() => handleEndCall(call.id)}
+            variant="outline"
+            size="sm"
+          >
+            <Phone className="h-4 w-4 mr-2" />
+            Terminer
+          </Button>
+        </div>
+      );
+    } else if (isCallTime && call.status === 'scheduled') {
+      return (
+        <Button
+          onClick={() => handleStartCall(call.id, call.meeting_url)}
+          className="w-full bg-blue-600 hover:bg-blue-700"
+          size="sm"
+        >
+          <Video className="h-4 w-4 mr-2" />
+          Démarrer l'Entretien
+        </Button>
+      );
+    } else if (call.status === 'scheduled' && call.meeting_url) {
+      return (
+        <Button
+          onClick={() => handleJoinCall(call.meeting_url)}
+          className="w-full"
+          variant="outline"
+          size="sm"
+        >
+          <ExternalLink className="h-4 w-4 mr-2" />
+          Lien de Réunion
+        </Button>
+      );
+    }
+
+    return null;
   };
 
   if (loading) {
@@ -115,13 +221,9 @@ const VideoCallsList: React.FC<VideoCallsListProps> = ({
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Video Interviews</h3>
+      <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Entretiens Vidéo</h3>
       {videoCalls.map((call) => {
         const { date, time } = formatDateTime(call.scheduled_for);
-        const now = new Date();
-        const callTime = new Date(call.scheduled_for);
-        const isCallTime = Math.abs(now.getTime() - callTime.getTime()) < 15 * 60 * 1000;
-        const canJoin = isCallTime || call.status === 'ongoing';
 
         return (
           <Card key={call.id} className="border-l-4 border-l-blue-500">
@@ -129,7 +231,7 @@ const VideoCallsList: React.FC<VideoCallsListProps> = ({
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm flex items-center">
                   <Video className="h-4 w-4 mr-2" />
-                  Video Interview
+                  Entretien Vidéo
                 </CardTitle>
                 {getStatusBadge(call.status, call.scheduled_for)}
               </div>
@@ -149,16 +251,9 @@ const VideoCallsList: React.FC<VideoCallsListProps> = ({
                     {call.notes}
                   </p>
                 )}
-                {canJoin && call.meeting_url && (
-                  <Button
-                    onClick={() => handleJoinCall(call.meeting_url)}
-                    className="w-full mt-3 bg-blue-600 hover:bg-blue-700"
-                    size="sm"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Join Interview
-                  </Button>
-                )}
+                <div className="mt-3">
+                  {getCallActions(call)}
+                </div>
               </div>
             </CardContent>
           </Card>
