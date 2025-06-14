@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
@@ -106,7 +107,20 @@ const Jobs = () => {
                   {jobs.map((job) => (
                     <JobCard 
                       key={job.id} 
-                      job={job} 
+                      job={{
+                        id: job.id,
+                        title: job.title,
+                        company: job.company,
+                        company_logo: job.companyLogo,
+                        location: job.location,
+                        category: job.category,
+                        job_type: job.jobType || job.type,
+                        salary_range: job.salaryRange,
+                        description: job.description,
+                        created_at: job.timeAgo || new Date().toISOString(),
+                        recruiter_id: job.recruiterId,
+                        is_active: job.isActive
+                      }}
                       isFavorite={favorites.includes(job.id)}
                       onToggleFavorite={toggleFavorite}
                     />
