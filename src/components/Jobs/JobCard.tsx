@@ -19,15 +19,25 @@ interface JobCardProps {
   job: Job;
   onApply?: (jobId: string) => void;
   showApplyButton?: boolean;
+  isFavorite?: boolean;
+  onToggleFavorite?: (jobId: string | number) => void;
 }
 
-const JobCard: React.FC<JobCardProps> = ({ job, onApply, showApplyButton = true }) => {
+const JobCard: React.FC<JobCardProps> = ({ 
+  job, 
+  onApply, 
+  showApplyButton = true,
+  isFavorite = false,
+  onToggleFavorite
+}) => {
   const formatSalary = (salary: string) => {
     if (!salary) return 'Salary not specified';
     return `$${parseInt(salary).toLocaleString()}`;
   };
 
-  const getJobTypeColor = (type: string) => {
+  const getJobTypeColor = (type?: string) => {
+    if (!type) return 'bg-gray-100 text-gray-800 border-gray-200';
+    
     switch (type.toLowerCase()) {
       case 'full-time':
         return 'bg-green-100 text-green-800 border-green-200';
@@ -42,7 +52,9 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, showApplyButton = true 
     }
   };
 
-  const getCategoryColor = (category: string) => {
+  const getCategoryColor = (category?: string) => {
+    if (!category) return 'bg-gray-50 text-gray-700 border-gray-200';
+    
     switch (category.toLowerCase()) {
       case 'technology':
         return 'bg-blue-50 text-blue-700 border-blue-200';
@@ -67,8 +79,9 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, showApplyButton = true 
         variant="ghost" 
         size="icon"
         className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-white/80 backdrop-blur-sm"
+        onClick={() => onToggleFavorite?.(job.id)}
       >
-        <Bookmark className="h-4 w-4" />
+        <Bookmark className={`h-4 w-4 ${isFavorite ? 'fill-current text-yellow-500' : ''}`} />
       </Button>
 
       <CardHeader className="relative pb-3">
@@ -151,7 +164,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, onApply, showApplyButton = true 
           
           {showApplyButton && onApply && (
             <Button 
-              onClick={() => onApply(job.id)}
+              onClick={() => onApply(job.id.toString())}
               className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl"
             >
               Apply Now

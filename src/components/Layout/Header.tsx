@@ -26,12 +26,12 @@ import {
 } from 'lucide-react';
 
 const Header = () => {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
   const { role } = useUserRole();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await logout();
+    await signOut();
     navigate('/login');
   };
 

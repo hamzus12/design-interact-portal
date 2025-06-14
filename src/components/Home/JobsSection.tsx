@@ -1,10 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { MapPin, Building, Clock, Heart } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { useDatabase } from '@/context/DatabaseContext';
-import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
 import JobCard from '@/components/Jobs/JobCard';
 
