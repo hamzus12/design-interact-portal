@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,244 +8,157 @@ import {
   MapPin, 
   Clock, 
   DollarSign, 
-  Briefcase, 
-  Heart,
+  Building2,
+  Bookmark,
   ExternalLink,
-  Zap,
-  TrendingUp,
-  Brain,
-  FileText
+  TrendingUp
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { useJobPersona } from '@/context/JobPersonaContext';
-import { Job } from '@/models/job';
+import { Job } from '@/types/Job';
 
 interface JobCardProps {
   job: Job;
-  isFavorite?: boolean;
-  onToggleFavorite?: (jobId: string | number) => void;
+  onApply?: (jobId: string) => void;
+  showApplyButton?: boolean;
 }
 
-const JobCard: React.FC<JobCardProps> = ({ job, isFavorite = false, onToggleFavorite }) => {
-  const { persona, generateApplication } = useJobPersona();
+const JobCard: React.FC<JobCardProps> = ({ job, onApply, showApplyButton = true }) => {
+  const formatSalary = (salary: string) => {
+    if (!salary) return 'Salary not specified';
+    return `$${parseInt(salary).toLocaleString()}`;
+  };
 
-  const handleFavoriteClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onToggleFavorite) {
-      onToggleFavorite(job.id);
+  const getJobTypeColor = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'full-time':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'part-time':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'contract':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'internship':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
-  const handleGenerateCoverLetter = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!persona) {
-      return;
-    }
-
-    try {
-      await generateApplication(job.id.toString());
-    } catch (error) {
-      console.error('Error generating cover letter:', error);
+  const getCategoryColor = (category: string) => {
+    switch (category.toLowerCase()) {
+      case 'technology':
+        return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'finance':
+        return 'bg-green-50 text-green-700 border-green-200';
+      case 'marketing':
+        return 'bg-pink-50 text-pink-700 border-pink-200';
+      case 'design':
+        return 'bg-purple-50 text-purple-700 border-purple-200';
+      default:
+        return 'bg-gray-50 text-gray-700 border-gray-200';
     }
   };
-
-  const isNewJob = () => {
-    const jobDate = new Date(job.createdAt || job.timeAgo);
-    const threeDaysAgo = new Date();
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-    return jobDate > threeDaysAgo;
-  };
-
-  const isUrgent = () => {
-    return job.description?.toLowerCase().includes('urgent') || 
-           job.title?.toLowerCase().includes('urgent');
-  };
-
-  // Calculate match score if persona exists
-  const getMatchScore = () => {
-    if (!persona) return null;
-    
-    // Simple scoring algorithm based on skills and preferences
-    let score = 50; // Base score
-    
-    // Check skills match
-    const jobText = `${job.title} ${job.description} ${job.category}`.toLowerCase();
-    const matchingSkills = persona.skills.filter(skill => 
-      jobText.includes(skill.toLowerCase())
-    );
-    score += Math.min(matchingSkills.length * 10, 30);
-    
-    // Check job type preference
-    if (persona.preferences.jobTypes.some(type => 
-      job.type?.toLowerCase().includes(type.toLowerCase()) ||
-      job.jobType?.toLowerCase().includes(type.toLowerCase())
-    )) {
-      score += 10;
-    }
-    
-    // Check location preference
-    if (persona.preferences.locations.some(loc => 
-      job.location?.toLowerCase().includes(loc.toLowerCase())
-    )) {
-      score += 10;
-    }
-    
-    return Math.min(score, 99);
-  };
-
-  const matchScore = getMatchScore();
 
   return (
-    <Card className="group hover:scale-[1.02] transition-all duration-300 hover:shadow-xl border-0 shadow-lg bg-white/80 backdrop-blur-sm relative overflow-hidden">
-      {/* Background gradient on hover */}
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-purple-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+    <Card className="group relative overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-1 bg-white/80 backdrop-blur-sm border-gray-200/50">
+      {/* Gradient overlay on hover */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       
-      {/* Content */}
-      <div className="relative z-10">
-        <CardHeader className="pb-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              {/* Job badges */}
-              <div className="flex flex-wrap gap-2 mb-3">
-                {isNewJob() && (
-                  <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs animate-pulse">
-                    <Zap className="w-3 h-3 mr-1" />
-                    Nouveau
-                  </Badge>
-                )}
-                {isUrgent() && (
-                  <Badge className="bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs">
-                    <TrendingUp className="w-3 h-3 mr-1" />
-                    Urgent
-                  </Badge>
-                )}
-                {matchScore && (
-                  <Badge className={`text-xs ${
-                    matchScore >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' :
-                    matchScore >= 60 ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white' :
-                    'bg-gradient-to-r from-orange-500 to-red-500 text-white'
-                  }`}>
-                    <Brain className="w-3 h-3 mr-1" />
-                    {matchScore}% Match
-                  </Badge>
-                )}
-                <Badge variant="outline" className="text-xs border-blue-200 text-blue-700 bg-blue-50">
-                  {job.category}
-                </Badge>
+      {/* Bookmark button */}
+      <Button 
+        variant="ghost" 
+        size="icon"
+        className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-white/80 backdrop-blur-sm"
+      >
+        <Bookmark className="h-4 w-4" />
+      </Button>
+
+      <CardHeader className="relative pb-3">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center space-x-3">
+            {job.company_logo ? (
+              <img 
+                src={job.company_logo} 
+                alt={`${job.company} logo`}
+                className="h-12 w-12 rounded-xl object-cover border-2 border-gray-100"
+              />
+            ) : (
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                {job.company.charAt(0).toUpperCase()}
               </div>
-              
-              {/* Job title */}
-              <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors line-clamp-2">
+            )}
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-300">
                 {job.title}
               </h3>
-              
-              {/* Company */}
-              <p className="text-lg font-semibold text-blue-600 mb-3">
-                {job.company}
-              </p>
-            </div>
-            
-            {/* Favorite button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleFavoriteClick}
-              className={`ml-2 p-2 rounded-full transition-all duration-300 ${
-                isFavorite 
-                  ? 'text-red-500 bg-red-50 hover:bg-red-100' 
-                  : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
-              }`}
-            >
-              <Heart className={`h-5 w-5 ${isFavorite ? 'fill-current' : ''}`} />
-            </Button>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="pt-0">
-          {/* Job details */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-            <div className="flex items-center text-gray-600">
-              <MapPin className="h-4 w-4 mr-2 text-blue-500" />
-              <span className="text-sm">{job.location}</span>
-            </div>
-            
-            <div className="flex items-center text-gray-600">
-              <Briefcase className="h-4 w-4 mr-2 text-purple-500" />
-              <span className="text-sm">{job.type}</span>
-            </div>
-            
-            {job.salaryRange && (
-              <div className="flex items-center text-gray-600">
-                <DollarSign className="h-4 w-4 mr-2 text-green-500" />
-                <span className="text-sm font-medium">{job.salaryRange}</span>
+              <div className="flex items-center space-x-2 mt-1">
+                <Building2 className="h-4 w-4 text-gray-500" />
+                <span className="text-gray-600 font-medium">{job.company}</span>
               </div>
-            )}
-            
-            <div className="flex items-center text-gray-600">
-              <Clock className="h-4 w-4 mr-2 text-orange-500" />
-              <span className="text-sm">
-                {job.createdAt ? new Date(job.createdAt).toLocaleDateString('fr-FR', {
-                  day: 'numeric',
-                  month: 'short'
-                }) : job.timeAgo}
-              </span>
             </div>
           </div>
-          
-          {/* Job description preview */}
-          <p className="text-gray-700 text-sm leading-relaxed mb-6 line-clamp-3">
-            {job.description}
-          </p>
-          
-          {/* Skills/Category tags */}
-          <div className="mb-6">
-            <h4 className="text-sm font-semibold text-gray-900 mb-2">Domaine:</h4>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
-                {job.category}
-              </Badge>
-              <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
-                {job.type}
-              </Badge>
-              {job.jobType && job.jobType !== job.type && (
-                <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700">
-                  {job.jobType}
-                </Badge>
-              )}
-            </div>
+          <div className="flex items-center space-x-1">
+            <TrendingUp className="h-4 w-4 text-green-500" />
+            <span className="text-sm text-green-600 font-medium">Hot</span>
           </div>
-          
-          {/* Action buttons */}
-          <div className="space-y-2">
-            {/* Main action button */}
-            <Button 
-              asChild 
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 group"
-            >
-              <Link to={`/job/${job.id}`}>
-                <span>Voir les Détails</span>
-                <ExternalLink className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </Button>
+        </div>
+      </CardHeader>
 
-            {/* JobPersona AI button */}
-            {persona && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="w-full"
-                onClick={handleGenerateCoverLetter}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Générer lettre de motivation IA
-              </Button>
-            )}
+      <CardContent className="relative space-y-4">
+        {/* Job details */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="flex items-center space-x-2 text-gray-600">
+            <MapPin className="h-4 w-4 text-blue-500" />
+            <span className="text-sm">{job.location}</span>
           </div>
-        </CardContent>
-      </div>
+          <div className="flex items-center space-x-2 text-gray-600">
+            <DollarSign className="h-4 w-4 text-green-500" />
+            <span className="text-sm font-medium">{formatSalary(job.salary_range)}</span>
+          </div>
+        </div>
+
+        {/* Description preview */}
+        <p className="text-gray-600 text-sm line-clamp-2 leading-relaxed">
+          {job.description}
+        </p>
+
+        {/* Badges */}
+        <div className="flex flex-wrap gap-2">
+          <Badge className={`${getJobTypeColor(job.job_type)} border font-medium`}>
+            {job.job_type}
+          </Badge>
+          <Badge className={`${getCategoryColor(job.category)} border font-medium`}>
+            {job.category}
+          </Badge>
+        </div>
+
+        {/* Posted time */}
+        <div className="flex items-center space-x-2 text-xs text-gray-500">
+          <Clock className="h-3 w-3" />
+          <span>Posted {new Date(job.created_at).toLocaleDateString()}</span>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+          <Button 
+            variant="outline" 
+            asChild 
+            className="flex-1 mr-2 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-all duration-300"
+          >
+            <Link to={`/job/${job.id}`} className="flex items-center justify-center space-x-2">
+              <ExternalLink className="h-4 w-4" />
+              <span>View Details</span>
+            </Link>
+          </Button>
+          
+          {showApplyButton && onApply && (
+            <Button 
+              onClick={() => onApply(job.id)}
+              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+            >
+              Apply Now
+            </Button>
+          )}
+        </div>
+      </CardContent>
     </Card>
   );
 };
