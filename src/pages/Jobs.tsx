@@ -9,6 +9,7 @@ import { useUserRole } from '@/context/UserContext';
 import { Button } from '@/components/ui/button';
 import { Plus, MapPin } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { Job } from '@/types/Job';
 
 const Jobs = () => {
   const { jobs, loading, error, fetchJobs, fetchJobsByFilters, favorites, toggleFavorite } = useDatabase();
@@ -104,7 +105,7 @@ const Jobs = () => {
                 </div>
               ) : jobs.length > 0 ? (
                 <div className="space-y-4">
-                  {jobs.map((job) => (
+                  {jobs.map((job: Job) => (
                     <JobCard 
                       key={job.id} 
                       job={job} 
