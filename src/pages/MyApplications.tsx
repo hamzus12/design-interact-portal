@@ -105,6 +105,64 @@ const MyApplications = () => {
     fetchApplications();
   }, [user, toast]);
 
+  // Set up real-time subscription for application status updates
+  useEffect(() => {
+    if (!user) return;
+
+    const setupRealtimeSubscription = async () => {
+      const dbUserId = await getDatabaseUserId(user.id);
+      if (!dbUserId) return;
+
+      const channel = supabase
+        .channel('application-status-updates')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'applications',
+            filter: `candidate_id=eq.${dbUserId}`
+          },
+          (payload) => {
+            console.log('Real-time application update:', payload);
+            
+            // Update the local state with the new status
+            setApplications(prev => 
+              prev.map(app => 
+                app.id === payload.new.id 
+                  ? { ...app, status: payload.new.status }
+                  : app
+              )
+            );
+
+            // Show toast notification for status change
+            const statusMessages = {
+              accepted: 'Your application has been accepted! 🎉',
+              rejected: 'Your application has been rejected.',
+              pending: 'Your application is now pending review.'
+            };
+
+            const message = statusMessages[payload.new.status as keyof typeof statusMessages] || 
+                           `Application status updated to ${payload.new.status}`;
+
+            toast({
+              title: 'Application Status Updated',
+              description: message,
+              variant: payload.new.status === 'accepted' ? 'default' : 
+                      payload.new.status === 'rejected' ? 'destructive' : 'default'
+            });
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    };
+
+    setupRealtimeSubscription();
+  }, [user, toast]);
+
   const handleContactRecruiter = async (application: Application) => {
     try {
       if (!user?.id) return;

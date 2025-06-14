@@ -118,6 +118,46 @@ const CandidateApplications = () => {
     fetchApplications();
   }, [user, toast]);
 
+  // Set up real-time subscription for application updates
+  useEffect(() => {
+    if (!user) return;
+
+    const setupRealtimeSubscription = async () => {
+      const dbUserId = await getDatabaseUserId(user.id);
+      if (!dbUserId) return;
+
+      const channel = supabase
+        .channel('recruiter-application-updates')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'applications'
+          },
+          (payload) => {
+            console.log('Real-time application update for recruiter:', payload);
+            
+            // Update the local state with the new status
+            setApplications(prev => 
+              prev.map(app => 
+                app.id === payload.new.id 
+                  ? { ...app, status: payload.new.status }
+                  : app
+              )
+            );
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    };
+
+    setupRealtimeSubscription();
+  }, [user]);
+
   const handleStatusUpdate = async (applicationId: string, newStatus: string) => {
     try {
       console.log(`Updating application ${applicationId} to status ${newStatus}`);
@@ -135,7 +175,7 @@ const CandidateApplications = () => {
         throw error;
       }
 
-      // Update local state immediately
+      // Update local state immediately for instant feedback
       setApplications(prev => 
         prev.map(app => 
           app.id === applicationId 
