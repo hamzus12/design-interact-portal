@@ -44,24 +44,28 @@ const VideoCallButton: React.FC<VideoCallButtonProps> = ({
         .eq('user_id', authUserId)
         .single();
       
-      if (error || !data) return null;
+      if (error || !data) {
+        console.error('Error getting database user ID:', error);
+        return null;
+      }
       return data.id;
     } catch (err) {
+      console.error('Exception getting database user ID:', err);
       return null;
     }
   };
 
   const generateMeetingUrl = () => {
-    // Generate a simple meeting room URL (in production, integrate with actual video service)
-    const roomId = `job-interview-${Date.now()}`;
-    return `https://meet.jobfinder.com/room/${roomId}`;
+    // Generate a simple meeting room URL with a random ID
+    const roomId = `interview-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `https://meet.google.com/${roomId}`;
   };
 
   const handleScheduleCall = async () => {
     if (!user?.id || !selectedDate || !selectedTime) {
       toast({
-        title: 'Missing Information',
-        description: 'Please select a date and time for the video call',
+        title: 'Information manquante',
+        description: 'Veuillez sélectionner une date et une heure pour l\'appel vidéo',
         variant: 'destructive'
       });
       return;
@@ -72,7 +76,7 @@ const VideoCallButton: React.FC<VideoCallButtonProps> = ({
       
       const dbUserId = await getDatabaseUserId(user.id);
       if (!dbUserId) {
-        throw new Error('Could not find your user profile');
+        throw new Error('Impossible de trouver votre profil utilisateur');
       }
 
       // Combine date and time
@@ -80,9 +84,28 @@ const VideoCallButton: React.FC<VideoCallButtonProps> = ({
       const [hours, minutes] = selectedTime.split(':');
       scheduledDateTime.setHours(parseInt(hours), parseInt(minutes));
 
+      // Check if the selected time is in the future
+      if (scheduledDateTime <= new Date()) {
+        toast({
+          title: 'Date invalide',
+          description: 'Veuillez sélectionner une date et heure futures',
+          variant: 'destructive'
+        });
+        return;
+      }
+
       const meetingUrl = generateMeetingUrl();
 
-      const { error } = await supabase
+      console.log('Scheduling video call with data:', {
+        conversation_id: conversationId,
+        scheduled_by: dbUserId,
+        scheduled_for: scheduledDateTime.toISOString(),
+        duration_minutes: duration,
+        meeting_url: meetingUrl,
+        notes: notes || null
+      });
+
+      const { error: insertError } = await supabase
         .from('video_calls')
         .insert({
           conversation_id: conversationId,
@@ -90,35 +113,47 @@ const VideoCallButton: React.FC<VideoCallButtonProps> = ({
           scheduled_for: scheduledDateTime.toISOString(),
           duration_minutes: duration,
           meeting_url: meetingUrl,
-          notes: notes || null
+          notes: notes || null,
+          status: 'scheduled'
         });
 
-      if (error) throw error;
+      if (insertError) {
+        console.error('Error inserting video call:', insertError);
+        throw insertError;
+      }
 
       // Send a message about the scheduled call
-      await supabase
+      const { error: messageError } = await supabase
         .from('chat_messages')
         .insert({
           conversation_id: conversationId,
           sender_id: dbUserId,
-          content: `📅 Video interview scheduled for ${scheduledDateTime.toLocaleDateString()} at ${selectedTime}. Duration: ${duration} minutes.\n\n${notes ? `Notes: ${notes}\n\n` : ''}Meeting link will be shared closer to the interview time.`
+          content: `📅 Entretien vidéo planifié pour le ${scheduledDateTime.toLocaleDateString('fr-FR')} à ${selectedTime}. Durée: ${duration} minutes.\n\n${notes ? `Notes: ${notes}\n\n` : ''}Le lien de réunion sera partagé plus près de l'heure de l'entretien.`
         });
 
+      if (messageError) {
+        console.error('Error sending message:', messageError);
+        // Don't throw here as the call was scheduled successfully
+      }
+
       toast({
-        title: 'Video Call Scheduled',
-        description: `Interview scheduled for ${scheduledDateTime.toLocaleDateString()} at ${selectedTime}`,
+        title: 'Appel vidéo planifié',
+        description: `Entretien planifié pour le ${scheduledDateTime.toLocaleDateString('fr-FR')} à ${selectedTime}`,
       });
 
+      // Reset form and close dialog
       setIsOpen(false);
       setSelectedDate(undefined);
       setSelectedTime('');
       setNotes('');
+      setDuration(60);
       onCallScheduled?.();
+
     } catch (error: any) {
       console.error('Error scheduling video call:', error);
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to schedule video call',
+        title: 'Erreur',
+        description: error.message || 'Échec de la planification de l\'appel vidéo',
         variant: 'destructive'
       });
     } finally {
@@ -131,20 +166,20 @@ const VideoCallButton: React.FC<VideoCallButtonProps> = ({
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <Video className="h-4 w-4 mr-2" />
-          Schedule Interview
+          Planifier Entretien
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <CalendarIcon className="h-5 w-5 mr-2" />
-            Schedule Video Interview
+            Planifier un Entretien Vidéo
           </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">
           <div>
-            <Label>Select Date</Label>
+            <Label>Sélectionner la date</Label>
             <Calendar
               mode="single"
               selected={selectedDate}
@@ -155,7 +190,7 @@ const VideoCallButton: React.FC<VideoCallButtonProps> = ({
           </div>
 
           <div>
-            <Label htmlFor="time">Select Time</Label>
+            <Label htmlFor="time">Sélectionner l'heure</Label>
             <Input
               id="time"
               type="time"
@@ -166,7 +201,7 @@ const VideoCallButton: React.FC<VideoCallButtonProps> = ({
           </div>
 
           <div>
-            <Label htmlFor="duration">Duration (minutes)</Label>
+            <Label htmlFor="duration">Durée (minutes)</Label>
             <Input
               id="duration"
               type="number"
@@ -180,12 +215,12 @@ const VideoCallButton: React.FC<VideoCallButtonProps> = ({
           </div>
 
           <div>
-            <Label htmlFor="notes">Notes (optional)</Label>
+            <Label htmlFor="notes">Notes (optionnel)</Label>
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add any notes about the interview..."
+              placeholder="Ajoutez des notes sur l'entretien..."
               className="mt-1"
               rows={3}
             />
@@ -197,10 +232,10 @@ const VideoCallButton: React.FC<VideoCallButtonProps> = ({
               disabled={isScheduling || !selectedDate || !selectedTime}
               className="flex-1"
             >
-              {isScheduling ? 'Scheduling...' : 'Schedule Interview'}
+              {isScheduling ? 'Planification...' : 'Planifier l\'Entretien'}
             </Button>
             <Button variant="outline" onClick={() => setIsOpen(false)}>
-              Cancel
+              Annuler
             </Button>
           </div>
         </div>

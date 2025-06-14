@@ -387,6 +387,60 @@ export type Database = {
         }
         Relationships: []
       }
+      video_calls: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          duration_minutes: number
+          id: string
+          meeting_url: string
+          notes: string | null
+          scheduled_by: string
+          scheduled_for: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          meeting_url: string
+          notes?: string | null
+          scheduled_by: string
+          scheduled_for: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          meeting_url?: string
+          notes?: string | null
+          scheduled_by?: string
+          scheduled_for?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_video_calls_conversation"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_video_calls_scheduled_by"
+            columns: ["scheduled_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
