@@ -23,7 +23,7 @@ const StatsSection = () => {
       icon: <MapPin className="h-8 w-8" />,
       number: "200+",
       label: "Villes Couvertes",
-      description: "Partout au Maroc",
+      description: "Partout en Tunisie",
       color: "from-green-500 to-emerald-500"
     },
     {
@@ -43,7 +43,7 @@ const StatsSection = () => {
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Plateforme de Confiance au Maroc
+            Plateforme de Confiance en Tunisie
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Des milliers de professionnels nous font confiance pour leur carrière

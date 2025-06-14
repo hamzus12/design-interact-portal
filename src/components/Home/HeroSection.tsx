@@ -62,7 +62,7 @@ const HeroSection: React.FC = () => {
           
           <div className="mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             <h3 className="text-lg md:text-xl font-medium text-white/90 mb-4">
-              🇲🇦 Première Plateforme d'Emploi IA au Maroc
+              🇹🇳 Première Plateforme d'Emploi IA en Tunisie
             </h3>
             
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight mb-6">
@@ -115,7 +115,7 @@ const HeroSection: React.FC = () => {
                   <input
                     type="text"
                     id="location"
-                    placeholder="Casablanca, Rabat, Marrakech..."
+                    placeholder="Tunis, Sfax, Sousse, Kairouan..."
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-gray-900 focus:border-blue-500 focus:outline-none transition-colors"

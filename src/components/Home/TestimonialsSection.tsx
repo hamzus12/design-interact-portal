@@ -9,11 +9,11 @@ const TestimonialsSection = () => {
     {
       name: "Sarah Benali",
       role: "Développeuse Frontend",
-      company: "TechCorp Morocco",
+      company: "TechCorp Tunisia",
       image: "/placeholder.svg",
       rating: 5,
       text: "JobPersona AI m'a aidée à trouver le poste parfait en moins de 2 semaines. L'IA a parfaitement analysé mes compétences et m'a proposé des offres sur mesure.",
-      location: "Casablanca"
+      location: "Tunis"
     },
     {
       name: "Ahmed Kari",
@@ -22,7 +22,7 @@ const TestimonialsSection = () => {
       image: "/placeholder.svg", 
       rating: 5,
       text: "Impressionnant ! La simulation d'entretien m'a permis de me préparer efficacement. J'ai décroché mon emploi de rêve grâce à cette plateforme innovante.",
-      location: "Rabat"
+      location: "Sfax"
     },
     {
       name: "Fatima Zahra",
@@ -31,7 +31,7 @@ const TestimonialsSection = () => {
       image: "/placeholder.svg",
       rating: 5,
       text: "Interface intuitive et IA révolutionnaire. En tant que recruteure, j'ai trouvé les meilleurs talents en un temps record. Hautement recommandé !",
-      location: "Marrakech"
+      location: "Sousse"
     }
   ];
 
@@ -51,7 +51,7 @@ const TestimonialsSection = () => {
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Utilisateurs</span>
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Découvrez comment JobPersona AI transforme la vie professionnelle de milliers de Marocains
+            Découvrez comment JobPersona AI transforme la vie professionnelle de milliers de Tunisiens
           </p>
         </div>
         
