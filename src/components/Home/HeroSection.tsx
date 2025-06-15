@@ -1,14 +1,15 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Search, Play, TrendingUp, Users, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import VideoDemoModal from "./VideoDemoModal";
 
 const HeroSection: React.FC = () => {
   const [keyword, setKeyword] = useState('');
   const [location, setLocation] = useState('');
+  const [videoDemoOpen, setVideoDemoOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleSearch = (e: React.FormEvent) => {
@@ -152,11 +153,20 @@ const HeroSection: React.FC = () => {
               variant="outline"
               size="lg"
               className="border-2 border-white/30 text-white hover:bg-white/20 backdrop-blur-sm px-8 py-4 rounded-xl font-semibold transition-all duration-300"
+              onClick={() => setVideoDemoOpen(true)}
             >
               <Play className="mr-2 h-5 w-5" />
               Voir la Démo
             </Button>
           </div>
+          
+          {/* Modale vidéo démo */}
+          <VideoDemoModal 
+            open={videoDemoOpen}
+            onOpenChange={setVideoDemoOpen}
+            videoUrl="https://www.youtube.com/embed/Wv2rLZmbPMA"
+            title="Démo de la Plateforme JobPersona IA"
+          />
           
           {/* Trending Keywords */}
           <div className="text-center animate-fade-in" style={{ animationDelay: '0.6s' }}>
