@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,11 +10,12 @@ import { UserProvider } from "./context/UserContext";
 import { JobPersonaProvider } from "./context/JobPersonaContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { LanguageProvider } from "./context/LanguageContext";
-import ErrorBoundary from "./components/ErrorBoundary";
+import ErrorBoundary from "./components/common/ErrorBoundary";
+import LoadingSpinner from "./components/common/LoadingSpinner";
 import { Suspense, ReactNode, lazy } from "react";
 import { useAuth } from "./context/AuthContext";
 
-// Pages with standard loading
+// Pages avec chargement standard (critiques pour la performance)
 import Index from "./pages/Index";
 import Jobs from "./pages/Jobs";
 import JobDetail from "./pages/JobDetail";
@@ -22,7 +24,7 @@ import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
 import VerifyEmail from "./pages/VerifyEmail";
 
-// Lazy-loaded pages for better performance
+// Pages avec lazy loading (optimisation)
 const EditJob = lazy(() => import("./pages/EditJob"));
 const Candidates = lazy(() => import("./pages/Candidates"));
 const About = lazy(() => import("./pages/About"));
@@ -50,14 +52,10 @@ const queryClient = new QueryClient({
   },
 });
 
-// Loading fallback component
-const PageLoader = () => (
-  <div className="flex h-screen items-center justify-center">
-    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-  </div>
-);
+// Composant de chargement avec message en français
+const PageLoader = () => <LoadingSpinner size="lg" text="Chargement de la page..." />;
 
-// Protected route component
+// Route protégée
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const { user, loading } = useAuth();
   
@@ -68,7 +66,7 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   return user ? children : <Navigate to="/signin" replace />;
 };
 
-// Role-based protected route component
+// Route protégée par rôle
 const RoleProtectedRoute = ({ 
   children, 
   allowedRoles 
@@ -118,10 +116,10 @@ const AppRoutes = () => (
     <Route path="/signin" element={<SignIn />} />
     <Route path="/signup" element={<SignUp />} />
     
-    {/* Add Verification routes */}
+    {/* Routes de vérification */}
     <Route path="/signup/verify-email-address" element={<VerifyEmail />} />
     
-    {/* Add Chat route */}
+    {/* Route Chat */}
     <Route 
       path="/chat" 
       element={
@@ -143,7 +141,7 @@ const AppRoutes = () => (
       } 
     />
     
-    {/* Protected routes for all authenticated users */}
+    {/* Routes protégées pour tous les utilisateurs authentifiés */}
     <Route 
       path="/dashboard" 
       element={
@@ -175,7 +173,7 @@ const AppRoutes = () => (
       } 
     />
     
-    {/* JobPersona AI routes */}
+    {/* Routes JobPersona IA */}
     <Route 
       path="/create-job-persona" 
       element={
@@ -217,7 +215,7 @@ const AppRoutes = () => (
       } 
     />
     
-    {/* Protected routes for recruiters and admins */}
+    {/* Routes protégées pour recruteurs et admins */}
     <Route 
       path="/add-job" 
       element={
@@ -239,7 +237,7 @@ const AppRoutes = () => (
       } 
     />
     
-    {/* Candidate Applications page for recruiters */}
+    {/* Page candidatures pour recruteurs */}
     <Route 
       path="/candidate-applications" 
       element={
@@ -251,7 +249,7 @@ const AppRoutes = () => (
       } 
     />
     
-    {/* Admin-only routes */}
+    {/* Routes admin uniquement */}
     <Route 
       path="/manage-users" 
       element={
