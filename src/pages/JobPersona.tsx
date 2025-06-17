@@ -8,52 +8,60 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useJobPersona } from '@/context/JobPersonaContext';
 import { useDatabase } from '@/context/DatabaseContext';
+import { useJobAnalysis } from '@/hooks/useJobAnalysis';
+import { useApplications } from '@/hooks/useApplications';
+import { useConversation } from '@/hooks/useConversation';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/components/ui/use-toast';
 import { 
   Brain, CheckCircle2, Edit, PieChart, RefreshCcw, 
   Send, Star, XCircle, MessageSquare, FileText, 
-  Briefcase, CheckCheck
+  Briefcase, CheckCheck, Loader2
 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
-interface JobMatch {
-  id: string;
-  title: string;
-  company: string;
-  matchScore: number;
-  applied: boolean;
-}
-
-interface Message {
-  role: 'user' | 'ai' | 'system';
-  content: string;
-}
-
 const JobPersona = () => {
   const navigate = useNavigate();
-  const { persona, isLoading, hasPersona, analyzeJobMatch, generateApplication, simulateConversation, submitApplication } = useJobPersona();
+  const { persona, isLoading, hasPersona } = useJobPersona();
   const { jobs, loading: loadingJobs, fetchJobs } = useDatabase();
   
-  const [jobMatches, setJobMatches] = useState<JobMatch[]>([]);
-  const [loadingMatches, setLoadingMatches] = useState(true);
+  // Custom hooks for enhanced functionality
+  const { 
+    loadingMatches, 
+    analyzingJob, 
+    analyzeJobWithLoading, 
+    calculateJobMatches 
+  } = useJobAnalysis();
+  
+  const {
+    generatingApplication,
+    submittingApplication,
+    loadingApplications,
+    applications,
+    generateApplicationWithLoading,
+    submitApplicationWithLoading,
+    loadApplications
+  } = useApplications();
+
+  const {
+    messages,
+    isResponding,
+    initializeConversation,
+    sendMessage,
+    clearConversation
+  } = useConversation();
+
+  // Local state
+  const [jobMatches, setJobMatches] = useState<any[]>([]);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [jobAnalysis, setJobAnalysis] = useState<any>(null);
-  const [analyzingJob, setAnalyzingJob] = useState(false);
 
-  // Application dialog state
+  // Dialog states
   const [applicationDialogOpen, setApplicationDialogOpen] = useState(false);
-  const [generatedApplication, setGeneratedApplication] = useState('');
-  const [generatingApplication, setGeneratingApplication] = useState(false);
-  const [submittingApplication, setSubmittingApplication] = useState(false);
-
-  // Conversation simulator state
   const [conversationDialogOpen, setConversationDialogOpen] = useState(false);
-  const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
+  const [generatedApplication, setGeneratedApplication] = useState('');
   const [currentQuestion, setCurrentQuestion] = useState('');
-  const [respondingToQuestion, setRespondingToQuestion] = useState(false);
-  const [conversationHistory, setConversationHistory] = useState<Message[]>([]);
 
   useEffect(() => {
     if (!hasPersona) {
@@ -65,209 +73,99 @@ const JobPersona = () => {
     fetchJobs();
   }, [fetchJobs]);
 
-  // Get job matches when jobs are loaded
   useEffect(() => {
-    const getJobMatches = async () => {
+    loadApplications();
+  }, [loadApplications]);
+
+  // Calculate job matches when jobs and persona are loaded
+  useEffect(() => {
+    const getMatches = async () => {
       if (!loadingJobs && jobs.length > 0 && persona) {
-        setLoadingMatches(true);
-        
-        try {
-          // Process each job to get match scores
-          const matchPromises = jobs.slice(0, 10).map(async (job) => {
-            try {
-              // This would call the analyzeJobMatch function for each job
-              // For performance reasons in this demo, we'll simulate random scores
-              // In a production app, you would batch these calls or use a more efficient approach
-              const matchScore = Math.floor(Math.random() * 40) + 60; // Random score for demo
-              
-              return {
-                id: job.id.toString(), // Convert id to string to ensure type compatibility
-                title: job.title,
-                company: job.company,
-                matchScore: matchScore,
-                applied: false
-              };
-            } catch (error) {
-              console.error(`Error analyzing job ${job.id}:`, error);
-              return {
-                id: job.id.toString(), // Convert id to string to ensure type compatibility
-                title: job.title,
-                company: job.company,
-                matchScore: 50, // Default score on error
-                applied: false
-              };
-            }
-          });
-          
-          const matches = await Promise.all(matchPromises);
-          
-          // Sort by match score (highest first)
-          matches.sort((a, b) => b.matchScore - a.matchScore);
-          
-          setJobMatches(matches as JobMatch[]);
-        } catch (error) {
-          console.error("Error getting job matches:", error);
-          toast({
-            title: "Error",
-            description: "Failed to analyze job matches. Please try again.",
-            variant: "destructive"
-          });
-        } finally {
-          setLoadingMatches(false);
-        }
+        const matches = await calculateJobMatches(jobs, persona);
+        setJobMatches(matches);
       }
     };
     
-    getJobMatches();
-  }, [loadingJobs, jobs, persona]);
+    getMatches();
+  }, [loadingJobs, jobs, persona, calculateJobMatches]);
 
   const handleAnalyzeJob = async (jobId: string) => {
     setSelectedJob(jobId);
-    setAnalyzingJob(true);
     
     try {
-      const analysis = await analyzeJobMatch(jobId);
+      const analysis = await analyzeJobWithLoading(jobId);
       setJobAnalysis(analysis);
+      
+      // Update the job match in our local state
+      setJobMatches(prev => prev.map(match => 
+        match.id === jobId 
+          ? { ...match, analysis, matchScore: analysis.score }
+          : match
+      ));
     } catch (error) {
-      console.error("Error analyzing job:", error);
-      toast({
-        title: "Error",
-        description: "Failed to analyze job match.",
-        variant: "destructive"
-      });
-    } finally {
-      setAnalyzingJob(false);
+      // Error already handled in the hook
     }
   };
 
-  const handleRefreshMatches = () => {
-    setLoadingMatches(true);
-    fetchJobs();
-    
-    // Get new match scores
-    setTimeout(() => {
-      const matches = jobs.map(job => ({
-        id: job.id.toString(), // Convert id to string to ensure type compatibility
-        title: job.title,
-        company: job.company,
-        matchScore: Math.floor(Math.random() * 40) + 60, // Random score for demo
-        applied: false
-      }));
-      
-      matches.sort((a, b) => b.matchScore - a.matchScore);
-      setJobMatches(matches as JobMatch[]);
-      setLoadingMatches(false);
+  const handleRefreshMatches = async () => {
+    await fetchJobs();
+    if (persona) {
+      const matches = await calculateJobMatches(jobs, persona);
+      setJobMatches(matches);
       
       toast({
-        title: "Matches Refreshed",
-        description: "Your job matches have been updated."
+        title: "Correspondances actualisées",
+        description: "Vos correspondances d'emploi ont été mises à jour"
       });
-    }, 1500);
+    }
   };
 
   const handleGenerateApplication = async (jobId: string) => {
-    if (!selectedJob) return;
-    
-    setGeneratingApplication(true);
     try {
-      const application = await generateApplication(jobId);
-      if (application) {
-        setGeneratedApplication(application);
-        setApplicationDialogOpen(true);
-      }
+      const content = await generateApplicationWithLoading(jobId);
+      setGeneratedApplication(content);
+      setSelectedJob(jobId);
+      setApplicationDialogOpen(true);
     } catch (error) {
-      console.error("Error generating application:", error);
-      toast({
-        title: "Error",
-        description: "Failed to generate application.",
-        variant: "destructive"
-      });
-    } finally {
-      setGeneratingApplication(false);
+      // Error already handled in the hook
     }
   };
 
   const handleSubmitApplication = async () => {
     if (!selectedJob) return;
     
-    setSubmittingApplication(true);
-    try {
-      const success = await submitApplication(selectedJob, generatedApplication);
-      if (success) {
-        // Update the job match as applied
-        setJobMatches(prev => 
-          prev.map(match => 
-            match.id === selectedJob 
-              ? { ...match, applied: true } 
-              : match
-          )
-        );
-        
-        setApplicationDialogOpen(false);
-        
-        toast({
-          title: "Application Submitted",
-          description: "Your application has been submitted successfully!",
-        });
-      }
-    } catch (error) {
-      console.error("Error submitting application:", error);
-    } finally {
-      setSubmittingApplication(false);
+    const success = await submitApplicationWithLoading(selectedJob, generatedApplication);
+    
+    if (success) {
+      // Update local state
+      setJobMatches(prev => 
+        prev.map(match => 
+          match.id === selectedJob 
+            ? { ...match, applied: true } 
+            : match
+        )
+      );
+      
+      setApplicationDialogOpen(false);
+      setGeneratedApplication('');
     }
   };
 
   const handleOpenConversation = (jobId: string) => {
-    setSelectedJob(jobId);
-    
-    // Initialize conversation with a system message
-    const selectedJob = jobs.find(job => job.id === jobId);
-    setConversationMessages([
-      { 
-        role: 'system', 
-        content: `Starting a simulated conversation with a recruiter for the ${selectedJob?.title} position at ${selectedJob?.company}.` 
-      },
-      {
-        role: 'user',
-        content: 'Hello, I\'d like to discuss my application for this position.'
-      }
-    ]);
-    
-    setConversationHistory([]);
-    setConversationDialogOpen(true);
+    const job = jobs.find(j => j.id.toString() === jobId);
+    if (job) {
+      setSelectedJob(jobId);
+      clearConversation();
+      initializeConversation(job.title, job.company);
+      setConversationDialogOpen(true);
+    }
   };
 
   const handleSendQuestion = async () => {
     if (!currentQuestion.trim() || !selectedJob) return;
     
-    const newMessage: Message = { role: 'user', content: currentQuestion.trim() };
-    setConversationMessages(prev => [...prev, newMessage]);
-    setConversationHistory(prev => [...prev, newMessage]);
+    await sendMessage(selectedJob, currentQuestion);
     setCurrentQuestion('');
-    setRespondingToQuestion(true);
-    
-    try {
-      const response = await simulateConversation(
-        selectedJob, 
-        currentQuestion.trim(),
-        conversationHistory
-      );
-      
-      if (response) {
-        const aiMessage: Message = { role: 'ai', content: response };
-        setConversationMessages(prev => [...prev, aiMessage]);
-        setConversationHistory(prev => [...prev, { role: 'user', content: currentQuestion.trim() }, { role: 'ai', content: response }]);
-      }
-    } catch (error) {
-      console.error("Error in conversation:", error);
-      toast({
-        title: "Error",
-        description: "Failed to get response.",
-        variant: "destructive"
-      });
-    } finally {
-      setRespondingToQuestion(false);
-    }
   };
 
   if (isLoading) {
@@ -275,7 +173,10 @@ const JobPersona = () => {
       <Layout>
         <div className="container mx-auto px-4 py-12">
           <div className="flex h-96 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+              <p>Chargement de votre JobPersona...</p>
+            </div>
           </div>
         </div>
       </Layout>
@@ -287,16 +188,19 @@ const JobPersona = () => {
       <Layout>
         <div className="container mx-auto px-4 py-12">
           <div className="mx-auto max-w-md text-center">
-            <h2 className="mb-4 text-2xl font-bold">No JobPersona Found</h2>
-            <p className="mb-6">You haven't created your JobPersona AI avatar yet.</p>
+            <h2 className="mb-4 text-2xl font-bold">Aucun JobPersona trouvé</h2>
+            <p className="mb-6">Vous n'avez pas encore créé votre avatar IA JobPersona.</p>
             <Button onClick={() => navigate('/create-job-persona')}>
-              Create JobPersona
+              Créer un JobPersona
             </Button>
           </div>
         </div>
       </Layout>
     );
   }
+
+  const bestMatches = jobMatches.slice(0, 3);
+  const otherMatches = jobMatches.slice(3);
 
   return (
     <Layout>
@@ -305,15 +209,15 @@ const JobPersona = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Brain className="h-8 w-8 text-primary" />
-              <h1 className="text-3xl font-bold">Your JobPersona AI</h1>
+              <h1 className="text-3xl font-bold">Votre JobPersona IA</h1>
             </div>
             <Button variant="outline" onClick={() => navigate('/edit-job-persona')}>
               <Edit className="mr-2 h-4 w-4" />
-              Edit Profile
+              Modifier le Profil
             </Button>
           </div>
           <p className="mt-2 text-gray-600">
-            Your AI-powered job hunting assistant that works on your behalf
+            Votre assistant IA pour la recherche d'emploi qui travaille en votre nom
           </p>
         </div>
 
@@ -322,11 +226,11 @@ const JobPersona = () => {
           <div className="lg:col-span-1">
             <Card>
               <CardHeader>
-                <CardTitle>JobPersona Profile</CardTitle>
+                <CardTitle>Profil JobPersona</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-500">Top Skills</h3>
+                  <h3 className="text-sm font-semibold text-gray-500">Compétences Principales</h3>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {persona.skills.slice(0, 5).map((skill, i) => (
                       <Badge key={i} variant="secondary">{skill}</Badge>
@@ -335,7 +239,7 @@ const JobPersona = () => {
                 </div>
                 
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-500">Experience</h3>
+                  <h3 className="text-sm font-semibold text-gray-500">Expérience</h3>
                   <ul className="mt-2 space-y-1 text-sm">
                     {persona.experience.slice(0, 3).map((exp, i) => (
                       <li key={i}>{exp}</li>
@@ -344,25 +248,20 @@ const JobPersona = () => {
                 </div>
                 
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-500">Preferences</h3>
+                  <h3 className="text-sm font-semibold text-gray-500">Préférences</h3>
                   <div className="mt-2 space-y-2 text-sm">
                     {persona.preferences.jobTypes.length > 0 && (
                       <div>
-                        <span className="font-medium">Job Types:</span> {persona.preferences.jobTypes.join(', ')}
+                        <span className="font-medium">Types d'emploi :</span> {persona.preferences.jobTypes.join(', ')}
                       </div>
                     )}
                     {persona.preferences.locations.length > 0 && (
                       <div>
-                        <span className="font-medium">Locations:</span> {persona.preferences.locations.join(', ')}
-                      </div>
-                    )}
-                    {(persona.preferences.salary.min > 0 || persona.preferences.salary.max > 0) && (
-                      <div>
-                        <span className="font-medium">Salary:</span> ${persona.preferences.salary.min.toLocaleString()} - ${persona.preferences.salary.max.toLocaleString()}
+                        <span className="font-medium">Localisation :</span> {persona.preferences.locations.join(', ')}
                       </div>
                     )}
                     <div>
-                      <span className="font-medium">Remote:</span> {persona.preferences.remote ? 'Yes' : 'No'}
+                      <span className="font-medium">Télétravail :</span> {persona.preferences.remote ? 'Oui' : 'Non'}
                     </div>
                   </div>
                 </div>
@@ -370,21 +269,21 @@ const JobPersona = () => {
                 <Separator />
                 
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-500">Learning Progress</h3>
+                  <h3 className="text-sm font-semibold text-gray-500">Progression de l'Apprentissage</h3>
                   <div className="mt-3 space-y-3">
                     <div>
                       <div className="mb-1 flex items-center justify-between text-xs">
-                        <span>Profile Completeness</span>
+                        <span>Complétude du Profil</span>
                         <span>85%</span>
                       </div>
                       <Progress value={85} className="h-2" />
                     </div>
                     <div>
                       <div className="mb-1 flex items-center justify-between text-xs">
-                        <span>Learning Data</span>
-                        <span>42%</span>
+                        <span>Données d'Apprentissage</span>
+                        <span>{Math.min(jobMatches.length * 10, 100)}%</span>
                       </div>
-                      <Progress value={42} className="h-2" />
+                      <Progress value={Math.min(jobMatches.length * 10, 100)} className="h-2" />
                     </div>
                   </div>
                 </div>
@@ -392,7 +291,7 @@ const JobPersona = () => {
               <CardFooter>
                 <Button variant="outline" className="w-full" onClick={() => navigate('/job-persona-stats')}>
                   <PieChart className="mr-2 h-4 w-4" />
-                  View Detailed Stats
+                  Voir les Statistiques Détaillées
                 </Button>
               </CardFooter>
             </Card>
@@ -403,14 +302,23 @@ const JobPersona = () => {
             <Tabs defaultValue="matches">
               <div className="mb-6 flex items-center justify-between">
                 <TabsList>
-                  <TabsTrigger value="matches">Job Matches</TabsTrigger>
-                  <TabsTrigger value="applications">My Applications</TabsTrigger>
-                  <TabsTrigger value="learning">Learning</TabsTrigger>
+                  <TabsTrigger value="matches">Correspondances d'Emploi</TabsTrigger>
+                  <TabsTrigger value="applications">Mes Candidatures</TabsTrigger>
+                  <TabsTrigger value="learning">Apprentissage</TabsTrigger>
                 </TabsList>
                 
-                <Button variant="outline" size="sm" onClick={handleRefreshMatches} disabled={loadingMatches}>
-                  <RefreshCcw className="mr-2 h-4 w-4" />
-                  Refresh Matches
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRefreshMatches} 
+                  disabled={loadingMatches}
+                >
+                  {loadingMatches ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCcw className="mr-2 h-4 w-4" />
+                  )}
+                  Actualiser
                 </Button>
               </div>
               
@@ -420,8 +328,8 @@ const JobPersona = () => {
                     <Card>
                       <CardContent className="flex h-64 items-center justify-center">
                         <div className="flex flex-col items-center">
-                          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-                          <p className="mt-4 text-sm text-gray-500">Analyzing job matches...</p>
+                          <Loader2 className="h-8 w-8 animate-spin mb-4" />
+                          <p className="text-sm text-gray-500">Analyse des correspondances d'emploi...</p>
                         </div>
                       </CardContent>
                     </Card>
@@ -429,9 +337,9 @@ const JobPersona = () => {
                     <Card>
                       <CardContent className="flex h-40 items-center justify-center text-center">
                         <div>
-                          <p className="text-lg font-medium">No job matches found</p>
+                          <p className="text-lg font-medium">Aucune correspondance trouvée</p>
                           <p className="mt-2 text-sm text-gray-500">
-                            We couldn't find any jobs matching your profile. Try adjusting your preferences.
+                            Nous n'avons trouvé aucun emploi correspondant à votre profil. Essayez d'ajuster vos préférences.
                           </p>
                         </div>
                       </CardContent>
@@ -439,103 +347,114 @@ const JobPersona = () => {
                   ) : (
                     <>
                       {/* Best matches */}
-                      <div>
-                        <h2 className="mb-3 text-lg font-semibold">Best Matches</h2>
-                        <div className="space-y-4">
-                          {jobMatches.slice(0, 3).map((jobMatch) => (
-                            <Card key={jobMatch.id} className={selectedJob === jobMatch.id ? 'border-primary' : ''}>
-                              <CardContent className="p-4">
-                                <div className="flex items-start justify-between">
+                      {bestMatches.length > 0 && (
+                        <div>
+                          <h2 className="mb-3 text-lg font-semibold">Meilleures Correspondances</h2>
+                          <div className="space-y-4">
+                            {bestMatches.map((jobMatch) => (
+                              <Card key={jobMatch.id} className={selectedJob === jobMatch.id ? 'border-primary' : ''}>
+                                <CardContent className="p-4">
+                                  <div className="flex items-start justify-between">
+                                    <div>
+                                      <h3 className="font-medium">{jobMatch.title}</h3>
+                                      <p className="text-sm text-gray-500">{jobMatch.company}</p>
+                                    </div>
+                                    <Badge variant={jobMatch.matchScore >= 80 ? "default" : "outline"}>
+                                      {jobMatch.matchScore}% Correspondance
+                                    </Badge>
+                                  </div>
+                                  
+                                  <div className="mt-4 flex flex-wrap gap-2">
+                                    <Button 
+                                      variant="secondary" 
+                                      size="sm"
+                                      onClick={() => handleAnalyzeJob(jobMatch.id)}
+                                      disabled={analyzingJob === jobMatch.id}
+                                    >
+                                      {analyzingJob === jobMatch.id ? (
+                                        <>
+                                          <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                                          Analyse...
+                                        </>
+                                      ) : (
+                                        <>Analyser la Correspondance</>
+                                      )}
+                                    </Button>
+                                    
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => handleOpenConversation(jobMatch.id)}
+                                    >
+                                      <MessageSquare className="mr-1 h-4 w-4" />
+                                      Simuler Entretien
+                                    </Button>
+                                    
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => handleGenerateApplication(jobMatch.id)}
+                                      disabled={generatingApplication}
+                                    >
+                                      {generatingApplication ? (
+                                        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <FileText className="mr-1 h-4 w-4" />
+                                      )}
+                                      Générer Candidature
+                                    </Button>
+                                    
+                                    <Button 
+                                      variant="default" 
+                                      size="sm"
+                                      onClick={() => navigate(`/job/${jobMatch.id}`)}
+                                    >
+                                      <Briefcase className="mr-1 h-4 w-4" />
+                                      Voir l'Emploi
+                                    </Button>
+                                  </div>
+                                  
+                                  {jobMatch.applied && (
+                                    <div className="mt-3 flex items-center text-sm text-green-600">
+                                      <CheckCheck className="mr-1 h-4 w-4" />
+                                      Candidature soumise
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Other matches */}
+                      {otherMatches.length > 0 && (
+                        <div>
+                          <h2 className="mb-3 text-lg font-semibold">Autres Correspondances</h2>
+                          <Card>
+                            <div className="divide-y">
+                              {otherMatches.map((jobMatch) => (
+                                <div key={jobMatch.id} className="flex items-center justify-between p-4">
                                   <div>
                                     <h3 className="font-medium">{jobMatch.title}</h3>
                                     <p className="text-sm text-gray-500">{jobMatch.company}</p>
                                   </div>
-                                  <Badge variant={jobMatch.matchScore >= 80 ? "default" : "outline"} className="ml-auto">
-                                    {jobMatch.matchScore}% Match
-                                  </Badge>
-                                </div>
-                                
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                  <Button 
-                                    variant="secondary" 
-                                    size="sm"
-                                    onClick={() => handleAnalyzeJob(jobMatch.id)}
-                                    disabled={analyzingJob}
-                                  >
-                                    {analyzingJob && selectedJob === jobMatch.id ? (
-                                      <>Analyzing...</>
-                                    ) : (
-                                      <>Analyze Match</>
-                                    )}
-                                  </Button>
-                                  
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => handleOpenConversation(jobMatch.id)}
-                                  >
-                                    <MessageSquare className="mr-1 h-4 w-4" />
-                                    Simulate Interview
-                                  </Button>
-                                  
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => handleGenerateApplication(jobMatch.id)}
-                                    disabled={generatingApplication}
-                                  >
-                                    <FileText className="mr-1 h-4 w-4" />
-                                    Generate Application
-                                  </Button>
-                                  
-                                  <Button 
-                                    variant="default" 
-                                    size="sm"
-                                    onClick={() => navigate(`/job/${jobMatch.id}`)}
-                                  >
-                                    <Briefcase className="mr-1 h-4 w-4" />
-                                    View Job
-                                  </Button>
-                                </div>
-                                
-                                {jobMatch.applied && (
-                                  <div className="mt-3 flex items-center text-sm text-green-600">
-                                    <CheckCheck className="mr-1 h-4 w-4" />
-                                    Applied
+                                  <div className="flex items-center space-x-2">
+                                    <Badge>{jobMatch.matchScore}% Correspondance</Badge>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      onClick={() => navigate(`/job/${jobMatch.id}`)}
+                                    >
+                                      Voir
+                                    </Button>
                                   </div>
-                                )}
-                              </CardContent>
-                            </Card>
-                          ))}
+                                </div>
+                              ))}
+                            </div>
+                          </Card>
                         </div>
-                      </div>
-                      
-                      {/* More matches */}
-                      <div>
-                        <h2 className="mb-3 text-lg font-semibold">More Matches</h2>
-                        <Card>
-                          <div className="divide-y">
-                            {jobMatches.slice(3).map((jobMatch) => (
-                              <div key={jobMatch.id} className="flex items-center justify-between p-4">
-                                <div>
-                                  <h3 className="font-medium">{jobMatch.title}</h3>
-                                  <p className="text-sm text-gray-500">{jobMatch.company}</p>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <Badge>{jobMatch.matchScore}% Match</Badge>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => navigate(`/job/${jobMatch.id}`)}
-                                  >
-                                    View
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </Card>
-                      </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -544,20 +463,50 @@ const JobPersona = () => {
               <TabsContent value="applications" className="mt-0">
                 <Card>
                   <CardHeader>
-                    <CardTitle>AI-Generated Applications</CardTitle>
+                    <CardTitle>Candidatures Générées par l'IA</CardTitle>
                     <CardDescription>
-                      Track your automated applications and their status
+                      Suivez vos candidatures automatisées et leur statut
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex h-40 items-center justify-center text-center">
-                      <div>
-                        <p className="text-lg font-medium">No applications yet</p>
-                        <p className="mt-2 text-sm text-gray-500">
-                          Your AI hasn't sent any applications yet. Analyze job matches to get started.
-                        </p>
+                    {loadingApplications ? (
+                      <div className="flex h-40 items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin" />
                       </div>
-                    </div>
+                    ) : applications.length === 0 ? (
+                      <div className="flex h-40 items-center justify-center text-center">
+                        <div>
+                          <p className="text-lg font-medium">Aucune candidature pour le moment</p>
+                          <p className="mt-2 text-sm text-gray-500">
+                            Votre IA n'a pas encore envoyé de candidatures. Analysez les correspondances d'emploi pour commencer.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {applications.map((app) => (
+                          <div key={app.id} className="border rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h3 className="font-medium">{app.jobs?.title}</h3>
+                                <p className="text-sm text-gray-500">{app.jobs?.company}</p>
+                                <p className="text-xs text-gray-400">
+                                  Généré le {new Date(app.created_at).toLocaleDateString('fr-FR')}
+                                </p>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Badge variant={app.is_submitted ? "default" : "secondary"}>
+                                  {app.is_submitted ? "Soumise" : "Brouillon"}
+                                </Badge>
+                                <Button variant="outline" size="sm">
+                                  Voir
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -565,61 +514,38 @@ const JobPersona = () => {
               <TabsContent value="learning" className="mt-0">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Learning Progress</CardTitle>
+                    <CardTitle>Progression de l'Apprentissage</CardTitle>
                     <CardDescription>
-                      See how your JobPersona AI is learning and improving
+                      Voyez comment votre JobPersona IA apprend et s'améliore
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       <div>
-                        <h3 className="mb-2 text-sm font-medium">Feedback Learning</h3>
-                        <Progress value={persona.learningProfile.feedback.length * 5} className="h-2" />
+                        <h3 className="mb-2 text-sm font-medium">Apprentissage par Rétroaction</h3>
+                        <Progress value={persona.learningProfile?.feedback?.length ? persona.learningProfile.feedback.length * 5 : 0} className="h-2" />
                         <p className="mt-1 text-xs text-gray-500">
-                          {persona.learningProfile.feedback.length} feedback items collected
+                          {persona.learningProfile?.feedback?.length || 0} éléments de rétroaction collectés
                         </p>
                       </div>
                       
                       <div>
-                        <h3 className="mb-2 text-sm font-medium">Application History</h3>
+                        <h3 className="mb-2 text-sm font-medium">Historique des Candidatures</h3>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="rounded-lg border bg-card p-3 text-center">
                             <p className="text-2xl font-bold text-primary">
-                              {persona.learningProfile.successfulApplications.length}
+                              {applications.filter(app => app.is_submitted).length}
                             </p>
-                            <p className="text-xs text-gray-500">Successful</p>
+                            <p className="text-xs text-gray-500">Soumises</p>
                           </div>
                           <div className="rounded-lg border bg-card p-3 text-center">
                             <p className="text-2xl font-bold text-muted-foreground">
-                              {persona.learningProfile.rejectedApplications.length}
+                              {jobMatches.length}
                             </p>
-                            <p className="text-xs text-gray-500">Learning Opportunities</p>
+                            <p className="text-xs text-gray-500">Correspondances Analysées</p>
                           </div>
                         </div>
                       </div>
-                      
-                      {persona.learningProfile.feedback.length > 0 && (
-                        <div>
-                          <h3 className="mb-2 text-sm font-medium">Recent Feedback</h3>
-                          <div className="max-h-40 overflow-y-auto rounded-md border p-3">
-                            {persona.learningProfile.feedback
-                              .slice(0, 3)
-                              .map((feedback, i) => (
-                                <div key={i} className="mb-2 border-b pb-2 last:border-0 last:pb-0">
-                                  <p className="text-sm">{feedback.message}</p>
-                                  <div className="mt-1 flex items-center justify-between">
-                                    <Badge variant="outline" className="text-xs">
-                                      Sentiment: {feedback.sentimentScore}%
-                                    </Badge>
-                                    <span className="text-xs text-gray-500">
-                                      {new Date(feedback.timestamp || '').toLocaleDateString()}
-                                    </span>
-                                  </div>
-                                </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -630,9 +556,9 @@ const JobPersona = () => {
             {selectedJob && jobAnalysis && (
               <Card className="mt-6">
                 <CardHeader>
-                  <CardTitle>Job Match Analysis</CardTitle>
+                  <CardTitle>Analyse de Correspondance d'Emploi</CardTitle>
                   <CardDescription>
-                    Detailed analysis of how well your profile matches this job
+                    Analyse détaillée de la correspondance entre votre profil et cet emploi
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -644,7 +570,8 @@ const JobPersona = () => {
                     </div>
                     <div>
                       <h3 className="font-medium">
-                        {jobAnalysis.score >= 80 ? 'Excellent Match' : jobAnalysis.score >= 60 ? 'Good Match' : 'Fair Match'}
+                        {jobAnalysis.score >= 80 ? 'Excellente Correspondance' : 
+                         jobAnalysis.score >= 60 ? 'Bonne Correspondance' : 'Correspondance Correcte'}
                       </h3>
                       <p className="text-sm text-gray-500">
                         {jobAnalysis.recommendation}
@@ -657,12 +584,12 @@ const JobPersona = () => {
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <div>
                       <h3 className="mb-2 flex items-center font-medium">
-                        <CheckCircle2 className="mr-2 h-5 w-5 text-green-500" /> Strengths
+                        <CheckCircle2 className="mr-2 h-5 w-5 text-green-500" /> Points Forts
                       </h3>
                       <ul className="space-y-1 text-sm">
                         {jobAnalysis.strengths.map((strength: string, i: number) => (
                           <li key={i} className="flex items-start">
-                            <Star className="mr-2 h-4 w-4 text-amber-500" /> 
+                            <Star className="mr-2 h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" /> 
                             <span>{strength}</span>
                           </li>
                         ))}
@@ -671,12 +598,12 @@ const JobPersona = () => {
                     
                     <div>
                       <h3 className="mb-2 flex items-center font-medium">
-                        <XCircle className="mr-2 h-5 w-5 text-red-500" /> Areas to Address
+                        <XCircle className="mr-2 h-5 w-5 text-red-500" /> Points à Améliorer
                       </h3>
                       <ul className="space-y-1 text-sm">
                         {jobAnalysis.weaknesses.map((weakness: string, i: number) => (
                           <li key={i} className="flex items-start">
-                            <span className="mr-2 text-gray-400">•</span>
+                            <span className="mr-2 text-gray-400 flex-shrink-0">•</span>
                             <span>{weakness}</span>
                           </li>
                         ))}
@@ -687,17 +614,17 @@ const JobPersona = () => {
                 <CardFooter className="flex flex-wrap gap-2">
                   <Button onClick={() => handleGenerateApplication(selectedJob)}>
                     <FileText className="mr-2 h-4 w-4" />
-                    Generate Application
+                    Générer Candidature
                   </Button>
                   
                   <Button variant="outline" onClick={() => handleOpenConversation(selectedJob)}>
                     <MessageSquare className="mr-2 h-4 w-4" />
-                    Simulate Interview
+                    Simuler Entretien
                   </Button>
                   
                   <Button variant="secondary" onClick={() => navigate(`/job/${selectedJob}`)}>
                     <Briefcase className="mr-2 h-4 w-4" />
-                    View Full Job Details
+                    Voir Détails Complets
                   </Button>
                 </CardFooter>
               </Card>
@@ -710,29 +637,37 @@ const JobPersona = () => {
       <Dialog open={applicationDialogOpen} onOpenChange={setApplicationDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Generated Application</DialogTitle>
+            <DialogTitle>Candidature Générée</DialogTitle>
             <DialogDescription>
-              Review and edit your AI-generated application before submitting
+              Examinez et modifiez votre candidature générée par l'IA avant de la soumettre
             </DialogDescription>
           </DialogHeader>
           
           <div className="mt-4">
             <Textarea 
-              className="h-[300px] font-mono"
+              className="h-[300px] font-mono text-sm"
               value={generatedApplication}
               onChange={(e) => setGeneratedApplication(e.target.value)}
+              placeholder="Votre candidature apparaîtra ici..."
             />
           </div>
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setApplicationDialogOpen(false)}>
-              Cancel
+              Annuler
             </Button>
             <Button 
               onClick={handleSubmitApplication}
-              disabled={submittingApplication}
+              disabled={submittingApplication || !generatedApplication.trim()}
             >
-              {submittingApplication ? 'Submitting...' : 'Submit Application'}
+              {submittingApplication ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Soumission...
+                </>
+              ) : (
+                'Soumettre la Candidature'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -742,14 +677,14 @@ const JobPersona = () => {
       <Dialog open={conversationDialogOpen} onOpenChange={setConversationDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Simulated Interview</DialogTitle>
+            <DialogTitle>Simulation d'Entretien</DialogTitle>
             <DialogDescription>
-              Practice your interview skills with an AI recruiter
+              Entraînez-vous à vos compétences d'entretien avec un recruteur IA
             </DialogDescription>
           </DialogHeader>
           
           <div className="mt-4 h-[300px] overflow-y-auto rounded-md border p-4">
-            {conversationMessages.map((message, index) => (
+            {messages.map((message, index) => (
               message.role !== 'system' && (
                 <div 
                   key={index} 
@@ -768,13 +703,12 @@ const JobPersona = () => {
               )
             ))}
             
-            {respondingToQuestion && (
+            {isResponding && (
               <div className="flex justify-start">
                 <div className="max-w-[80%] rounded-lg bg-muted px-4 py-2 text-muted-foreground">
                   <div className="flex items-center space-x-2">
-                    <div className="h-2 w-2 animate-pulse rounded-full bg-primary"></div>
-                    <div className="h-2 w-2 animate-pulse rounded-full bg-primary" style={{ animationDelay: '0.2s' }}></div>
-                    <div className="h-2 w-2 animate-pulse rounded-full bg-primary" style={{ animationDelay: '0.4s' }}></div>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Le recruteur réfléchit...</span>
                   </div>
                 </div>
               </div>
@@ -783,7 +717,7 @@ const JobPersona = () => {
           
           <div className="flex items-center space-x-2">
             <Textarea
-              placeholder="Ask a question..."
+              placeholder="Posez une question..."
               value={currentQuestion}
               onChange={(e) => setCurrentQuestion(e.target.value)}
               onKeyDown={(e) => {
@@ -792,13 +726,13 @@ const JobPersona = () => {
                   handleSendQuestion();
                 }
               }}
-              disabled={respondingToQuestion}
-              className="flex-1"
+              disabled={isResponding}
+              className="flex-1 min-h-[40px] max-h-[100px]"
             />
             <Button 
               size="icon"
               onClick={handleSendQuestion}
-              disabled={!currentQuestion.trim() || respondingToQuestion}
+              disabled={!currentQuestion.trim() || isResponding}
             >
               <Send className="h-4 w-4" />
             </Button>
