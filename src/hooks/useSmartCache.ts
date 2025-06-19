@@ -107,14 +107,14 @@ export function useSmartCache<T>(key: string, options: CacheOptions = {}) {
     customTtl?: number
   ): Promise<R> => {
     // Try to get from cache first
-    const cached = get(cacheKey) as R | null;
+    const cached = get(cacheKey);
     if (cached) {
-      return cached;
+      return cached as unknown as R;
     }
 
     // Fetch new data
     const freshData = await fetchFn();
-    set(cacheKey, freshData as T, customTtl);
+    set(cacheKey, freshData as unknown as T, customTtl);
     
     return freshData;
   }, [get, set]);
