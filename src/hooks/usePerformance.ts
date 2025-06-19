@@ -47,7 +47,7 @@ export function usePerformance() {
       if (window.performance) {
         const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
         if (navigation) {
-          const loadTime = navigation.loadEventEnd - navigation.fetchStart;
+          const loadTime = navigation.loadEventEnd - navigation.navigationStart;
           setMetrics(prev => ({ ...prev, loadTime }));
         }
       }
