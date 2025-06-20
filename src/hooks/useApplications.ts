@@ -14,6 +14,67 @@ export function useApplications() {
   const { generateApplication, submitApplication, getGeneratedApplications } = useJobPersona();
   const { user } = useAuth();
 
+  const loadApplications = useCallback(async (jobId?: string) => {
+    setLoadingApplications(true);
+    
+    try {
+      if (!user?.id) {
+        setApplications([]);
+        return [];
+      }
+
+      // Get database user ID
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        console.error('Error getting user data:', userError);
+        return [];
+      }
+
+      // Query generated applications with job details
+      let query = supabase
+        .from('generated_applications')
+        .select(`
+          *,
+          jobs (
+            id,
+            title,
+            company,
+            company_logo
+          )
+        `)
+        .eq('user_id', userData.id)
+        .order('created_at', { ascending: false });
+
+      if (jobId) {
+        query = query.eq('job_id', jobId);
+      }
+
+      const { data: apps, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      setApplications(apps || []);
+      return apps || [];
+    } catch (error) {
+      console.error("Error loading applications:", error);
+      toast({
+        title: "Erreur de chargement",
+        description: "Impossible de charger les candidatures",
+        variant: "destructive"
+      });
+      return [];
+    } finally {
+      setLoadingApplications(false);
+    }
+  }, [user]);
+
   const generateApplicationWithLoading = useCallback(async (jobId: string, applicationType: string = 'cover_letter') => {
     setGeneratingApplication(true);
     
@@ -111,67 +172,6 @@ export function useApplications() {
       setSubmittingApplication(false);
     }
   }, [user, loadApplications]);
-
-  const loadApplications = useCallback(async (jobId?: string) => {
-    setLoadingApplications(true);
-    
-    try {
-      if (!user?.id) {
-        setApplications([]);
-        return [];
-      }
-
-      // Get database user ID
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (userError || !userData) {
-        console.error('Error getting user data:', userError);
-        return [];
-      }
-
-      // Query generated applications with job details
-      let query = supabase
-        .from('generated_applications')
-        .select(`
-          *,
-          jobs (
-            id,
-            title,
-            company,
-            company_logo
-          )
-        `)
-        .eq('user_id', userData.id)
-        .order('created_at', { ascending: false });
-
-      if (jobId) {
-        query = query.eq('job_id', jobId);
-      }
-
-      const { data: apps, error } = await query;
-
-      if (error) {
-        throw error;
-      }
-
-      setApplications(apps || []);
-      return apps || [];
-    } catch (error) {
-      console.error("Error loading applications:", error);
-      toast({
-        title: "Erreur de chargement",
-        description: "Impossible de charger les candidatures",
-        variant: "destructive"
-      });
-      return [];
-    } finally {
-      setLoadingApplications(false);
-    }
-  }, [user]);
 
   const getApplicationStatus = useCallback(async (jobId: string) => {
     if (!user?.id) return null;
