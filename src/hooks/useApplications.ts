@@ -1,6 +1,8 @@
 
 import { useState, useCallback } from 'react';
 import { useJobPersona } from '@/context/JobPersonaContext';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 
 export function useApplications() {
@@ -10,6 +12,7 @@ export function useApplications() {
   const [loadingApplications, setLoadingApplications] = useState(false);
 
   const { generateApplication, submitApplication, getGeneratedApplications } = useJobPersona();
+  const { user } = useAuth();
 
   const generateApplicationWithLoading = useCallback(async (jobId: string, applicationType: string = 'cover_letter') => {
     setGeneratingApplication(true);
@@ -40,19 +43,62 @@ export function useApplications() {
     setSubmittingApplication(true);
     
     try {
-      const success = await submitApplication(jobId, applicationContent);
-      
-      if (success) {
-        toast({
-          title: "Candidature soumise",
-          description: "Votre candidature a été soumise avec succès",
-        });
-        
-        // Refresh applications list
-        await loadApplications();
+      if (!user?.id) {
+        throw new Error('Utilisateur non connecté');
       }
+
+      // Get database user ID
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        throw new Error('Impossible de trouver votre profil utilisateur');
+      }
+
+      // Save the application to generated_applications table
+      const { data: appData, error: appError } = await supabase
+        .from('generated_applications')
+        .insert({
+          user_id: userData.id,
+          job_id: jobId,
+          content: applicationContent,
+          application_type: 'cover_letter',
+          is_submitted: true
+        })
+        .select()
+        .single();
+
+      if (appError) {
+        throw appError;
+      }
+
+      // Also create an entry in the applications table for recruiter visibility
+      const { error: submissionError } = await supabase
+        .from('applications')
+        .insert({
+          job_id: jobId,
+          candidate_id: userData.id,
+          cover_letter: applicationContent,
+          status: 'pending'
+        });
+
+      if (submissionError) {
+        console.error('Error creating application record:', submissionError);
+        // Don't throw here as the main application was saved
+      }
+
+      toast({
+        title: "Candidature soumise",
+        description: "Votre candidature a été soumise avec succès",
+      });
       
-      return success;
+      // Refresh applications list
+      await loadApplications();
+      
+      return true;
     } catch (error) {
       console.error("Error submitting application:", error);
       toast({
@@ -64,15 +110,56 @@ export function useApplications() {
     } finally {
       setSubmittingApplication(false);
     }
-  }, [submitApplication]);
+  }, [user, loadApplications]);
 
   const loadApplications = useCallback(async (jobId?: string) => {
     setLoadingApplications(true);
     
     try {
-      const apps = await getGeneratedApplications(jobId);
-      setApplications(apps);
-      return apps;
+      if (!user?.id) {
+        setApplications([]);
+        return [];
+      }
+
+      // Get database user ID
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        console.error('Error getting user data:', userError);
+        return [];
+      }
+
+      // Query generated applications with job details
+      let query = supabase
+        .from('generated_applications')
+        .select(`
+          *,
+          jobs (
+            id,
+            title,
+            company,
+            company_logo
+          )
+        `)
+        .eq('user_id', userData.id)
+        .order('created_at', { ascending: false });
+
+      if (jobId) {
+        query = query.eq('job_id', jobId);
+      }
+
+      const { data: apps, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      setApplications(apps || []);
+      return apps || [];
     } catch (error) {
       console.error("Error loading applications:", error);
       toast({
@@ -84,7 +171,42 @@ export function useApplications() {
     } finally {
       setLoadingApplications(false);
     }
-  }, [getGeneratedApplications]);
+  }, [user]);
+
+  const getApplicationStatus = useCallback(async (jobId: string) => {
+    if (!user?.id) return null;
+
+    try {
+      // Get database user ID
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        return null;
+      }
+
+      // Check application status
+      const { data, error } = await supabase
+        .from('applications')
+        .select('status')
+        .eq('job_id', jobId)
+        .eq('candidate_id', userData.id)
+        .single();
+
+      if (error) {
+        console.error('Error getting application status:', error);
+        return null;
+      }
+
+      return data?.status || null;
+    } catch (error) {
+      console.error('Error getting application status:', error);
+      return null;
+    }
+  }, [user]);
 
   return {
     generatingApplication,
@@ -93,6 +215,7 @@ export function useApplications() {
     applications,
     generateApplicationWithLoading,
     submitApplicationWithLoading,
-    loadApplications
+    loadApplications,
+    getApplicationStatus
   };
 }
