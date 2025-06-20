@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { UserStats } from '@/components/Dashboard/UserStats';
 import { FeedbackForm } from '@/components/Feedback/FeedbackForm';
+import RecruiterDashboard from '@/components/Dashboard/RecruiterDashboard';
 import { useAuth } from '@/context/AuthContext';
 import { useJobPersona } from '@/context/JobPersonaContext';
 import { useApplications } from '@/hooks/useApplications';
@@ -15,6 +15,7 @@ import { useJobAnalysis } from '@/hooks/useJobAnalysis';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useConversation } from '@/hooks/useConversation';
 import { useDatabase } from '@/context/DatabaseContext';
+import { useUserRole } from '@/context/UserContext';
 import { 
   User, 
   Briefcase, 
@@ -41,13 +42,24 @@ import { toast } from '@/components/ui/use-toast';
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { role } = useUserRole();
   const { persona, hasPersona } = useJobPersona();
   const { applications, loadApplications } = useApplications();
   const { calculateJobMatches } = useJobAnalysis();
   const { success } = useNotifications();
   const { jobs, loading: loadingJobs, fetchJobs } = useDatabase();
   
-  // Enhanced hooks for job analysis and applications
+  // If user is a recruiter, show recruiter dashboard
+  if (role === 'recruiter' || role === 'admin') {
+    return (
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <RecruiterDashboard />
+        </div>
+      </Layout>
+    );
+  }
+
   const { 
     loadingMatches, 
     analyzingJob, 
