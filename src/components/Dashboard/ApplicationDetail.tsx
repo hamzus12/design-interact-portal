@@ -11,7 +11,7 @@ interface ApplicationDetailProps {
   application: any;
   isOpen: boolean;
   onClose: () => void;
-  onSubmit?: (applicationId: string, content: string) => void;
+  onSubmit?: (jobId: string, content: string) => void;
   isSubmitting?: boolean;
 }
 
@@ -29,8 +29,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   }, [application]);
 
   const handleSubmit = () => {
-    if (onSubmit && application?.id) {
-      onSubmit(application.id, content);
+    if (onSubmit && application?.job_id) {
+      onSubmit(application.job_id, content);
     }
   };
 
@@ -47,9 +47,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     }
   };
 
-  const getStatusText = (status: boolean, isSubmitted?: boolean) => {
+  const getStatusText = (isSubmitted?: boolean) => {
     if (isSubmitted) return 'Soumise';
-    return status ? 'Brouillon' : 'Non soumise';
+    return 'Brouillon';
   };
 
   if (!application) return null;

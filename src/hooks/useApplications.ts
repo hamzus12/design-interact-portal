@@ -108,6 +108,8 @@ export function useApplications() {
         throw new Error('Utilisateur non connecté');
       }
 
+      console.log('Starting application submission for job:', jobId);
+
       // Get database user ID
       const { data: userData, error: userError } = await supabase
         .from('users')
@@ -116,8 +118,11 @@ export function useApplications() {
         .single();
 
       if (userError || !userData) {
+        console.error('User lookup error:', userError);
         throw new Error('Impossible de trouver votre profil utilisateur');
       }
+
+      console.log('Found user ID:', userData.id);
 
       // Save the application to generated_applications table
       const { data: appData, error: appError } = await supabase
@@ -133,8 +138,11 @@ export function useApplications() {
         .single();
 
       if (appError) {
+        console.error('Generated application insert error:', appError);
         throw appError;
       }
+
+      console.log('Generated application saved:', appData);
 
       // Also create an entry in the applications table for recruiter visibility
       const { error: submissionError } = await supabase
@@ -147,7 +155,7 @@ export function useApplications() {
         });
 
       if (submissionError) {
-        console.error('Error creating application record:', submissionError);
+        console.error('Application submission error:', submissionError);
         // Don't throw here as the main application was saved
       }
 
@@ -164,7 +172,7 @@ export function useApplications() {
       console.error("Error submitting application:", error);
       toast({
         title: "Erreur de soumission",
-        description: "Impossible de soumettre la candidature",
+        description: error instanceof Error ? error.message : "Impossible de soumettre la candidature",
         variant: "destructive"
       });
       return false;
