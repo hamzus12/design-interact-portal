@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
@@ -21,6 +20,7 @@ import { Clock, CheckCircle, XCircle, AlertCircle, MessageSquare, FileText, Eye 
 import { chatService } from '@/services/ChatService';
 import { useNavigate } from 'react-router-dom';
 import ApplicationDetail from '@/components/Dashboard/ApplicationDetail';
+import { userIdService } from '@/services/UserIdService';
 
 interface Application {
   id: string;
@@ -53,22 +53,6 @@ const MyApplications = () => {
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [showApplicationDetail, setShowApplicationDetail] = useState(false);
 
-  // Get database user ID
-  const getDatabaseUserId = async (authUserId: string): Promise<string | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id')
-        .eq('user_id', authUserId)
-        .single();
-      
-      if (error || !data) return null;
-      return data.id;
-    } catch (err) {
-      return null;
-    }
-  };
-
   useEffect(() => {
     const fetchApplications = async () => {
       if (!user) return;
@@ -76,31 +60,33 @@ const MyApplications = () => {
       try {
         setLoading(true);
         
-        const dbUserId = await getDatabaseUserId(user.id);
-        if (!dbUserId) {
-          throw new Error('Could not find user profile');
-        }
-        
-        // For candidates, show their applications
-        const { data, error } = await supabase
-          .from('applications')
-          .select(`
-            *,
-            job:jobs!inner(
-              id,
-              title,
-              company,
-              location,
-              recruiter_id
-            )
-          `)
-          .eq('candidate_id', dbUserId)
-          .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        
-        console.log('Fetched candidate applications:', data);
-        setApplications(data as Application[]);
+        const result = await userIdService.withValidUserId(
+          user.id,
+          async (dbUserId) => {
+            // For candidates, show their applications
+            const { data, error } = await supabase
+              .from('applications')
+              .select(`
+                *,
+                job:jobs!inner(
+                  id,
+                  title,
+                  company,
+                  location,
+                  recruiter_id
+                )
+              `)
+              .eq('candidate_id', dbUserId)
+              .order('created_at', { ascending: false });
+            
+            if (error) throw error;
+            
+            console.log('Fetched candidate applications:', data);
+            setApplications(data as Application[]);
+            return data;
+          },
+          "Impossible de charger les candidatures"
+        );
 
         // Also load generated applications
         await loadApplications();
@@ -124,8 +110,8 @@ const MyApplications = () => {
     if (!user) return;
 
     const setupRealtimeSubscription = async () => {
-      const dbUserId = await getDatabaseUserId(user.id);
-      if (!dbUserId) return;
+      const validation = await userIdService.validateUserExists(user.id);
+      if (!validation.isValid) return;
 
       const channel = supabase
         .channel('application-status-updates')
@@ -135,7 +121,7 @@ const MyApplications = () => {
             event: 'UPDATE',
             schema: 'public',
             table: 'applications',
-            filter: `candidate_id=eq.${dbUserId}`
+            filter: `candidate_id=eq.${validation.dbUserId}`
           },
           (payload) => {
             console.log('Real-time application update:', payload);
@@ -181,45 +167,39 @@ const MyApplications = () => {
     try {
       if (!user?.id) return;
       
-      const dbUserId = await getDatabaseUserId(user.id);
-      if (!dbUserId) {
-        toast({
-          title: 'Error',
-          description: 'Could not find your user profile',
-          variant: 'destructive'
-        });
-        return;
-      }
+      const result = await userIdService.withValidUserId(
+        user.id,
+        async (dbUserId) => {
+          console.log('Creating conversation between candidate and recruiter:', {
+            jobId: application.job.id,
+            candidateId: dbUserId,
+            recruiterId: application.job.recruiter_id
+          });
 
-      console.log('Creating conversation between candidate and recruiter:', {
-        jobId: application.job.id,
-        candidateId: dbUserId,
-        recruiterId: application.job.recruiter_id
-      });
+          // Create or find existing conversation
+          const conversation = await chatService.createConversation(
+            application.job.id, 
+            dbUserId,
+            application.job.recruiter_id
+          );
+          
+          console.log('Conversation created/found:', conversation);
+          
+          // Navigate to the conversation
+          navigate(`/chat/${conversation.id}`);
+          
+          toast({
+            title: 'Conversation Started',
+            description: 'You can now chat with the recruiter',
+          });
 
-      // Create or find existing conversation
-      const conversation = await chatService.createConversation(
-        application.job.id, 
-        dbUserId,
-        application.job.recruiter_id
+          return conversation;
+        },
+        "Impossible de démarrer la conversation"
       );
-      
-      console.log('Conversation created/found:', conversation);
-      
-      // Navigate to the conversation
-      navigate(`/chat/${conversation.id}`);
-      
-      toast({
-        title: 'Conversation Started',
-        description: 'You can now chat with the recruiter',
-      });
+
     } catch (error: any) {
       console.error('Error creating conversation:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to start conversation',
-        variant: 'destructive'
-      });
     }
   };
 

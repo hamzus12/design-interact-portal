@@ -4,6 +4,7 @@ import { useJobPersona } from '@/context/JobPersonaContext';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
+import { userIdService } from '@/services/UserIdService';
 
 export function useApplications() {
   const [generatingApplication, setGeneratingApplication] = useState(false);
@@ -11,7 +12,7 @@ export function useApplications() {
   const [applications, setApplications] = useState<any[]>([]);
   const [loadingApplications, setLoadingApplications] = useState(false);
 
-  const { generateApplication, submitApplication, getGeneratedApplications } = useJobPersona();
+  const { generateApplication } = useJobPersona();
   const { user } = useAuth();
 
   const loadApplications = useCallback(async (jobId?: string) => {
@@ -23,52 +24,44 @@ export function useApplications() {
         return [];
       }
 
-      // Get database user ID
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
+      const result = await userIdService.withValidUserId(
+        user.id,
+        async (dbUserId) => {
+          // Query generated applications with job details
+          let query = supabase
+            .from('generated_applications')
+            .select(`
+              *,
+              jobs (
+                id,
+                title,
+                company,
+                company_logo
+              )
+            `)
+            .eq('user_id', dbUserId)
+            .order('created_at', { ascending: false });
 
-      if (userError || !userData) {
-        console.error('Error getting user data:', userError);
-        return [];
-      }
+          if (jobId) {
+            query = query.eq('job_id', jobId);
+          }
 
-      // Query generated applications with job details
-      let query = supabase
-        .from('generated_applications')
-        .select(`
-          *,
-          jobs (
-            id,
-            title,
-            company,
-            company_logo
-          )
-        `)
-        .eq('user_id', userData.id)
-        .order('created_at', { ascending: false });
+          const { data: apps, error } = await query;
 
-      if (jobId) {
-        query = query.eq('job_id', jobId);
-      }
+          if (error) {
+            throw error;
+          }
 
-      const { data: apps, error } = await query;
+          setApplications(apps || []);
+          return apps || [];
+        },
+        "Impossible de charger les candidatures"
+      );
 
-      if (error) {
-        throw error;
-      }
-
-      setApplications(apps || []);
-      return apps || [];
+      return result || [];
     } catch (error) {
       console.error("Error loading applications:", error);
-      toast({
-        title: "Erreur de chargement",
-        description: "Impossible de charger les candidatures",
-        variant: "destructive"
-      });
+      setApplications([]);
       return [];
     } finally {
       setLoadingApplications(false);
@@ -110,135 +103,128 @@ export function useApplications() {
 
       console.log('Starting application submission for job:', jobId);
 
-      // Get database user ID first
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
+      const result = await userIdService.withValidUserId(
+        user.id,
+        async (dbUserId) => {
+          console.log('Found user ID:', dbUserId);
 
-      if (userError || !userData) {
-        console.error('User lookup error:', userError);
-        throw new Error('Impossible de trouver votre profil utilisateur');
+          // Check if application already exists for this job
+          const { data: existingApp, error: checkError } = await supabase
+            .from('generated_applications')
+            .select('id, is_submitted')
+            .eq('user_id', dbUserId)
+            .eq('job_id', jobId)
+            .maybeSingle();
+
+          if (checkError) {
+            console.error('Error checking existing application:', checkError);
+            throw checkError;
+          }
+
+          let appData;
+
+          if (existingApp) {
+            // Update existing application
+            const { data: updatedApp, error: updateError } = await supabase
+              .from('generated_applications')
+              .update({
+                content: applicationContent,
+                is_submitted: true,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingApp.id)
+              .select()
+              .single();
+
+            if (updateError) {
+              console.error('Generated application update error:', updateError);
+              throw updateError;
+            }
+
+            appData = updatedApp;
+            console.log('Generated application updated:', appData);
+          } else {
+            // Create new application
+            const { data: newApp, error: insertError } = await supabase
+              .from('generated_applications')
+              .insert({
+                user_id: dbUserId,
+                job_id: jobId,
+                content: applicationContent,
+                application_type: 'cover_letter',
+                is_submitted: true
+              })
+              .select()
+              .single();
+
+            if (insertError) {
+              console.error('Generated application insert error:', insertError);
+              throw insertError;
+            }
+
+            appData = newApp;
+            console.log('Generated application created:', appData);
+          }
+
+          // Check if application already exists in applications table
+          const { data: existingSubmission, error: submissionCheckError } = await supabase
+            .from('applications')
+            .select('id')
+            .eq('job_id', jobId)
+            .eq('candidate_id', dbUserId)
+            .maybeSingle();
+
+          if (submissionCheckError) {
+            console.error('Error checking existing submission:', submissionCheckError);
+          }
+
+          // Create or update entry in applications table for recruiter visibility
+          if (!existingSubmission) {
+            const { error: submissionError } = await supabase
+              .from('applications')
+              .insert({
+                job_id: jobId,
+                candidate_id: dbUserId,
+                cover_letter: applicationContent,
+                status: 'pending'
+              });
+
+            if (submissionError) {
+              console.error('Application submission error:', submissionError);
+              // Don't throw here as the main application was saved
+            }
+          } else {
+            const { error: updateSubmissionError } = await supabase
+              .from('applications')
+              .update({
+                cover_letter: applicationContent,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingSubmission.id);
+
+            if (updateSubmissionError) {
+              console.error('Application update error:', updateSubmissionError);
+            }
+          }
+
+          return true;
+        },
+        "Impossible de soumettre la candidature"
+      );
+
+      if (result) {
+        toast({
+          title: "Candidature soumise",
+          description: "Votre candidature a été soumise avec succès",
+        });
+        
+        // Refresh applications list
+        await loadApplications();
       }
-
-      console.log('Found user ID:', userData.id);
-
-      // Check if application already exists for this job
-      const { data: existingApp, error: checkError } = await supabase
-        .from('generated_applications')
-        .select('id, is_submitted')
-        .eq('user_id', userData.id)
-        .eq('job_id', jobId)
-        .maybeSingle();
-
-      if (checkError) {
-        console.error('Error checking existing application:', checkError);
-        throw checkError;
-      }
-
-      let appData;
-
-      if (existingApp) {
-        // Update existing application
-        const { data: updatedApp, error: updateError } = await supabase
-          .from('generated_applications')
-          .update({
-            content: applicationContent,
-            is_submitted: true,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingApp.id)
-          .select()
-          .single();
-
-        if (updateError) {
-          console.error('Generated application update error:', updateError);
-          throw updateError;
-        }
-
-        appData = updatedApp;
-        console.log('Generated application updated:', appData);
-      } else {
-        // Create new application
-        const { data: newApp, error: insertError } = await supabase
-          .from('generated_applications')
-          .insert({
-            user_id: userData.id,
-            job_id: jobId,
-            content: applicationContent,
-            application_type: 'cover_letter',
-            is_submitted: true
-          })
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error('Generated application insert error:', insertError);
-          throw insertError;
-        }
-
-        appData = newApp;
-        console.log('Generated application created:', appData);
-      }
-
-      // Check if application already exists in applications table
-      const { data: existingSubmission, error: submissionCheckError } = await supabase
-        .from('applications')
-        .select('id')
-        .eq('job_id', jobId)
-        .eq('candidate_id', userData.id)
-        .maybeSingle();
-
-      if (submissionCheckError) {
-        console.error('Error checking existing submission:', submissionCheckError);
-      }
-
-      // Create or update entry in applications table for recruiter visibility
-      if (!existingSubmission) {
-        const { error: submissionError } = await supabase
-          .from('applications')
-          .insert({
-            job_id: jobId,
-            candidate_id: userData.id,
-            cover_letter: applicationContent,
-            status: 'pending'
-          });
-
-        if (submissionError) {
-          console.error('Application submission error:', submissionError);
-          // Don't throw here as the main application was saved
-        }
-      } else {
-        const { error: updateSubmissionError } = await supabase
-          .from('applications')
-          .update({
-            cover_letter: applicationContent,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingSubmission.id);
-
-        if (updateSubmissionError) {
-          console.error('Application update error:', updateSubmissionError);
-        }
-      }
-
-      toast({
-        title: "Candidature soumise",
-        description: "Votre candidature a été soumise avec succès",
-      });
       
-      // Refresh applications list
-      await loadApplications();
-      
-      return true;
+      return result || false;
     } catch (error) {
       console.error("Error submitting application:", error);
-      toast({
-        title: "Erreur de soumission",
-        description: error instanceof Error ? error.message : "Impossible de soumettre la candidature",
-        variant: "destructive"
-      });
       return false;
     } finally {
       setSubmittingApplication(false);
@@ -248,36 +234,26 @@ export function useApplications() {
   const getApplicationStatus = useCallback(async (jobId: string) => {
     if (!user?.id) return null;
 
-    try {
-      // Get database user ID
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
+    return await userIdService.withValidUserId(
+      user.id,
+      async (dbUserId) => {
+        // Check application status
+        const { data, error } = await supabase
+          .from('applications')
+          .select('status')
+          .eq('job_id', jobId)
+          .eq('candidate_id', dbUserId)
+          .maybeSingle();
 
-      if (userError || !userData) {
-        return null;
-      }
+        if (error) {
+          console.error('Error getting application status:', error);
+          return null;
+        }
 
-      // Check application status
-      const { data, error } = await supabase
-        .from('applications')
-        .select('status')
-        .eq('job_id', jobId)
-        .eq('candidate_id', userData.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error getting application status:', error);
-        return null;
-      }
-
-      return data?.status || null;
-    } catch (error) {
-      console.error('Error getting application status:', error);
-      return null;
-    }
+        return data?.status || null;
+      },
+      "Impossible de récupérer le statut de la candidature"
+    );
   }, [user]);
 
   return {
