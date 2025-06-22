@@ -110,7 +110,7 @@ export function useApplications() {
 
       console.log('Starting application submission for job:', jobId);
 
-      // Get database user ID
+      // Get database user ID first
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('id')
@@ -124,39 +124,103 @@ export function useApplications() {
 
       console.log('Found user ID:', userData.id);
 
-      // Save the application to generated_applications table
-      const { data: appData, error: appError } = await supabase
+      // Check if application already exists for this job
+      const { data: existingApp, error: checkError } = await supabase
         .from('generated_applications')
-        .insert({
-          user_id: userData.id,
-          job_id: jobId,
-          content: applicationContent,
-          application_type: 'cover_letter',
-          is_submitted: true
-        })
-        .select()
-        .single();
+        .select('id, is_submitted')
+        .eq('user_id', userData.id)
+        .eq('job_id', jobId)
+        .maybeSingle();
 
-      if (appError) {
-        console.error('Generated application insert error:', appError);
-        throw appError;
+      if (checkError) {
+        console.error('Error checking existing application:', checkError);
+        throw checkError;
       }
 
-      console.log('Generated application saved:', appData);
+      let appData;
 
-      // Also create an entry in the applications table for recruiter visibility
-      const { error: submissionError } = await supabase
+      if (existingApp) {
+        // Update existing application
+        const { data: updatedApp, error: updateError } = await supabase
+          .from('generated_applications')
+          .update({
+            content: applicationContent,
+            is_submitted: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingApp.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Generated application update error:', updateError);
+          throw updateError;
+        }
+
+        appData = updatedApp;
+        console.log('Generated application updated:', appData);
+      } else {
+        // Create new application
+        const { data: newApp, error: insertError } = await supabase
+          .from('generated_applications')
+          .insert({
+            user_id: userData.id,
+            job_id: jobId,
+            content: applicationContent,
+            application_type: 'cover_letter',
+            is_submitted: true
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Generated application insert error:', insertError);
+          throw insertError;
+        }
+
+        appData = newApp;
+        console.log('Generated application created:', appData);
+      }
+
+      // Check if application already exists in applications table
+      const { data: existingSubmission, error: submissionCheckError } = await supabase
         .from('applications')
-        .insert({
-          job_id: jobId,
-          candidate_id: userData.id,
-          cover_letter: applicationContent,
-          status: 'pending'
-        });
+        .select('id')
+        .eq('job_id', jobId)
+        .eq('candidate_id', userData.id)
+        .maybeSingle();
 
-      if (submissionError) {
-        console.error('Application submission error:', submissionError);
-        // Don't throw here as the main application was saved
+      if (submissionCheckError) {
+        console.error('Error checking existing submission:', submissionCheckError);
+      }
+
+      // Create or update entry in applications table for recruiter visibility
+      if (!existingSubmission) {
+        const { error: submissionError } = await supabase
+          .from('applications')
+          .insert({
+            job_id: jobId,
+            candidate_id: userData.id,
+            cover_letter: applicationContent,
+            status: 'pending'
+          });
+
+        if (submissionError) {
+          console.error('Application submission error:', submissionError);
+          // Don't throw here as the main application was saved
+        }
+      } else {
+        const { error: updateSubmissionError } = await supabase
+          .from('applications')
+          .update({
+            cover_letter: applicationContent,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingSubmission.id);
+
+        if (updateSubmissionError) {
+          console.error('Application update error:', updateSubmissionError);
+        }
       }
 
       toast({
@@ -202,7 +266,7 @@ export function useApplications() {
         .select('status')
         .eq('job_id', jobId)
         .eq('candidate_id', userData.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error getting application status:', error);
