@@ -11,7 +11,7 @@ interface ApplicationDetailProps {
   application: any;
   isOpen: boolean;
   onClose: () => void;
-  onSubmit?: (jobId: string, content: string) => void;
+  onSubmit?: (jobId: string, content: string) => Promise<boolean>;
   isSubmitting?: boolean;
 }
 
@@ -28,9 +28,13 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     setContent(application?.content || '');
   }, [application]);
 
-  const handleSubmit = () => {
-    if (onSubmit && application?.job_id) {
-      onSubmit(application.job_id, content);
+  const handleSubmit = async () => {
+    if (onSubmit && application?.job_id && content.trim()) {
+      console.log('Submitting application for job:', application.job_id);
+      const success = await onSubmit(application.job_id, content);
+      if (success) {
+        onClose();
+      }
     }
   };
 
@@ -157,7 +161,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                 ) : (
                   <>
                     <Send className="h-4 w-4" />
-                    Soumettre
+                    Soumettre la candidature
                   </>
                 )}
               </Button>

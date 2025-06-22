@@ -15,10 +15,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useUserRole } from '@/context/UserContext';
+import { useApplications } from '@/hooks/useApplications';
 import { supabase } from '@/integrations/supabase/client';
-import { Clock, CheckCircle, XCircle, AlertCircle, MessageSquare } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, AlertCircle, MessageSquare, FileText, Eye } from 'lucide-react';
 import { chatService } from '@/services/ChatService';
 import { useNavigate } from 'react-router-dom';
+import ApplicationDetail from '@/components/Dashboard/ApplicationDetail';
 
 interface Application {
   id: string;
@@ -39,8 +41,17 @@ const MyApplications = () => {
   const { user, role } = useUserRole();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { 
+    applications: generatedApplications, 
+    loadApplications, 
+    submitApplicationWithLoading,
+    submittingApplication
+  } = useApplications();
+  
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedApplication, setSelectedApplication] = useState<any>(null);
+  const [showApplicationDetail, setShowApplicationDetail] = useState(false);
 
   // Get database user ID
   const getDatabaseUserId = async (authUserId: string): Promise<string | null> => {
@@ -90,6 +101,9 @@ const MyApplications = () => {
         
         console.log('Fetched candidate applications:', data);
         setApplications(data as Application[]);
+
+        // Also load generated applications
+        await loadApplications();
       } catch (error) {
         console.error('Error fetching applications:', error);
         toast({
@@ -103,7 +117,7 @@ const MyApplications = () => {
     };
     
     fetchApplications();
-  }, [user, toast]);
+  }, [user, toast, loadApplications]);
 
   // Set up real-time subscription for application status updates
   useEffect(() => {
@@ -209,6 +223,15 @@ const MyApplications = () => {
     }
   };
 
+  const handleViewApplication = (application: any) => {
+    setSelectedApplication(application);
+    setShowApplicationDetail(true);
+  };
+
+  const handleSubmitApplication = async (jobId: string, content: string): Promise<boolean> => {
+    return await submitApplicationWithLoading(jobId, content);
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending':
@@ -253,14 +276,54 @@ const MyApplications = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto py-12">
+      <div className="container mx-auto py-12 space-y-8">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-bold">My Applications</h1>
           <Button asChild>
             <Link to="/jobs">Browse Jobs</Link>
           </Button>
         </div>
+
+        {/* Generated Applications */}
+        {generatedApplications.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Generated Applications</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {generatedApplications.map((app) => (
+                  <div key={app.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex-1">
+                      <h3 className="font-medium">{app.jobs?.title}</h3>
+                      <p className="text-sm text-gray-500">{app.jobs?.company}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant={app.is_submitted ? "default" : "secondary"}>
+                          {app.is_submitted ? "Submitted" : "Draft"}
+                        </Badge>
+                        <span className="text-xs text-gray-400">
+                          {formatDate(app.created_at)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleViewApplication(app)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
         
+        {/* Submitted Applications */}
         <Card>
           <CardHeader>
             <CardTitle>Your Job Applications</CardTitle>
@@ -329,6 +392,15 @@ const MyApplications = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Application Detail Dialog */}
+        <ApplicationDetail
+          application={selectedApplication}
+          isOpen={showApplicationDetail}
+          onClose={() => setShowApplicationDetail(false)}
+          onSubmit={handleSubmitApplication}
+          isSubmitting={submittingApplication}
+        />
       </div>
     </Layout>
   );
