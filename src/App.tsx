@@ -25,13 +25,13 @@ const queryClient = new QueryClient();
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <UserProvider>
-          <DatabaseProvider>
-            <JobPersonaProvider>
-              <LanguageProvider>
-                <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-                  <BrowserRouter>
+      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+        <BrowserRouter>
+          <AuthProvider>
+            <UserProvider>
+              <DatabaseProvider>
+                <JobPersonaProvider>
+                  <LanguageProvider>
                     <Toaster />
                     <Routes>
                       <Route path="/" element={<Home />} />
@@ -45,13 +45,13 @@ function App() {
                       <Route path="/my-applications" element={<MyApplications />} />
                       <Route path="/admin" element={<AdminDashboard />} />
                     </Routes>
-                  </BrowserRouter>
-                </ThemeProvider>
-              </LanguageProvider>
-            </JobPersonaProvider>
-          </DatabaseProvider>
-        </UserProvider>
-      </AuthProvider>
+                  </LanguageProvider>
+                </JobPersonaProvider>
+              </DatabaseProvider>
+            </UserProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
