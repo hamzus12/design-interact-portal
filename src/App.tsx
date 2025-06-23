@@ -11,6 +11,8 @@ import About from '@/pages/About';
 import CreateJobPersona from '@/pages/CreateJobPersona';
 import EditJobPersona from '@/pages/EditJobPersona';
 import MyApplications from '@/pages/MyApplications';
+import SignIn from '@/pages/SignIn';
+import SignUp from '@/pages/SignUp';
 import { AuthProvider } from '@/context/AuthContext';
 import { UserProvider } from '@/context/UserContext';
 import { JobPersonaProvider } from '@/context/JobPersonaContext';
@@ -35,6 +37,8 @@ function App() {
                     <Toaster />
                     <Routes>
                       <Route path="/" element={<Index />} />
+                      <Route path="/signin" element={<SignIn />} />
+                      <Route path="/signup" element={<SignUp />} />
                       <Route path="/jobs" element={<Jobs />} />
                       <Route path="/job/:id" element={<JobDetail />} />
                       <Route path="/dashboard" element={<Dashboard />} />
