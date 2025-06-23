@@ -24,7 +24,8 @@ import {
   Star,
   Building,
   MapPin,
-  Calendar
+  Calendar,
+  Briefcase
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 

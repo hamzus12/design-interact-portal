@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Briefcase, Moon, Sun, Menu, Shield } from 'lucide-react';
-import { useTheme } from '@/components/ui/theme-provider';
+import { useTheme } from 'next-themes';
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Button } from '@/components/ui/button';
 import LanguageSelector from '@/components/LanguageSelector';

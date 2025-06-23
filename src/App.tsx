@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
-import Home from '@/pages/Home';
+import Home from '@/pages/Index';
 import Jobs from '@/pages/Jobs';
 import JobDetail from '@/pages/JobDetail';
 import Dashboard from '@/pages/Dashboard';
@@ -13,15 +14,17 @@ import MyApplications from '@/pages/MyApplications';
 import { AuthProvider } from '@/context/AuthContext';
 import { UserProvider } from '@/context/UserContext';
 import { JobPersonaProvider } from '@/context/JobPersonaContext';
-import { ThemeProvider } from '@/components/theme-provider';
+import { ThemeProvider } from 'next-themes';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { DatabaseProvider } from '@/context/DatabaseContext';
-import { QueryClient } from 'react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AdminDashboard from './pages/AdminDashboard';
+
+const queryClient = new QueryClient();
 
 function App() {
   return (
-    <QueryClient>
+    <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <UserProvider>
           <DatabaseProvider>
@@ -49,7 +52,7 @@ function App() {
           </DatabaseProvider>
         </UserProvider>
       </AuthProvider>
-    </QueryClient>
+    </QueryClientProvider>
   );
 }
 
