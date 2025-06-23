@@ -2,7 +2,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
-import Home from '@/pages/Index';
+import Index from '@/pages/Index';
 import Jobs from '@/pages/Jobs';
 import JobDetail from '@/pages/JobDetail';
 import Dashboard from '@/pages/Dashboard';
@@ -34,7 +34,7 @@ function App() {
                   <LanguageProvider>
                     <Toaster />
                     <Routes>
-                      <Route path="/" element={<Home />} />
+                      <Route path="/" element={<Index />} />
                       <Route path="/jobs" element={<Jobs />} />
                       <Route path="/job/:id" element={<JobDetail />} />
                       <Route path="/dashboard" element={<Dashboard />} />
