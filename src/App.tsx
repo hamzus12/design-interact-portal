@@ -13,6 +13,8 @@ import EditJobPersona from '@/pages/EditJobPersona';
 import MyApplications from '@/pages/MyApplications';
 import SignIn from '@/pages/SignIn';
 import SignUp from '@/pages/SignUp';
+import Chat from '@/pages/Chat';
+import Profile from '@/pages/Profile';
 import { AuthProvider } from '@/context/AuthContext';
 import { UserProvider } from '@/context/UserContext';
 import { JobPersonaProvider } from '@/context/JobPersonaContext';
@@ -48,6 +50,9 @@ function App() {
                       <Route path="/edit-job-persona" element={<EditJobPersona />} />
                       <Route path="/my-applications" element={<MyApplications />} />
                       <Route path="/admin" element={<AdminDashboard />} />
+                      <Route path="/chat" element={<Chat />} />
+                      <Route path="/chat/:id" element={<Chat />} />
+                      <Route path="/profile" element={<Profile />} />
                     </Routes>
                   </LanguageProvider>
                 </JobPersonaProvider>
