@@ -52,7 +52,7 @@ function App() {
                       <Route path="/edit-job-persona" element={<EditJobPersona />} />
                       <Route path="/my-applications" element={<MyApplications />} />
                       <Route path="/admin-login" element={<AdminLogin />} />
-                      <Route path="/admin" element={
+                      <Route path="/admin-dashboard" element={
                         <AdminRoute>
                           <AdminDashboard />
                         </AdminRoute>

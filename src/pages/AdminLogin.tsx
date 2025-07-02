@@ -35,7 +35,7 @@ const AdminLogin = () => {
         description: "Bienvenue dans le dashboard admin",
       });
       
-      navigate('/admin');
+      navigate('/admin-dashboard');
     } else {
       toast({
         title: "Erreur de connexion",
