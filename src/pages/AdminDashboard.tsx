@@ -1,33 +1,28 @@
 
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import { useUserRole } from '@/context/UserContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
   Briefcase, 
   AlertTriangle, 
   Shield,
   BarChart3,
-  TrendingUp,
   UserCheck,
-  Building
+  LogOut
 } from 'lucide-react';
 import ManageUsers from './ManageUsers';
 import AdminJobsManager from '@/components/Admin/AdminJobsManager';
 import AdminStats from '@/components/Admin/AdminStats';
 
 const AdminDashboard = () => {
-  const { role, user, isLoading } = useUserRole();
   const { toast } = useToast();
   const navigate = useNavigate();
-  
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalJobs: 0,
@@ -37,22 +32,11 @@ const AdminDashboard = () => {
     activeJobs: 0
   });
   const [loadingStats, setLoadingStats] = useState(true);
+  const adminEmail = localStorage.getItem('adminEmail');
 
   useEffect(() => {
-    if (!isLoading && role !== 'admin') {
-      toast({
-        title: "Accès refusé",
-        description: "Seuls les administrateurs peuvent accéder à cette page",
-        variant: "destructive"
-      });
-      navigate('/dashboard');
-      return;
-    }
-    
-    if (role === 'admin') {
-      fetchStats();
-    }
-  }, [role, isLoading, navigate, toast]);
+    fetchStats();
+  }, []);
 
   const fetchStats = async () => {
     try {
@@ -61,7 +45,7 @@ const AdminDashboard = () => {
       // Récupérer les statistiques
       const [usersRes, jobsRes, appsRes] = await Promise.all([
         supabase.from('users').select('id, created_at'),
-        supabase.from('jobs').select('id, is_flagged, is_active'),
+        supabase.from('jobs').select('id, is_active'),
         supabase.from('applications').select('id')
       ]);
 
@@ -71,7 +55,7 @@ const AdminDashboard = () => {
       setStats({
         totalUsers: usersRes.data?.length || 0,
         totalJobs: jobsRes.data?.length || 0,
-        flaggedJobs: jobsRes.data?.filter(job => job.is_flagged).length || 0,
+        flaggedJobs: 0, // Pas de colonne is_flagged dans votre schéma
         totalApplications: appsRes.data?.length || 0,
         newUsersThisMonth: usersRes.data?.filter(user => 
           new Date(user.created_at) >= thisMonthStart
@@ -90,21 +74,15 @@ const AdminDashboard = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <Layout>
-        <div className="container mx-auto py-12">
-          <div className="flex h-96 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (role !== 'admin') {
-    return null;
-  }
+  const handleLogout = () => {
+    localStorage.removeItem('isAdmin');
+    localStorage.removeItem('adminEmail');
+    toast({
+      title: "Déconnexion réussie",
+      description: "Vous avez été déconnecté du dashboard admin",
+    });
+    navigate('/');
+  };
 
   return (
     <Layout>
@@ -117,9 +95,17 @@ const AdminDashboard = () => {
                 Tableau de Bord Administrateur
               </h1>
               <p className="text-gray-600">
-                Gérez les utilisateurs, les offres d'emploi et surveillez l'activité de la plateforme
+                Connecté en tant que: {adminEmail}
               </p>
             </div>
+            <Button 
+              onClick={handleLogout}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Se déconnecter
+            </Button>
           </div>
         </div>
 

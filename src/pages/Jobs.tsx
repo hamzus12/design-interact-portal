@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
 import FilterSection from '@/components/Jobs/FilterSection';
 import JobCard from '@/components/Jobs/JobCard';
@@ -14,6 +14,7 @@ const Jobs = () => {
   const { jobs, loading, error, fetchJobs, fetchJobsByFilters, favorites, toggleFavorite } = useDatabase();
   const { user, role } = useUserRole();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState({
     keyword: '',
     category: [],
@@ -23,40 +24,72 @@ const Jobs = () => {
   const [currentLocation, setCurrentLocation] = useState<string | null>(null);
 
   useEffect(() => {
-    // Load all jobs on initial page load
-    fetchJobs();
+    // Récupérer les paramètres de recherche depuis l'URL
+    const keywordFromUrl = searchParams.get('keyword') || '';
+    const locationFromUrl = searchParams.get('location') || '';
     
-    // Try to get user's geolocation if browser supports it
+    if (keywordFromUrl || locationFromUrl) {
+      const initialFilters = {
+        keyword: keywordFromUrl,
+        category: [],
+        jobType: [],
+        location: locationFromUrl ? [locationFromUrl] : []
+      };
+      setFilters(initialFilters);
+      
+      // Appliquer les filtres de recherche
+      if (keywordFromUrl || locationFromUrl) {
+        fetchJobsByFilters(initialFilters);
+      } else {
+        fetchJobs();
+      }
+    } else {
+      // Charger tous les emplois si aucun paramètre de recherche
+      fetchJobs();
+    }
+    
+    // Essayer d'obtenir la géolocalisation de l'utilisateur
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         position => {
-          // This would typically use a reverse geocoding service
-          // For now, we'll just show coordinates
           setCurrentLocation(`${position.coords.latitude.toFixed(2)}, ${position.coords.longitude.toFixed(2)}`);
           toast({
-            title: "Location detected",
-            description: "We can show you local job opportunities",
+            title: "Localisation détectée",
+            description: "Nous pouvons vous montrer les opportunités locales",
           });
         },
         error => {
-          console.log("Geolocation error:", error);
+          console.log("Erreur de géolocalisation:", error);
         }
       );
     }
-  }, [fetchJobs, toast]);
+  }, [fetchJobs, fetchJobsByFilters, searchParams, toast]);
 
   const handleFilterChange = (newFilters) => {
+    console.log('Filtres appliqués:', newFilters);
     setFilters(newFilters);
-    fetchJobsByFilters(newFilters);
+    
+    // Appliquer les filtres ou charger tous les emplois si aucun filtre
+    const hasActiveFilters = newFilters.keyword || 
+                            newFilters.category.length > 0 || 
+                            newFilters.jobType.length > 0 || 
+                            newFilters.location.length > 0;
+    
+    if (hasActiveFilters) {
+      fetchJobsByFilters(newFilters);
+    } else {
+      fetchJobs();
+    }
   };
 
   const clearFilters = () => {
-    setFilters({
+    const emptyFilters = {
       keyword: '',
       category: [],
       jobType: [],
       location: []
-    });
+    };
+    setFilters(emptyFilters);
     fetchJobs();
   };
 
@@ -66,11 +99,11 @@ const Jobs = () => {
         <div className="container mx-auto px-4">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold sm:text-3xl dark:text-white">Browse Jobs</h1>
+              <h1 className="text-2xl font-bold sm:text-3xl dark:text-white">Parcourir les Emplois</h1>
               {currentLocation && (
                 <div className="mt-2 flex items-center text-sm text-gray-500 dark:text-gray-400">
                   <MapPin className="mr-1 h-4 w-4" />
-                  <span>Your location: {currentLocation}</span>
+                  <span>Votre localisation: {currentLocation}</span>
                 </div>
               )}
             </div>
@@ -78,7 +111,7 @@ const Jobs = () => {
             {user && (role === 'recruiter' || role === 'admin') && (
               <Button asChild className="bg-primary text-white">
                 <Link to="/add-job">
-                  <Plus className="mr-2 h-4 w-4" /> Post a Job
+                  <Plus className="mr-2 h-4 w-4" /> Publier une Offre
                 </Link>
               </Button>
             )}
@@ -128,8 +161,13 @@ const Jobs = () => {
                 </div>
               ) : (
                 <div className="flex h-40 flex-col items-center justify-center space-y-2 rounded-lg bg-white p-8 text-center shadow dark:bg-gray-800 dark:text-gray-200">
-                  <h3 className="text-lg font-semibold">No jobs found</h3>
-                  <p className="text-gray-500 dark:text-gray-400">Try adjusting your search filters.</p>
+                  <h3 className="text-lg font-semibold">Aucun emploi trouvé</h3>
+                  <p className="text-gray-500 dark:text-gray-400">
+                    {filters.keyword || filters.category.length > 0 || filters.jobType.length > 0 || filters.location.length > 0
+                      ? "Essayez d'ajuster vos filtres de recherche."
+                      : "Aucune offre d'emploi disponible pour le moment."
+                    }
+                  </p>
                 </div>
               )}
             </div>

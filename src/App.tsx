@@ -15,6 +15,9 @@ import SignIn from '@/pages/SignIn';
 import SignUp from '@/pages/SignUp';
 import Chat from '@/pages/Chat';
 import Profile from '@/pages/Profile';
+import AdminLogin from '@/pages/AdminLogin';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminRoute from '@/components/AdminRoute';
 import { AuthProvider } from '@/context/AuthContext';
 import { UserProvider } from '@/context/UserContext';
 import { JobPersonaProvider } from '@/context/JobPersonaContext';
@@ -22,7 +25,6 @@ import { ThemeProvider } from 'next-themes';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { DatabaseProvider } from '@/context/DatabaseContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import AdminDashboard from './pages/AdminDashboard';
 
 const queryClient = new QueryClient();
 
@@ -49,7 +51,12 @@ function App() {
                       <Route path="/create-job-persona" element={<CreateJobPersona />} />
                       <Route path="/edit-job-persona" element={<EditJobPersona />} />
                       <Route path="/my-applications" element={<MyApplications />} />
-                      <Route path="/admin" element={<AdminDashboard />} />
+                      <Route path="/admin-login" element={<AdminLogin />} />
+                      <Route path="/admin" element={
+                        <AdminRoute>
+                          <AdminDashboard />
+                        </AdminRoute>
+                      } />
                       <Route path="/chat" element={<Chat />} />
                       <Route path="/chat/:id" element={<Chat />} />
                       <Route path="/profile" element={<Profile />} />
