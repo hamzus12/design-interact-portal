@@ -225,6 +225,11 @@ export function useApplications() {
       return result || false;
     } catch (error) {
       console.error("Error submitting application:", error);
+      toast({
+        title: "Erreur de soumission",
+        description: "Impossible de soumettre la candidature. Veuillez réessayer.",
+        variant: "destructive"
+      });
       return false;
     } finally {
       setSubmittingApplication(false);
