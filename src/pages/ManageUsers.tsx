@@ -18,10 +18,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { useUserRole } from '@/context/UserContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
-import { Pencil, Trash, UserPlus } from 'lucide-react';
+import { Pencil, Trash } from 'lucide-react';
 
 interface User {
   id: string;
@@ -35,9 +33,7 @@ interface User {
 }
 
 const ManageUsers = () => {
-  const { role } = useUserRole();
   const { toast } = useToast();
-  const navigate = useNavigate();
   
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,19 +51,8 @@ const ManageUsers = () => {
   });
 
   useEffect(() => {
-    // Redirect if not admin
-    if (role !== 'admin') {
-      toast({
-        title: "Permission Denied",
-        description: "Only administrators can access this page",
-        variant: "destructive"
-      });
-      navigate('/dashboard');
-      return;
-    }
-    
     fetchUsers();
-  }, [role, navigate, toast]);
+  }, []);
 
   const fetchUsers = async () => {
     try {
@@ -215,102 +200,96 @@ const ManageUsers = () => {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="container mx-auto py-12">
-          <div className="flex h-96 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          </div>
-        </div>
-      </Layout>
+      <div className="flex h-96 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <div className="container mx-auto py-12">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Manage Users</h1>
-        </div>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>User Accounts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
+    <div className="space-y-6">
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Manage Users</h2>
+      </div>
+      
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>User Accounts</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Joined</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.length === 0 ? (
                   <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                      No users found
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                        No users found
+                ) : (
+                  users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage 
+                              src={user.profile_image || undefined} 
+                              alt={`${user.first_name} ${user.last_name}`} 
+                            />
+                            <AvatarFallback className="bg-primary text-white text-xs">
+                              {getInitials(user.first_name, user.last_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span>
+                            {user.first_name} {user.last_name}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant="outline" 
+                          className={`${getRoleBadgeColor(user.role)} capitalize`}
+                        >
+                          {user.role || 'candidate'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formatDate(user.created_at)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end space-x-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleEditUser(user)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            onClick={() => handleDeleteUser(user)}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage 
-                                src={user.profile_image || undefined} 
-                                alt={`${user.first_name} ${user.last_name}`} 
-                              />
-                              <AvatarFallback className="bg-primary text-white text-xs">
-                                {getInitials(user.first_name, user.last_name)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span>
-                              {user.first_name} {user.last_name}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant="outline" 
-                            className={`${getRoleBadgeColor(user.role)} capitalize`}
-                          >
-                            {user.role || 'candidate'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{formatDate(user.created_at)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => handleEditUser(user)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              onClick={() => handleDeleteUser(user)}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -419,7 +398,7 @@ const ManageUsers = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Layout>
+    </div>
   );
 };
 
