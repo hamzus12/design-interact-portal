@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import LanguageSelector from '@/components/LanguageSelector';
 import { useAuth } from '@/context/AuthContext';
 import { useUserRole } from '@/context/UserContext';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 interface HeaderProps {
   isMobileMenuOpen: boolean;
@@ -80,6 +81,7 @@ const Header = () => {
 
         <div className="flex items-center gap-4">
           <LanguageSelector />
+          {user && <NotificationBell />}
           <Button
             variant="ghost"
             size="sm"

@@ -12,7 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useJobPersona } from '@/context/JobPersonaContext';
 import { useApplications } from '@/hooks/useApplications';
 import { useJobAnalysis } from '@/hooks/useJobAnalysis';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useToastNotifications } from '@/hooks/useToastNotifications';
 import { useConversation } from '@/hooks/useConversation';
 import { useDatabase } from '@/context/DatabaseContext';
 import { useUserRole } from '@/context/UserContext';
@@ -46,7 +46,7 @@ export default function Dashboard() {
   const { persona, hasPersona } = useJobPersona();
   const { applications, loadApplications } = useApplications();
   const { calculateJobMatches } = useJobAnalysis();
-  const { success } = useNotifications();
+  const { success } = useToastNotifications();
   const { jobs, loading: loadingJobs, fetchJobs } = useDatabase();
   
   // If user is a recruiter, show recruiter dashboard
