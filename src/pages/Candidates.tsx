@@ -1,100 +1,59 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout/Layout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, MapPin, Briefcase, Heart } from 'lucide-react';
+import { Search, MapPin, Briefcase, Heart, Mail } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/use-toast';
 
-// Sample candidate data
-const candidatesData = [
-  {
-    id: 1,
-    name: 'Jennifer Adams',
-    title: 'UX/UI Designer',
-    location: 'London, UK',
-    skills: ['Figma', 'Adobe XD', 'Sketch', 'UI Design', 'User Research'],
-    experience: '5 years',
-    avatar: 'J',
-    avatarColor: 'bg-purple-500',
-  },
-  {
-    id: 2,
-    name: 'Michael Johnson',
-    title: 'Full Stack Developer',
-    location: 'New York, USA',
-    skills: ['React', 'Node.js', 'TypeScript', 'MongoDB', 'AWS'],
-    experience: '7 years',
-    avatar: 'M',
-    avatarColor: 'bg-blue-500',
-  },
-  {
-    id: 3,
-    name: 'Emma Wilson',
-    title: 'Digital Marketing Specialist',
-    location: 'Berlin, Germany',
-    skills: ['SEO', 'Content Strategy', 'Social Media', 'Google Analytics', 'PPC'],
-    experience: '4 years',
-    avatar: 'E',
-    avatarColor: 'bg-red',
-  },
-  {
-    id: 4,
-    name: 'David Chen',
-    title: 'Product Manager',
-    location: 'San Francisco, USA',
-    skills: ['Product Strategy', 'Agile', 'User Research', 'Data Analysis', 'Roadmapping'],
-    experience: '8 years',
-    avatar: 'D',
-    avatarColor: 'bg-green-500',
-  },
-  {
-    id: 5,
-    name: 'Sarah Parker',
-    title: 'Graphic Designer',
-    location: 'Melbourne, Australia',
-    skills: ['Adobe Creative Suite', 'Branding', 'Typography', 'Illustration', 'Print Design'],
-    experience: '6 years',
-    avatar: 'S',
-    avatarColor: 'bg-yellow-500',
-  },
-  {
-    id: 6,
-    name: 'James Wilson',
-    title: 'Data Scientist',
-    location: 'Toronto, Canada',
-    skills: ['Python', 'Machine Learning', 'SQL', 'Data Visualization', 'Statistics'],
-    experience: '5 years',
-    avatar: 'J',
-    avatarColor: 'bg-indigo-500',
-  },
-  {
-    id: 7,
-    name: 'Olivia Martinez',
-    title: 'Content Writer',
-    location: 'Madrid, Spain',
-    skills: ['Copywriting', 'Blogging', 'SEO Writing', 'Editing', 'Research'],
-    experience: '3 years',
-    avatar: 'O',
-    avatarColor: 'bg-pink-500',
-  },
-  {
-    id: 8,
-    name: 'Thomas Wright',
-    title: 'Frontend Developer',
-    location: 'Paris, France',
-    skills: ['HTML/CSS', 'JavaScript', 'React', 'Vue.js', 'Responsive Design'],
-    experience: '4 years',
-    avatar: 'T',
-    avatarColor: 'bg-cyan-500',
-  },
-];
+interface Candidate {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  bio: string;
+  resume_url: string;
+  created_at: string;
+}
 
 const Candidates = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [favorites, setFavorites] = useState<number[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const toggleFavorite = (candidateId: number) => {
+  useEffect(() => {
+    fetchCandidates();
+  }, []);
+
+  const fetchCandidates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('role', 'candidate')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      setCandidates(data || []);
+    } catch (error) {
+      console.error('Error fetching candidates:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les candidats",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleFavorite = (candidateId: string) => {
     if (favorites.includes(candidateId)) {
       setFavorites(favorites.filter(id => id !== candidateId));
     } else {
@@ -102,12 +61,37 @@ const Candidates = () => {
     }
   };
 
-  const filteredCandidates = candidatesData.filter(candidate => 
-    candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    candidate.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    candidate.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    candidate.skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()))
+  const getInitials = (firstName: string, lastName: string) => {
+    return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
+  };
+
+  const getAvatarColor = (id: string) => {
+    const colors = [
+      'bg-purple-500', 'bg-blue-500', 'bg-red-500', 'bg-green-500', 
+      'bg-yellow-500', 'bg-indigo-500', 'bg-pink-500', 'bg-cyan-500'
+    ];
+    return colors[parseInt(id.slice(-1), 16) % colors.length];
+  };
+
+  const filteredCandidates = candidates.filter(candidate => 
+    `${candidate.first_name} ${candidate.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    candidate.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (candidate.bio && candidate.bio.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="bg-gray-50 py-16">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-center items-center h-64">
+              <div className="text-lg text-gray-600">Chargement des candidats...</div>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -160,42 +144,40 @@ const Candidates = () => {
                       />
                     </button>
                     
-                    <div className={`mb-4 flex h-20 w-20 items-center justify-center rounded-full ${candidate.avatarColor} text-2xl font-bold text-white`}>
-                      {candidate.avatar}
+                    <div className={`mb-4 flex h-20 w-20 items-center justify-center rounded-full ${getAvatarColor(candidate.id)} text-2xl font-bold text-white`}>
+                      {getInitials(candidate.first_name, candidate.last_name)}
                     </div>
                     
                     <h3 className="mb-1 text-lg font-semibold text-gray-900">
-                      {candidate.name}
+                      {candidate.first_name} {candidate.last_name}
                     </h3>
                     
-                    <p className="mb-3 text-sm text-gray-600">{candidate.title}</p>
-                    
                     <div className="mb-3 flex items-center justify-center text-sm text-gray-600">
-                      <MapPin className="mr-1 h-4 w-4 text-gray-400" />
-                      {candidate.location}
+                      <Mail className="mr-1 h-4 w-4 text-gray-400" />
+                      {candidate.email}
                     </div>
+                    
+                    {candidate.bio && (
+                      <p className="mb-4 text-sm text-gray-600 line-clamp-3">
+                        {candidate.bio}
+                      </p>
+                    )}
                     
                     <div className="mb-4 flex items-center justify-center text-sm text-gray-600">
                       <Briefcase className="mr-1 h-4 w-4 text-gray-400" />
-                      {candidate.experience}
+                      Membre depuis {new Date(candidate.created_at).toLocaleDateString('fr-FR', { 
+                        year: 'numeric', 
+                        month: 'long' 
+                      })}
                     </div>
                     
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {candidate.skills.slice(0, 3).map((skill) => (
-                        <Badge
-                          key={skill}
-                          variant="secondary"
-                          className="font-normal"
-                        >
-                          {skill}
-                        </Badge>
-                      ))}
-                      {candidate.skills.length > 3 && (
+                    {candidate.resume_url && (
+                      <div className="flex flex-wrap justify-center gap-2 mb-4">
                         <Badge variant="outline" className="font-normal">
-                          +{candidate.skills.length - 3}
+                          CV disponible
                         </Badge>
-                      )}
-                    </div>
+                      </div>
+                    )}
                     
                     <Button
                       className="mt-4 w-full bg-red text-white hover:bg-red/90"
