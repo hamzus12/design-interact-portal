@@ -33,10 +33,29 @@ const EditJob = () => {
 
   useEffect(() => {
     const fetchJobDetails = async () => {
-      if (!id) return;
+      if (!id || !user?.id) return;
       
       try {
         setInitialLoading(true);
+        
+        // Get database user ID first
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (userError || !userData) {
+          toast({
+            title: "Error",
+            description: "Could not find user profile",
+            variant: "destructive"
+          });
+          navigate('/jobs');
+          return;
+        }
+
+        const dbUserId = userData.id;
         
         const { data, error } = await supabase
           .from('jobs')
@@ -47,7 +66,7 @@ const EditJob = () => {
         if (error) throw error;
         
         // Check if user has permission to edit this job
-        if (user?.id !== data.recruiter_id && role !== 'admin') {
+        if (dbUserId !== data.recruiter_id && role !== 'admin') {
           toast({
             title: "Permission Denied",
             description: "You don't have permission to edit this job listing",
