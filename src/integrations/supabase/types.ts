@@ -148,6 +148,51 @@ export type Database = {
           },
         ]
       }
+      candidate_profiles: {
+        Row: {
+          avatar_color: string | null
+          bio: string | null
+          created_at: string
+          email: string
+          experience_years: number | null
+          first_name: string
+          id: string
+          last_name: string
+          location: string | null
+          resume_url: string | null
+          skills: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_color?: string | null
+          bio?: string | null
+          created_at?: string
+          email: string
+          experience_years?: number | null
+          first_name: string
+          id?: string
+          last_name: string
+          location?: string | null
+          resume_url?: string | null
+          skills?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_color?: string | null
+          bio?: string | null
+          created_at?: string
+          email?: string
+          experience_years?: number | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          location?: string | null
+          resume_url?: string | null
+          skills?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
