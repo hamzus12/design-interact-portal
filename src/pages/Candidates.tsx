@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout/Layout';
 import { Input } from '@/components/ui/input';
@@ -8,22 +7,26 @@ import { Search, MapPin, Briefcase, Heart, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 
-interface Candidate {
+interface CandidateProfile {
   id: string;
   first_name: string;
   last_name: string;
   email: string;
   bio: string;
+  skills: string[];
+  experience_years: number;
+  location: string;
+  avatar_color: string;
   resume_url: string;
-  created_at: string;
 }
 
 const Candidates = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [favorites, setFavorites] = useState<string[]>([]);
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [candidates, setCandidates] = useState<CandidateProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [favorites, setFavorites] = useState<string[]>([]);
 
+  // Fetch candidates from database
   useEffect(() => {
     fetchCandidates();
   }, []);
@@ -31,23 +34,23 @@ const Candidates = () => {
   const fetchCandidates = async () => {
     try {
       const { data, error } = await supabase
-        .from('users')
+        .from('candidate_profiles')
         .select('*')
-        .eq('role', 'candidate')
         .order('created_at', { ascending: false });
 
       if (error) {
-        throw error;
+        console.error('Error fetching candidates:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les candidats",
+          variant: "destructive"
+        });
+        return;
       }
 
       setCandidates(data || []);
     } catch (error) {
-      console.error('Error fetching candidates:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les candidats",
-        variant: "destructive"
-      });
+      console.error('Error:', error);
     } finally {
       setLoading(false);
     }
@@ -61,23 +64,29 @@ const Candidates = () => {
     }
   };
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
-  };
-
-  const getAvatarColor = (id: string) => {
-    const colors = [
-      'bg-purple-500', 'bg-blue-500', 'bg-red-500', 'bg-green-500', 
-      'bg-yellow-500', 'bg-indigo-500', 'bg-pink-500', 'bg-cyan-500'
-    ];
-    return colors[parseInt(id.slice(-1), 16) % colors.length];
-  };
-
   const filteredCandidates = candidates.filter(candidate => 
-    `${candidate.first_name} ${candidate.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    candidate.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    candidate.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     candidate.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (candidate.bio && candidate.bio.toLowerCase().includes(searchTerm.toLowerCase()))
+    candidate.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    candidate.bio.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    candidate.skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const getInitials = (firstName: string, lastName: string) => {
+    return (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
+  };
+
+  const getJobTitle = (bio: string) => {
+    // Extract job title from bio (first sentence usually contains it)
+    const sentences = bio.split('.');
+    if (sentences.length > 0) {
+      const firstSentence = sentences[0];
+      const match = firstSentence.match(/^(.+?)\s+avec/);
+      return match ? match[1].trim() : 'Professionnel';
+    }
+    return 'Professionnel';
+  };
 
   if (loading) {
     return (
@@ -85,7 +94,7 @@ const Candidates = () => {
         <div className="bg-gray-50 py-16">
           <div className="container mx-auto px-4">
             <div className="flex justify-center items-center h-64">
-              <div className="text-lg text-gray-600">Chargement des candidats...</div>
+              <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-red"></div>
             </div>
           </div>
         </div>
@@ -98,7 +107,7 @@ const Candidates = () => {
       <div className="bg-gray-50 py-16">
         <div className="container mx-auto px-4">
           <h1 className="mb-8 text-center text-4xl font-bold text-gray-900 animate-fade-in">
-            Browse Candidates
+            Parcourir les Candidats
           </h1>
           
           {/* Search Bar */}
@@ -107,22 +116,31 @@ const Candidates = () => {
               <div className="relative flex-grow">
                 <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                 <Input
-                  placeholder="Search candidates by name, skill, or location"
+                  placeholder="Rechercher par nom, compétence ou localisation"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="border-0 pl-10 focus-visible:ring-0 focus-visible:ring-transparent"
                 />
               </div>
               <Button className="rounded-l-none bg-red text-white hover:bg-red/90">
-                Search
+                Rechercher
               </Button>
             </div>
+          </div>
+          
+          {/* Stats */}
+          <div className="mb-8 text-center">
+            <p className="text-gray-600">
+              {filteredCandidates.length} candidat{filteredCandidates.length > 1 ? 's' : ''} trouvé{filteredCandidates.length > 1 ? 's' : ''}
+            </p>
           </div>
           
           {/* Candidates Grid */}
           {filteredCandidates.length === 0 ? (
             <div className="rounded-lg bg-white p-8 text-center shadow-md">
-              <p className="text-gray-600">No candidates found matching your search criteria.</p>
+              <p className="text-gray-600">
+                {searchTerm ? 'Aucun candidat trouvé pour votre recherche.' : 'Aucun candidat disponible.'}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -144,7 +162,7 @@ const Candidates = () => {
                       />
                     </button>
                     
-                    <div className={`mb-4 flex h-20 w-20 items-center justify-center rounded-full ${getAvatarColor(candidate.id)} text-2xl font-bold text-white`}>
+                    <div className={`mb-4 flex h-20 w-20 items-center justify-center rounded-full ${candidate.avatar_color} text-2xl font-bold text-white`}>
                       {getInitials(candidate.first_name, candidate.last_name)}
                     </div>
                     
@@ -152,39 +170,64 @@ const Candidates = () => {
                       {candidate.first_name} {candidate.last_name}
                     </h3>
                     
+                    <p className="mb-3 text-sm text-gray-600">{getJobTitle(candidate.bio)}</p>
+                    
                     <div className="mb-3 flex items-center justify-center text-sm text-gray-600">
+                      <MapPin className="mr-1 h-4 w-4 text-gray-400" />
+                      {candidate.location}
+                    </div>
+                    
+                    <div className="mb-3 flex items-center justify-center text-sm text-gray-600">
+                      <Briefcase className="mr-1 h-4 w-4 text-gray-400" />
+                      {candidate.experience_years} an{candidate.experience_years > 1 ? 's' : ''} d'expérience
+                    </div>
+
+                    <div className="mb-4 flex items-center justify-center text-sm text-gray-600">
                       <Mail className="mr-1 h-4 w-4 text-gray-400" />
                       {candidate.email}
                     </div>
                     
-                    {candidate.bio && (
-                      <p className="mb-4 text-sm text-gray-600 line-clamp-3">
-                        {candidate.bio}
-                      </p>
-                    )}
-                    
-                    <div className="mb-4 flex items-center justify-center text-sm text-gray-600">
-                      <Briefcase className="mr-1 h-4 w-4 text-gray-400" />
-                      Membre depuis {new Date(candidate.created_at).toLocaleDateString('fr-FR', { 
-                        year: 'numeric', 
-                        month: 'long' 
-                      })}
-                    </div>
-                    
-                    {candidate.resume_url && (
-                      <div className="flex flex-wrap justify-center gap-2 mb-4">
-                        <Badge variant="outline" className="font-normal">
-                          CV disponible
+                    <div className="mb-4 flex flex-wrap justify-center gap-2">
+                      {candidate.skills.slice(0, 3).map((skill) => (
+                        <Badge
+                          key={skill}
+                          variant="secondary"
+                          className="font-normal"
+                        >
+                          {skill}
                         </Badge>
-                      </div>
-                    )}
+                      ))}
+                      {candidate.skills.length > 3 && (
+                        <Badge variant="outline" className="font-normal">
+                          +{candidate.skills.length - 3}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Bio preview */}
+                    <p className="mb-4 text-xs text-gray-500 line-clamp-2">
+                      {candidate.bio}
+                    </p>
                     
-                    <Button
-                      className="mt-4 w-full bg-red text-white hover:bg-red/90"
-                      asChild
-                    >
-                      <a href={`/candidate/${candidate.id}`}>View Profile</a>
-                    </Button>
+                    <div className="flex gap-2 w-full">
+                      <Button
+                        className="flex-1 bg-red text-white hover:bg-red/90 text-sm"
+                        asChild
+                      >
+                        <a href={`/candidate/${candidate.id}`}>Voir Profil</a>
+                      </Button>
+                      {candidate.resume_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                        >
+                          <a href={candidate.resume_url} target="_blank" rel="noopener noreferrer">
+                            CV
+                          </a>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
