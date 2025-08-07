@@ -33,19 +33,29 @@ const EditJob = () => {
 
   useEffect(() => {
     const fetchJobDetails = async () => {
-      if (!id || !user?.id) return;
+      console.log('EditJob: Starting fetchJobDetails', { id, user: user?.id });
+      
+      if (!id || !user?.id) {
+        console.log('EditJob: Missing id or user, skipping fetch', { id, userId: user?.id });
+        return;
+      }
       
       try {
         setInitialLoading(true);
+        console.log('EditJob: Setting initial loading to true');
         
         // Get database user ID first
+        console.log('EditJob: Fetching database user ID for auth user:', user.id);
         const { data: userData, error: userError } = await supabase
           .from('users')
           .select('id')
           .eq('user_id', user.id)
           .single();
 
+        console.log('EditJob: User data result:', { userData, userError });
+
         if (userError || !userData) {
+          console.error('EditJob: Could not find user profile:', userError);
           toast({
             title: "Error",
             description: "Could not find user profile",
@@ -56,17 +66,32 @@ const EditJob = () => {
         }
 
         const dbUserId = userData.id;
+        console.log('EditJob: Found database user ID:', dbUserId);
         
+        console.log('EditJob: Fetching job details for job ID:', id);
         const { data, error } = await supabase
           .from('jobs')
           .select('*')
           .eq('id', id)
           .single();
         
-        if (error) throw error;
+        console.log('EditJob: Job data result:', { data, error });
+        
+        if (error) {
+          console.error('EditJob: Error fetching job:', error);
+          throw error;
+        }
         
         // Check if user has permission to edit this job
+        console.log('EditJob: Checking permissions', { 
+          dbUserId, 
+          recruiterIdFromJob: data.recruiter_id, 
+          userRole: role,
+          hasPermission: dbUserId === data.recruiter_id || role === 'admin' 
+        });
+        
         if (dbUserId !== data.recruiter_id && role !== 'admin') {
+          console.log('EditJob: Permission denied');
           toast({
             title: "Permission Denied",
             description: "You don't have permission to edit this job listing",
@@ -76,6 +101,7 @@ const EditJob = () => {
           return;
         }
         
+        console.log('EditJob: Setting form data:', data);
         // Set form data from job details
         setFormData({
           title: data.title || '',
@@ -86,8 +112,9 @@ const EditJob = () => {
           jobType: data.job_type || 'full-time',
           salaryRange: data.salary_range || ''
         });
+        console.log('EditJob: Form data set successfully');
       } catch (error: any) {
-        console.error('Error fetching job details:', error);
+        console.error('EditJob: Error in fetchJobDetails:', error);
         toast({
           title: "Error",
           description: "Failed to load job details. Please try again.",
@@ -95,6 +122,7 @@ const EditJob = () => {
         });
         navigate('/jobs');
       } finally {
+        console.log('EditJob: Setting initial loading to false');
         setInitialLoading(false);
       }
     };
