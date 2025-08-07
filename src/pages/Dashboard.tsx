@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,7 @@ import {
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   if (!user) {
     return <Navigate to="/sign-in" replace />;
@@ -66,7 +67,10 @@ const Dashboard = () => {
                 <p className="text-xl text-white/90 mb-6">
                   Gérez vos candidatures et découvrez de nouvelles opportunités
                 </p>
-                <Button className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-gray-900 font-semibold px-8 py-3">
+                <Button 
+                  onClick={() => navigate('/jobs')}
+                  className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-gray-900 font-semibold px-8 py-3"
+                >
                   <Search className="w-5 h-5 mr-2" />
                   Rechercher des Emplois
                 </Button>
@@ -139,7 +143,11 @@ const Dashboard = () => {
                       </div>
                     ))}
                   </div>
-                  <Button variant="outline" className="w-full mt-6">
+                  <Button 
+                    onClick={() => navigate('/my-applications')}
+                    variant="outline" 
+                    className="w-full mt-6"
+                  >
                     Voir Toutes les Activités
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -179,7 +187,10 @@ const Dashboard = () => {
                       </div>
                     ))}
                   </div>
-                  <Button className="w-full mt-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                  <Button 
+                    onClick={() => navigate('/jobs')}
+                    className="w-full mt-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  >
                     Voir Plus d'Offres
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -193,11 +204,19 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <Button variant="secondary" className="w-full bg-white/20 hover:bg-white/30 text-white border-white/30">
+                    <Button 
+                      onClick={() => navigate('/chat')}
+                      variant="secondary" 
+                      className="w-full bg-white/20 hover:bg-white/30 text-white border-white/30"
+                    >
                       <Calendar className="w-4 h-4 mr-2" />
                       Planifier Entretien
                     </Button>
-                    <Button variant="secondary" className="w-full bg-white/20 hover:bg-white/30 text-white border-white/30">
+                    <Button 
+                      onClick={() => navigate('/profile')}
+                      variant="secondary" 
+                      className="w-full bg-white/20 hover:bg-white/30 text-white border-white/30"
+                    >
                       <Users className="w-4 h-4 mr-2" />
                       Mettre à Jour Profil
                     </Button>
