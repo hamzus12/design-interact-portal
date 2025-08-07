@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,7 +61,7 @@ const Dashboard = () => {
                   Tableau de Bord Personnel
                 </Badge>
                 <h1 className="text-4xl md:text-5xl font-bold mb-4">
-                  Bonjour, <span className="bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">{user.firstName}!</span>
+                  Bonjour, <span className="bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">{user?.user_metadata?.first_name || 'Utilisateur'}!</span>
                 </h1>
                 <p className="text-xl text-white/90 mb-6">
                   Gérez vos candidatures et découvrez de nouvelles opportunités
@@ -75,7 +75,7 @@ const Dashboard = () => {
               <div className="text-center">
                 <div className="w-32 h-32 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mb-4 mx-auto">
                   <span className="text-4xl font-bold text-gray-900">
-                    {user.firstName?.[0]}{user.lastName?.[0]}
+                    {user?.user_metadata?.first_name?.[0] || 'U'}{user?.user_metadata?.last_name?.[0] || ''}
                   </span>
                 </div>
                 <p className="text-white/80">Dernière connexion: Aujourd'hui</p>
