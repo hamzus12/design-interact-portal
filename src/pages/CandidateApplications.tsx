@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Clock, CheckCircle, XCircle, AlertCircle, MessageSquare, Eye } from 'lucide-react';
 import { chatService } from '@/services/ChatService';
 import { useNavigate } from 'react-router-dom';
+import { useUserIdService } from '@/hooks/useUserIdService';
 
 interface Application {
   id: string;
@@ -43,47 +44,21 @@ interface Application {
 
 const CandidateApplications = () => {
   const { user, role } = useUserRole();
+  const { databaseUserId, loading: userIdLoading } = useUserIdService();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Get database user ID
-  const getDatabaseUserId = async (authUserId: string): Promise<string | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id')
-        .eq('user_id', authUserId)
-        .single();
-      
-      if (error || !data) return null;
-      return data.id;
-    } catch (err) {
-      return null;
-    }
-  };
-
   useEffect(() => {
     const fetchApplications = async () => {
-      if (!user) {
-        console.log('No user found, skipping fetch');
+      if (!databaseUserId || userIdLoading) {
         return;
       }
       
       try {
         setLoading(true);
-        console.log('Fetching applications for user:', user.id);
-        
-        const dbUserId = await getDatabaseUserId(user.id);
-        console.log('Database user ID:', dbUserId);
-        
-        if (!dbUserId) {
-          throw new Error('Could not find user profile');
-        }
-        
-        // For recruiters, show applications for their job listings
-        console.log('Fetching applications for recruiter with dbUserId:', dbUserId);
+        // Fetching applications for recruiter
         
         const { data, error } = await supabase
           .from('applications')
@@ -104,17 +79,13 @@ const CandidateApplications = () => {
               user_id
             )
           `)
-          .eq('job.recruiter_id', dbUserId)
+          .eq('job.recruiter_id', databaseUserId)
           .order('created_at', { ascending: false });
         
-        console.log('Supabase query result:', { data, error });
-        
         if (error) {
-          console.error('Supabase error:', error);
+          console.error('Failed to fetch applications:', error);
           throw error;
         }
-        
-        console.log('Fetched applications:', data);
         setApplications(data as Application[]);
       } catch (error) {
         console.error('Error fetching applications:', error);
@@ -129,15 +100,13 @@ const CandidateApplications = () => {
     };
     
     fetchApplications();
-  }, [user, toast]);
+  }, [databaseUserId, userIdLoading, toast]);
 
   // Set up real-time subscription for application updates
   useEffect(() => {
-    if (!user) return;
+    if (!databaseUserId) return;
 
     const setupRealtimeSubscription = async () => {
-      const dbUserId = await getDatabaseUserId(user.id);
-      if (!dbUserId) return;
 
       const channel = supabase
         .channel('recruiter-application-updates')
@@ -149,7 +118,7 @@ const CandidateApplications = () => {
             table: 'applications'
           },
           (payload) => {
-            console.log('Real-time application update for recruiter:', payload);
+            // Real-time update received
             
             // Update the local state with the new status
             setApplications(prev => 
@@ -169,11 +138,10 @@ const CandidateApplications = () => {
     };
 
     setupRealtimeSubscription();
-  }, [user]);
+  }, [databaseUserId]);
 
   const handleStatusUpdate = async (applicationId: string, newStatus: string) => {
     try {
-      console.log(`Updating application ${applicationId} to status ${newStatus}`);
       
       const { error } = await supabase
         .from('applications')
@@ -184,7 +152,6 @@ const CandidateApplications = () => {
         .eq('id', applicationId);
 
       if (error) {
-        console.error('Supabase error:', error);
         throw error;
       }
 
@@ -201,8 +168,6 @@ const CandidateApplications = () => {
         title: 'Status Updated',
         description: `Application status changed to ${newStatus}`,
       });
-      
-      console.log('Application status updated successfully');
     } catch (error: any) {
       console.error('Error updating application status:', error);
       toast({
@@ -215,10 +180,7 @@ const CandidateApplications = () => {
 
   const handleContactCandidate = async (application: Application) => {
     try {
-      if (!user?.id) return;
-      
-      const dbUserId = await getDatabaseUserId(user.id);
-      if (!dbUserId) {
+      if (!databaseUserId) {
         toast({
           title: 'Error',
           description: 'Could not find your user profile',
@@ -227,20 +189,12 @@ const CandidateApplications = () => {
         return;
       }
 
-      console.log('Creating conversation between recruiter and candidate:', {
-        jobId: application.job.id,
-        candidateId: application.candidate_id,
-        recruiterId: dbUserId
-      });
-
       // Create or find existing conversation
       const conversation = await chatService.createConversation(
         application.job.id, 
         application.candidate_id, 
-        dbUserId
+        databaseUserId
       );
-      
-      console.log('Conversation created/found:', conversation);
       
       // Navigate to the conversation
       navigate(`/chat/${conversation.id}`);
@@ -302,7 +256,7 @@ const CandidateApplications = () => {
     );
   }
 
-  if (loading) {
+  if (loading || userIdLoading) {
     return (
       <Layout>
         <div className="container mx-auto py-12">
