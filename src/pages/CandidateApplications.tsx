@@ -66,17 +66,25 @@ const CandidateApplications = () => {
 
   useEffect(() => {
     const fetchApplications = async () => {
-      if (!user) return;
+      if (!user) {
+        console.log('No user found, skipping fetch');
+        return;
+      }
       
       try {
         setLoading(true);
+        console.log('Fetching applications for user:', user.id);
         
         const dbUserId = await getDatabaseUserId(user.id);
+        console.log('Database user ID:', dbUserId);
+        
         if (!dbUserId) {
           throw new Error('Could not find user profile');
         }
         
         // For recruiters, show applications for their job listings
+        console.log('Fetching applications for recruiter with dbUserId:', dbUserId);
+        
         const { data, error } = await supabase
           .from('applications')
           .select(`
@@ -99,7 +107,12 @@ const CandidateApplications = () => {
           .eq('job.recruiter_id', dbUserId)
           .order('created_at', { ascending: false });
         
-        if (error) throw error;
+        console.log('Supabase query result:', { data, error });
+        
+        if (error) {
+          console.error('Supabase error:', error);
+          throw error;
+        }
         
         console.log('Fetched applications:', data);
         setApplications(data as Application[]);

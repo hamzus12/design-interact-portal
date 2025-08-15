@@ -29,6 +29,20 @@ export interface JobPersona {
   };
 }
 
+// Define the shape of job analysis result
+export interface JobAnalysis {
+  score: number;
+  strengths: string[];
+  weaknesses: string[];
+  recommendation: string;
+  detailedAnalysis?: {
+    skillsMatch: number;
+    experienceMatch: number;
+    locationMatch: number;
+    salaryMatch: number;
+  };
+}
+
 // Define the shape of the JobPersonaContext
 interface JobPersonaContextType {
   persona: JobPersona | null;
@@ -40,31 +54,13 @@ interface JobPersonaContextType {
   createPersona: (data: JobPersona) => Promise<boolean>;
   updatePersona: (data: Partial<JobPersona>) => Promise<boolean>;
   loadPersona: () => Promise<JobPersona | null>;
-  analyzeJobMatch?: (jobId: string) => Promise<any>;
-  generateApplication?: (jobId: string, applicationType?: string) => Promise<string>;
-  simulateConversation?: (jobId: string, question: string, history: any[]) => Promise<string>;
-  submitApplication?: (jobId: string, application: string) => Promise<boolean>;
+  analyzeJobMatch: (jobId: string) => Promise<JobAnalysis>;
+  generateApplication: (jobId: string, applicationType?: string) => Promise<string>;
+  simulateConversation: (jobId: string, question: string, history: any[]) => Promise<string>;
+  submitApplication: (jobId: string, application: string) => Promise<boolean>;
+  getStoredAnalysis: (jobId: string) => Promise<JobAnalysis | null>;
+  getGeneratedApplications: (jobId?: string) => Promise<any[]>;
 }
-
-// Default JobPersona
-const defaultPersona: JobPersona = {
-  skills: [],
-  experience: [],
-  preferences: {
-    jobTypes: [],
-    locations: [],
-    salary: {
-      min: 0,
-      max: 0
-    },
-    remote: false
-  },
-  learningProfile: {
-    feedback: [],
-    successfulApplications: [],
-    rejectedApplications: []
-  }
-};
 
 // Create the context
 const JobPersonaContext = createContext<JobPersonaContextType | undefined>(undefined);
@@ -237,15 +233,48 @@ export const JobPersonaProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   }, [user, persona, updateMetadata]);
 
-  // Analyze job match - Enhanced realistic implementation
-  const analyzeJobMatch = useCallback(async (jobId: string) => {
-    if (!persona) {
-      throw new Error("JobPersona requis pour l'analyse");
+  // Get stored analysis from database
+  const getStoredAnalysis = useCallback(async (jobId: string): Promise<JobAnalysis | null> => {
+    if (!user) return null;
+    
+    try {
+      const { data, error } = await supabase
+        .from('job_match_analyses')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('job_id', jobId)
+        .single();
+      
+      if (error || !data) return null;
+      
+      return {
+        score: data.match_score,
+        strengths: data.strengths || [],
+        weaknesses: data.weaknesses || [],
+        recommendation: data.recommendation || '',
+        detailedAnalysis: data.detailed_analysis || {}
+      };
+    } catch (error) {
+      console.error('Error fetching stored analysis:', error);
+      return null;
+    }
+  }, [user]);
+
+  // Analyze job match - Enhanced with database storage
+  const analyzeJobMatch = useCallback(async (jobId: string): Promise<JobAnalysis> => {
+    if (!persona || !user) {
+      throw new Error("JobPersona et authentification requis pour l'analyse");
     }
 
     console.log(`Analyzing job match for job ID: ${jobId}`);
     
     try {
+      // Check if we have a stored analysis first
+      const storedAnalysis = await getStoredAnalysis(jobId);
+      if (storedAnalysis) {
+        return storedAnalysis;
+      }
+
       // Get job details from database
       const { data: job, error } = await supabase
         .from('jobs')
@@ -257,96 +286,72 @@ export const JobPersonaProvider: React.FC<{ children: ReactNode }> = ({ children
         throw new Error("Impossible de récupérer les détails du poste");
       }
 
-      // Perform realistic analysis
-      let score = 50; // Base score
-      const strengths: string[] = [];
-      const weaknesses: string[] = [];
+      // Call the enhanced job match analysis Edge Function
+      const { data: analysisData, error: functionError } = await supabase.functions.invoke('job-match-analysis', {
+        body: {
+          jobData: job,
+          personaData: persona
+        }
+      });
 
-      // Analyze skills match
-      const jobText = `${job.title} ${job.description} ${job.category}`.toLowerCase();
-      const matchingSkills = persona.skills.filter(skill => 
-        jobText.includes(skill.toLowerCase())
-      );
-      
-      if (matchingSkills.length > 0) {
-        score += Math.min(matchingSkills.length * 8, 25);
-        strengths.push(`Vos compétences en ${matchingSkills.slice(0, 3).join(', ')} correspondent parfaitement`);
-      } else {
-        weaknesses.push("Aucune compétence directement mentionnée dans l'offre");
+      if (functionError) {
+        throw new Error(functionError.message || "Erreur lors de l'analyse");
       }
 
-      // Analyze job type preference
-      const jobTypes = [job.job_type, job.type].filter(Boolean);
-      const matchingJobTypes = persona.preferences.jobTypes.filter(prefType =>
-        jobTypes.some(jobType => jobType?.toLowerCase().includes(prefType.toLowerCase()))
-      );
-      
-      if (matchingJobTypes.length > 0) {
-        score += 15;
-        strengths.push(`Le type de poste correspond à vos préférences (${matchingJobTypes.join(', ')})`);
-      } else {
-        weaknesses.push("Le type de poste ne correspond pas exactement à vos préférences");
+      if (!analysisData) {
+        throw new Error("Aucune analyse générée");
       }
 
-      // Analyze location preference
-      const matchingLocations = persona.preferences.locations.filter(prefLoc =>
-        job.location?.toLowerCase().includes(prefLoc.toLowerCase())
-      );
-      
-      if (matchingLocations.length > 0) {
-        score += 10;
-        strengths.push(`La localisation ${job.location} correspond à vos préférences`);
-      } else if (persona.preferences.remote && job.description?.toLowerCase().includes('remote')) {
-        score += 15;
-        strengths.push("Possibilité de télétravail disponible");
-      } else {
-        weaknesses.push("La localisation ne correspond pas parfaitement à vos préférences");
-      }
-
-      // Analyze experience level
-      const experienceLevel = persona.experience.length;
-      if (experienceLevel >= 3) {
-        score += 10;
-        strengths.push("Votre niveau d'expérience est adapté à ce poste");
-      } else {
-        weaknesses.push("Vous pourriez avoir besoin d'acquérir plus d'expérience");
-      }
-
-      // Cap the score
-      score = Math.min(score, 95);
-
-      let recommendation = "";
-      if (score >= 80) {
-        recommendation = "Excellente correspondance! Nous recommandons fortement de postuler.";
-      } else if (score >= 65) {
-        recommendation = "Bonne correspondance. Ce poste pourrait être intéressant pour vous.";
-      } else if (score >= 50) {
-        recommendation = "Correspondance correcte. Étudiez les exigences avant de postuler.";
-      } else {
-        recommendation = "Correspondance limitée. Considérez d'améliorer vos compétences.";
-      }
-
-      return {
-        score,
-        recommendation,
-        strengths,
-        weaknesses
+      const analysis: JobAnalysis = {
+        score: analysisData.score,
+        strengths: analysisData.strengths || [],
+        weaknesses: analysisData.weaknesses || [],
+        recommendation: analysisData.recommendation || '',
+        detailedAnalysis: analysisData.detailedAnalysis || {}
       };
+
+      // Store the analysis in the database
+      await supabase
+        .from('job_match_analyses')
+        .upsert({
+          user_id: user.id,
+          job_id: jobId,
+          match_score: analysis.score,
+          strengths: analysis.strengths,
+          weaknesses: analysis.weaknesses,
+          recommendation: analysis.recommendation,
+          detailed_analysis: analysis.detailedAnalysis
+        });
+
+      return analysis;
     } catch (error) {
       console.error("Error in job analysis:", error);
       throw error;
     }
-  }, [persona]);
+  }, [persona, user, getStoredAnalysis]);
 
-  // Generate application - Enhanced with real job data
-  const generateApplication = useCallback(async (jobId: string, applicationType: string = "cover_letter") => {
-    if (!persona) {
-      throw new Error("JobPersona requis pour générer une candidature");
+  // Generate application - Enhanced with database storage
+  const generateApplication = useCallback(async (jobId: string, applicationType: string = "cover_letter"): Promise<string> => {
+    if (!persona || !user) {
+      throw new Error("JobPersona et authentification requis pour générer une candidature");
     }
 
     console.log(`Generating ${applicationType} for job ID: ${jobId}`);
     
     try {
+      // Check if we already have a generated application
+      const { data: existingApp } = await supabase
+        .from('generated_applications')
+        .select('content')
+        .eq('user_id', user.id)
+        .eq('job_id', jobId)
+        .eq('application_type', applicationType)
+        .single();
+
+      if (existingApp) {
+        return existingApp.content;
+      }
+
       // Get job details
       const { data: job, error } = await supabase
         .from('jobs')
@@ -375,15 +380,64 @@ export const JobPersonaProvider: React.FC<{ children: ReactNode }> = ({ children
         throw new Error("Aucun contenu généré");
       }
 
+      // Store the generated application
+      await supabase
+        .from('generated_applications')
+        .insert({
+          user_id: user.id,
+          job_id: jobId,
+          application_type: applicationType,
+          content: data.content
+        });
+
       return data.content;
     } catch (error) {
       console.error("Error generating application:", error);
       throw error;
     }
-  }, [persona]);
+  }, [persona, user]);
 
-  // Simulate conversation - Enhanced implementation
-  const simulateConversation = useCallback(async (jobId: string, question: string, history: any[]) => {
+  // Get generated applications
+  const getGeneratedApplications = useCallback(async (jobId?: string) => {
+    if (!user) return [];
+    
+    try {
+      let query = supabase
+        .from('generated_applications')
+        .select(`
+          *,
+          jobs:job_id (
+            title,
+            company
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (jobId) {
+        query = query.eq('job_id', jobId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching applications:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+      return [];
+    }
+  }, [user]);
+
+  // Simulate conversation - Enhanced with database storage
+  const simulateConversation = useCallback(async (jobId: string, question: string, history: any[]): Promise<string> => {
+    if (!user) {
+      throw new Error("Authentification requise pour la simulation");
+    }
+
     console.log(`Simulating conversation for job ID: ${jobId}, Question: ${question}`);
     
     try {
@@ -394,33 +448,55 @@ export const JobPersonaProvider: React.FC<{ children: ReactNode }> = ({ children
         .eq('id', jobId)
         .single();
 
-      // Enhanced response generation based on question context
-      const questionLower = question.toLowerCase();
-      
-      if (questionLower.includes('salaire') || questionLower.includes('rémunération')) {
-        return `Pour le poste de ${job?.title}, la rémunération est compétitive et basée sur l'expérience. Nous proposons généralement des packages dans la fourchette mentionnée dans l'offre, ainsi que des avantages comme l'assurance santé et les plans de retraite.`;
-      } else if (questionLower.includes('expérience') || questionLower.includes('compétence')) {
-        return `Nous recherchons des candidats avec au moins 2-3 ans d'expérience pertinente dans le domaine. Cependant, nous valorisons aussi le potentiel et l'adéquation culturelle, alors n'hésitez pas à postuler même si vous êtes légèrement en dessous de ce seuil.`;
-      } else if (questionLower.includes('télétravail') || questionLower.includes('remote')) {
-        return `Nous offrons une flexibilité de télétravail selon le poste. Pour ce poste de ${job?.title}, nous proposons un mode hybride avec 2-3 jours de télétravail par semaine.`;
-      } else if (questionLower.includes('formation') || questionLower.includes('développement')) {
-        return `Nous investissons fortement dans le développement de nos employés. Nous proposons des formations continues, des certifications et des opportunités de mentorat pour aider nos équipes à grandir.`;
-      } else if (questionLower.includes('équipe') || questionLower.includes('culture')) {
-        return `Notre équipe est dynamique et collaborative. Nous favorisons un environnement inclusif où chacun peut s'épanouir. La culture d'entreprise met l'accent sur l'innovation et le bien-être des employés.`;
-      } else {
-        return `C'est une excellente question concernant le poste de ${job?.title}. Je serais ravi de vous fournir plus d'informations. N'hésitez pas à me poser des questions spécifiques sur le rôle, la culture d'entreprise ou les avantages.`;
+      // Call the simulate conversation Edge Function
+      const { data, error: functionError } = await supabase.functions.invoke('simulate-conversation', {
+        body: {
+          jobData: job,
+          question: question,
+          conversationHistory: history,
+          personaData: persona
+        }
+      });
+
+      if (functionError) {
+        throw new Error(functionError.message || "Erreur lors de la simulation");
       }
+
+      const response = data?.response || "Je suis désolé, je rencontre des difficultés techniques. Pourriez-vous reformuler votre question?";
+
+      // Store the conversation in history
+      await supabase
+        .from('conversation_history')
+        .insert({
+          user_id: user.id,
+          job_id: jobId,
+          question: question,
+          response: response
+        });
+
+      return response;
     } catch (error) {
       console.error("Error in conversation simulation:", error);
       return "Je suis désolé, je rencontre des difficultés techniques. Pourriez-vous reformuler votre question?";
     }
-  }, []);
+  }, [user, persona]);
 
   // Submit application - Enhanced implementation
-  const submitApplication = useCallback(async (jobId: string, application: string) => {
+  const submitApplication = useCallback(async (jobId: string, application: string): Promise<boolean> => {
+    if (!user) {
+      throw new Error("Authentification requise pour soumettre une candidature");
+    }
+
     console.log(`Submitting application for job ID: ${jobId}`);
     
     try {
+      // Mark the application as submitted in our database
+      await supabase
+        .from('generated_applications')
+        .update({ is_submitted: true })
+        .eq('user_id', user.id)
+        .eq('job_id', jobId);
+
       // Update learning profile with the application
       if (persona && persona.learningProfile) {
         const updatedLearningProfile = {
@@ -433,12 +509,17 @@ export const JobPersonaProvider: React.FC<{ children: ReactNode }> = ({ children
         });
       }
       
+      toast({
+        title: "Candidature soumise",
+        description: "Votre candidature a été soumise avec succès!",
+      });
+      
       return true;
     } catch (error) {
       console.error("Error submitting application:", error);
       throw error;
     }
-  }, [persona, updatePersona]);
+  }, [user, persona, updatePersona]);
 
   // Initialize on mount and whenever auth status changes
   React.useEffect(() => {
@@ -464,7 +545,9 @@ export const JobPersonaProvider: React.FC<{ children: ReactNode }> = ({ children
       analyzeJobMatch,
       generateApplication,
       simulateConversation,
-      submitApplication
+      submitApplication,
+      getStoredAnalysis,
+      getGeneratedApplications
     }}>
       {children}
     </JobPersonaContext.Provider>

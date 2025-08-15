@@ -18,7 +18,17 @@ const SearchSection: React.FC = () => {
       return;
     }
     
-    navigate(`/jobs?keyword=${encodeURIComponent(keyword)}&location=${encodeURIComponent(location)}`);
+    // Construire les paramètres de recherche
+    const searchParams = new URLSearchParams();
+    if (keyword.trim()) {
+      searchParams.append('keyword', keyword.trim());
+    }
+    if (location.trim()) {
+      searchParams.append('location', location.trim());
+    }
+    
+    // Naviguer vers la page des emplois avec les paramètres de recherche
+    navigate(`/jobs?${searchParams.toString()}`);
   };
 
   return (

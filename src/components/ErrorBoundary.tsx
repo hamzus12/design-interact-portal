@@ -2,7 +2,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { RefreshCcw } from 'lucide-react';
+import { RefreshCcw, AlertCircle } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
@@ -31,7 +31,7 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('Error caught by ErrorBoundary:', error, errorInfo);
+    console.error('Erreur capturée par ErrorBoundary:', error, errorInfo);
   }
 
   handleReset = (): void => {
@@ -39,6 +39,8 @@ class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null
     });
+    // Recharger la page en cas d'erreur persistante
+    window.location.reload();
   };
 
   render(): ReactNode {
@@ -48,21 +50,31 @@ class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="p-4 flex flex-col items-center justify-center min-h-[200px]">
+        <div className="p-4 flex flex-col items-center justify-center min-h-[200px] bg-gray-50">
           <Alert variant="destructive" className="mb-4 max-w-lg">
-            <AlertTitle>Something went wrong</AlertTitle>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Une erreur s'est produite</AlertTitle>
             <AlertDescription>
-              {this.state.error?.message || 'An unexpected error occurred.'}
+              {this.state.error?.message || 'Une erreur inattendue s\'est produite. Veuillez réessayer.'}
             </AlertDescription>
           </Alert>
-          <Button 
-            variant="outline" 
-            onClick={this.handleReset} 
-            className="flex items-center gap-2"
-          >
-            <RefreshCcw className="h-4 w-4" />
-            Try Again
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={this.handleReset} 
+              className="flex items-center gap-2"
+            >
+              <RefreshCcw className="h-4 w-4" />
+              Réessayer
+            </Button>
+            <Button 
+              variant="default" 
+              onClick={() => window.location.href = '/'}
+              className="flex items-center gap-2"
+            >
+              Retour à l'accueil
+            </Button>
+          </div>
         </div>
       );
     }

@@ -15,7 +15,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { Video, Calendar as CalendarIcon } from 'lucide-react';
+import { useUserRole } from '@/context/UserContext';
+import { Video, Calendar as CalendarIcon, Lock } from 'lucide-react';
 
 interface VideoCallButtonProps {
   conversationId: string;
@@ -27,6 +28,7 @@ const VideoCallButton: React.FC<VideoCallButtonProps> = ({
   onCallScheduled 
 }) => {
   const { user } = useAuth();
+  const { role } = useUserRole();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -34,6 +36,16 @@ const VideoCallButton: React.FC<VideoCallButtonProps> = ({
   const [duration, setDuration] = useState(60);
   const [notes, setNotes] = useState('');
   const [isScheduling, setIsScheduling] = useState(false);
+
+  // Only recruiters can schedule video calls
+  if (role !== 'recruiter') {
+    return (
+      <Button variant="outline" size="sm" disabled>
+        <Lock className="h-4 w-4 mr-2" />
+        Réservé aux Recruteurs
+      </Button>
+    );
+  }
 
   // Get database user ID
   const getDatabaseUserId = async (authUserId: string): Promise<string | null> => {

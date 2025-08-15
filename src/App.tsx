@@ -1,294 +1,71 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { DatabaseProvider } from "./context/DatabaseContext";
-import { AuthProvider } from "./context/AuthContext";
-import { UserProvider } from "./context/UserContext";
-import { JobPersonaProvider } from "./context/JobPersonaContext";
-import { ThemeProvider } from "./context/ThemeContext";
-import { LanguageProvider } from "./context/LanguageContext";
-import ErrorBoundary from "./components/common/ErrorBoundary";
-import LoadingSpinner from "./components/common/LoadingSpinner";
-import { Suspense, ReactNode, lazy } from "react";
-import { useAuth } from "./context/AuthContext";
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Toaster } from '@/components/ui/toaster';
+import Index from '@/pages/Index';
+import Jobs from '@/pages/Jobs';
+import JobDetail from '@/pages/JobDetail';
+import Dashboard from '@/pages/Dashboard';
+import Candidates from '@/pages/Candidates';
+import About from '@/pages/About';
+import CreateJobPersona from '@/pages/CreateJobPersona';
+import EditJobPersona from '@/pages/EditJobPersona';
+import MyApplications from '@/pages/MyApplications';
+import SignIn from '@/pages/SignIn';
+import SignUp from '@/pages/SignUp';
+import Chat from '@/pages/Chat';
+import Profile from '@/pages/Profile';
+import AdminLogin from '@/pages/AdminLogin';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminRoute from '@/components/AdminRoute';
+import { AuthProvider } from '@/context/AuthContext';
+import { UserProvider } from '@/context/UserContext';
+import { JobPersonaProvider } from '@/context/JobPersonaContext';
+import { ThemeProvider } from 'next-themes';
+import { LanguageProvider } from '@/context/LanguageContext';
+import { DatabaseProvider } from '@/context/DatabaseContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// Pages avec chargement standard (critiques pour la performance)
-import Index from "./pages/Index";
-import Jobs from "./pages/Jobs";
-import JobDetail from "./pages/JobDetail";
-import SignIn from "./pages/SignIn";
-import SignUp from "./pages/SignUp";
-import NotFound from "./pages/NotFound";
-import VerifyEmail from "./pages/VerifyEmail";
+const queryClient = new QueryClient();
 
-// Pages avec lazy loading (optimisation)
-const EditJob = lazy(() => import("./pages/EditJob"));
-const Candidates = lazy(() => import("./pages/Candidates"));
-const About = lazy(() => import("./pages/About"));
-const Blog = lazy(() => import("./pages/Blog"));
-const Chat = lazy(() => import("./pages/Chat"));
-const Contact = lazy(() => import("./pages/Contact"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Profile = lazy(() => import("./pages/Profile"));
-const AddJob = lazy(() => import("./pages/AddJob"));
-const ManageUsers = lazy(() => import("./pages/ManageUsers"));
-const MyApplications = lazy(() => import("./pages/MyApplications"));
-const CreateJobPersona = lazy(() => import("./pages/CreateJobPersona"));
-const JobPersona = lazy(() => import("./pages/JobPersona"));
-const EditJobPersona = lazy(() => import("./pages/EditJobPersona"));
-const CandidateApplications = lazy(() => import("./pages/CandidateApplications"));
-const JobPersonaStats = lazy(() => import("./pages/JobPersonaStats"));
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    },
-  },
-});
-
-// Composant de chargement avec message en français
-const PageLoader = () => <LoadingSpinner size="lg" text="Chargement de la page..." />;
-
-// Route protégée
-const ProtectedRoute = ({ children }: { children: ReactNode }) => {
-  const { user, loading } = useAuth();
-  
-  if (loading) {
-    return <PageLoader />;
-  }
-  
-  return user ? children : <Navigate to="/signin" replace />;
-};
-
-// Route protégée par rôle
-const RoleProtectedRoute = ({ 
-  children, 
-  allowedRoles 
-}: { 
-  children: ReactNode, 
-  allowedRoles: string[] 
-}) => {
-  const { user, loading } = useAuth();
-  const userRole = user?.user_metadata?.role || 'candidate';
-  
-  if (loading) {
-    return <PageLoader />;
-  }
-  
-  if (!user) {
-    return <Navigate to="/signin" replace />;
-  }
-  
-  return allowedRoles.includes(userRole) ? children : <Navigate to="/dashboard" replace />;
-};
-
-const AppRoutes = () => (
-  <Routes>
-    <Route path="/" element={<Index />} />
-    <Route path="/about" element={
-      <Suspense fallback={<PageLoader />}>
-        <About />
-      </Suspense>
-    } />
-    <Route path="/jobs" element={<Jobs />} />
-    <Route path="/job/:id" element={<JobDetail />} />
-    <Route path="/candidates" element={
-      <Suspense fallback={<PageLoader />}>
-        <Candidates />
-      </Suspense>
-    } />
-    <Route path="/blog" element={
-      <Suspense fallback={<PageLoader />}>
-        <Blog />
-      </Suspense>
-    } />
-    <Route path="/contact" element={
-      <Suspense fallback={<PageLoader />}>
-        <Contact />
-      </Suspense>
-    } />
-    <Route path="/signin" element={<SignIn />} />
-    <Route path="/signup" element={<SignUp />} />
-    
-    {/* Routes de vérification */}
-    <Route path="/signup/verify-email-address" element={<VerifyEmail />} />
-    
-    {/* Route Chat */}
-    <Route 
-      path="/chat" 
-      element={
-        <ProtectedRoute>
-          <Suspense fallback={<PageLoader />}>
-            <Chat />
-          </Suspense>
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/chat/:id" 
-      element={
-        <ProtectedRoute>
-          <Suspense fallback={<PageLoader />}>
-            <Chat />
-          </Suspense>
-        </ProtectedRoute>
-      } 
-    />
-    
-    {/* Routes protégées pour tous les utilisateurs authentifiés */}
-    <Route 
-      path="/dashboard" 
-      element={
-        <ProtectedRoute>
-          <Suspense fallback={<PageLoader />}>
-            <Dashboard />
-          </Suspense>
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/profile" 
-      element={
-        <ProtectedRoute>
-          <Suspense fallback={<PageLoader />}>
-            <Profile />
-          </Suspense>
-        </ProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/my-applications" 
-      element={
-        <RoleProtectedRoute allowedRoles={['candidate']}>
-          <Suspense fallback={<PageLoader />}>
-            <MyApplications />
-          </Suspense>
-        </RoleProtectedRoute>
-      } 
-    />
-    
-    {/* Routes JobPersona IA */}
-    <Route 
-      path="/create-job-persona" 
-      element={
-        <RoleProtectedRoute allowedRoles={['candidate']}>
-          <Suspense fallback={<PageLoader />}>
-            <CreateJobPersona />
-          </Suspense>
-        </RoleProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/job-persona" 
-      element={
-        <RoleProtectedRoute allowedRoles={['candidate']}>
-          <Suspense fallback={<PageLoader />}>
-            <JobPersona />
-          </Suspense>
-        </RoleProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/edit-job-persona" 
-      element={
-        <RoleProtectedRoute allowedRoles={['candidate']}>
-          <Suspense fallback={<PageLoader />}>
-            <EditJobPersona />
-          </Suspense>
-        </RoleProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/job-persona-stats" 
-      element={
-        <RoleProtectedRoute allowedRoles={['candidate']}>
-          <Suspense fallback={<PageLoader />}>
-            <JobPersonaStats />
-          </Suspense>
-        </RoleProtectedRoute>
-      } 
-    />
-    
-    {/* Routes protégées pour recruteurs et admins */}
-    <Route 
-      path="/add-job" 
-      element={
-        <RoleProtectedRoute allowedRoles={['recruiter', 'admin']}>
-          <Suspense fallback={<PageLoader />}>
-            <AddJob />
-          </Suspense>
-        </RoleProtectedRoute>
-      } 
-    />
-    <Route 
-      path="/edit-job/:id" 
-      element={
-        <RoleProtectedRoute allowedRoles={['recruiter', 'admin']}>
-          <Suspense fallback={<PageLoader />}>
-            <EditJob />
-          </Suspense>
-        </RoleProtectedRoute>
-      } 
-    />
-    
-    {/* Page candidatures pour recruteurs */}
-    <Route 
-      path="/candidate-applications" 
-      element={
-        <RoleProtectedRoute allowedRoles={['recruiter', 'admin']}>
-          <Suspense fallback={<PageLoader />}>
-            <CandidateApplications />
-          </Suspense>
-        </RoleProtectedRoute>
-      } 
-    />
-    
-    {/* Routes admin uniquement */}
-    <Route 
-      path="/manage-users" 
-      element={
-        <RoleProtectedRoute allowedRoles={['admin']}>
-          <Suspense fallback={<PageLoader />}>
-            <ManageUsers />
-          </Suspense>
-        </RoleProtectedRoute>
-      } 
-    />
-    
-    <Route path="*" element={<NotFound />} />
-  </Routes>
-);
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <ErrorBoundary>
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
         <BrowserRouter>
-          <ThemeProvider>
-            <LanguageProvider>
-              <AuthProvider>
-                <UserProvider>
-                  <DatabaseProvider>
-                    <JobPersonaProvider>
-                      <AppRoutes />
-                    </JobPersonaProvider>
-                  </DatabaseProvider>
-                </UserProvider>
-              </AuthProvider>
-            </LanguageProvider>
-          </ThemeProvider>
+          <AuthProvider>
+            <UserProvider>
+              <DatabaseProvider>
+                <JobPersonaProvider>
+                  <LanguageProvider>
+                    <Toaster />
+                    <Routes>
+                      <Route path="/" element={<Index />} />
+                      <Route path="/signin" element={<SignIn />} />
+                      <Route path="/signup" element={<SignUp />} />
+                      <Route path="/jobs" element={<Jobs />} />
+                      <Route path="/job/:id" element={<JobDetail />} />
+                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/candidates" element={<Candidates />} />
+                      <Route path="/about" element={<About />} />
+                      <Route path="/create-job-persona" element={<CreateJobPersona />} />
+                      <Route path="/edit-job-persona" element={<EditJobPersona />} />
+                      <Route path="/my-applications" element={<MyApplications />} />
+                      <Route path="/admin-login" element={<AdminLogin />} />
+                      <Route path="/admin-dashboard" element={<AdminDashboard />} />
+                      <Route path="/chat" element={<Chat />} />
+                      <Route path="/chat/:id" element={<Chat />} />
+                      <Route path="/profile" element={<Profile />} />
+                    </Routes>
+                  </LanguageProvider>
+                </JobPersonaProvider>
+              </DatabaseProvider>
+            </UserProvider>
+          </AuthProvider>
         </BrowserRouter>
-      </ErrorBoundary>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;
