@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@clerk/clerk-react';
 import { Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
 import ProfileHeader from '@/components/Profile/ProfileHeader';
@@ -119,7 +119,7 @@ const Profile = () => {
               <div className="text-center lg:text-right">
                 <div className="w-32 h-32 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mb-4 mx-auto lg:mx-0">
                   <span className="text-4xl font-bold text-gray-900">
-                    {user?.user_metadata?.first_name?.[0] || 'U'}{user?.user_metadata?.last_name?.[0] || ''}
+                    {user.firstName?.[0]}{user.lastName?.[0]}
                   </span>
                 </div>
                 <p className="text-white/80 mb-2">Complétude du Profil</p>
@@ -198,15 +198,7 @@ const Profile = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-center py-12">
-                      <User className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">Complétez votre profil</h3>
-                      <p className="text-gray-600 mb-6">Ajoutez vos informations personnelles pour améliorer votre visibilité</p>
-                      <Button className="bg-gradient-to-r from-blue-600 to-purple-600">
-                        <Edit className="w-4 h-4 mr-2" />
-                        Modifier le Profil
-                      </Button>
-                    </div>
+                    <ProfileForm profile={profile} onUpdate={setProfile} />
                   </CardContent>
                 </Card>
               )}
@@ -306,12 +298,7 @@ const Profile = () => {
 
             {/* Sidebar */}
             <div className="lg:col-span-1">
-              <ProfileHeader 
-                title={user?.user_metadata?.first_name ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}` : 'Utilisateur'}
-                description={profile?.bio || "Complétez votre profil pour attirer les recruteurs"}
-                imageUrl={user?.user_metadata?.avatar_url}
-                initials={user?.user_metadata?.first_name ? `${user.user_metadata.first_name[0]}${user.user_metadata.last_name?.[0] || ''}` : 'U'}
-              />
+              <ProfileHeader profile={profile} />
               
               {/* Quick Tips */}
               <Card className="mt-6 shadow-lg border-0 bg-gradient-to-br from-purple-500 to-blue-600 text-white">

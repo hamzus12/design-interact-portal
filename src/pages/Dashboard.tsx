@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
+import { Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +21,6 @@ import {
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   if (!user) {
     return <Navigate to="/sign-in" replace />;
@@ -62,15 +61,12 @@ const Dashboard = () => {
                   Tableau de Bord Personnel
                 </Badge>
                 <h1 className="text-4xl md:text-5xl font-bold mb-4">
-                  Bonjour, <span className="bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">{user?.user_metadata?.first_name || 'Utilisateur'}!</span>
+                  Bonjour, <span className="bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">{user.firstName}!</span>
                 </h1>
                 <p className="text-xl text-white/90 mb-6">
                   Gérez vos candidatures et découvrez de nouvelles opportunités
                 </p>
-                <Button 
-                  onClick={() => navigate('/jobs')}
-                  className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-gray-900 font-semibold px-8 py-3"
-                >
+                <Button className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-gray-900 font-semibold px-8 py-3">
                   <Search className="w-5 h-5 mr-2" />
                   Rechercher des Emplois
                 </Button>
@@ -79,7 +75,7 @@ const Dashboard = () => {
               <div className="text-center">
                 <div className="w-32 h-32 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mb-4 mx-auto">
                   <span className="text-4xl font-bold text-gray-900">
-                    {user?.user_metadata?.first_name?.[0] || 'U'}{user?.user_metadata?.last_name?.[0] || ''}
+                    {user.firstName?.[0]}{user.lastName?.[0]}
                   </span>
                 </div>
                 <p className="text-white/80">Dernière connexion: Aujourd'hui</p>
@@ -143,11 +139,7 @@ const Dashboard = () => {
                       </div>
                     ))}
                   </div>
-                  <Button 
-                    onClick={() => navigate('/my-applications')}
-                    variant="outline" 
-                    className="w-full mt-6"
-                  >
+                  <Button variant="outline" className="w-full mt-6">
                     Voir Toutes les Activités
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -187,10 +179,7 @@ const Dashboard = () => {
                       </div>
                     ))}
                   </div>
-                  <Button 
-                    onClick={() => navigate('/jobs')}
-                    className="w-full mt-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                  >
+                  <Button className="w-full mt-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
                     Voir Plus d'Offres
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
@@ -204,19 +193,11 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <Button 
-                      onClick={() => navigate('/chat')}
-                      variant="secondary" 
-                      className="w-full bg-white/20 hover:bg-white/30 text-white border-white/30"
-                    >
+                    <Button variant="secondary" className="w-full bg-white/20 hover:bg-white/30 text-white border-white/30">
                       <Calendar className="w-4 h-4 mr-2" />
                       Planifier Entretien
                     </Button>
-                    <Button 
-                      onClick={() => navigate('/profile')}
-                      variant="secondary" 
-                      className="w-full bg-white/20 hover:bg-white/30 text-white border-white/30"
-                    >
+                    <Button variant="secondary" className="w-full bg-white/20 hover:bg-white/30 text-white border-white/30">
                       <Users className="w-4 h-4 mr-2" />
                       Mettre à Jour Profil
                     </Button>
