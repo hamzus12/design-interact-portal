@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout/Layout';
 import ProfileHeader from '@/components/Profile/ProfileHeader';
@@ -119,7 +119,7 @@ const Profile = () => {
               <div className="text-center lg:text-right">
                 <div className="w-32 h-32 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mb-4 mx-auto lg:mx-0">
                   <span className="text-4xl font-bold text-gray-900">
-                    {user.firstName?.[0]}{user.lastName?.[0]}
+                    {user.email?.[0]?.toUpperCase()}
                   </span>
                 </div>
                 <p className="text-white/80 mb-2">Complétude du Profil</p>
@@ -197,9 +197,17 @@ const Profile = () => {
                       Informations Personnelles
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <ProfileForm profile={profile} onUpdate={setProfile} />
-                  </CardContent>
+                   <CardContent>
+                     <div className="text-center py-12">
+                       <User className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                       <h3 className="text-xl font-semibold text-gray-900 mb-2">Profil en cours de développement</h3>
+                       <p className="text-gray-600 mb-6">Les fonctionnalités d'édition de profil seront bientôt disponibles</p>
+                       <Button className="bg-gradient-to-r from-blue-600 to-purple-600" disabled>
+                         <Edit className="w-4 h-4 mr-2" />
+                         Modifier le Profil
+                       </Button>
+                     </div>
+                   </CardContent>
                 </Card>
               )}
 
@@ -297,8 +305,19 @@ const Profile = () => {
             </div>
 
             {/* Sidebar */}
-            <div className="lg:col-span-1">
-              <ProfileHeader profile={profile} />
+             <div className="lg:col-span-1">
+               <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+                 <CardContent className="p-6">
+                   <div className="text-center">
+                     <div className="w-24 h-24 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 text-white">
+                       <User className="h-12 w-12" />
+                     </div>
+                     <h3 className="text-xl font-semibold text-gray-900 mb-2">{user.email?.split('@')[0]}</h3>
+                     <p className="text-gray-600 mb-4">{user.email}</p>
+                     <Badge className="bg-green-500 text-white">Compte Vérifié</Badge>
+                   </div>
+                 </CardContent>
+               </Card>
               
               {/* Quick Tips */}
               <Card className="mt-6 shadow-lg border-0 bg-gradient-to-br from-purple-500 to-blue-600 text-white">

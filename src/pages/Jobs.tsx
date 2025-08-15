@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Search, Briefcase, MapPin, Filter, Users, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Job } from '@/types/Job';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth } from '@/context/AuthContext';
 
 const Jobs = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -202,7 +202,24 @@ const Jobs = () => {
                 <Card className="sticky top-6 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
                   <CardContent className="p-6">
                     <h3 className="text-lg font-semibold mb-4 text-gray-900">Filtres Avancés</h3>
-                    <FilterSection />
+                     <FilterSection 
+                       filters={{
+                         keyword: searchQuery,
+                         category: selectedCategory ? [selectedCategory] : [],
+                         jobType: [],
+                         location: locationFilter ? [locationFilter] : []
+                       }}
+                       onFilterChange={(filters) => {
+                         setSearchQuery(filters.keyword);
+                         setSelectedCategory(filters.category[0] || '');
+                         setLocationFilter(filters.location[0] || '');
+                       }}
+                       onClearFilters={() => {
+                         setSearchQuery('');
+                         setSelectedCategory('');
+                         setLocationFilter('');
+                       }}
+                     />
                   </CardContent>
                 </Card>
               </div>
