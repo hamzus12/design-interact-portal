@@ -383,7 +383,7 @@ export default function Dashboard() {
               <CardHeader>
                 <CardTitle>Correspondances d'emploi IA</CardTitle>
                 <CardDescription>
-                  Emplois analysés et classés par votre assistant IA
+                  Emplois analysés et classés par votre assistant IA - Chaque emploi avec son score
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -395,79 +395,155 @@ export default function Dashboard() {
                     </div>
                   </div>
                 ) : matches.length > 0 ? (
-                  <div className="space-y-4">
-                    {bestMatches.map((match) => (
-                      <Card key={match.id} className={selectedJob === match.id ? 'border-primary' : ''}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-4">
-                            <div>
-                              <h3 className="font-medium">{match.title}</h3>
-                              <p className="text-sm text-gray-500">{match.company}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {matches.map((match) => (
+                      <Card key={match.id} className="border hover:border-primary transition-colors">
+                        <CardContent className="p-6">
+                          <div className="space-y-4">
+                            {/* En-tête avec titre et score */}
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-lg mb-1">{match.title}</h3>
+                                <p className="text-gray-600 mb-2">{match.company}</p>
+                                <p className="text-sm text-gray-500">{match.location || 'Localisation non spécifiée'}</p>
+                              </div>
+                              <div className="ml-4">
+                                <Badge 
+                                  variant={match.matchScore >= 80 ? "default" : "outline"}
+                                  className="text-lg px-3 py-1"
+                                >
+                                  {match.matchScore}%
+                                </Badge>
+                              </div>
                             </div>
-                            <Badge variant={match.matchScore >= 80 ? "default" : "outline"}>
-                              {match.matchScore}% Correspondance
-                            </Badge>
-                          </div>
-                          
-                          <div className="flex flex-wrap gap-2">
-                            <Button 
-                              variant="secondary" 
-                              size="sm"
-                              onClick={() => handleAnalyzeJob(match.id)}
-                              disabled={analyzingJob === match.id}
-                            >
-                              {analyzingJob === match.id ? (
-                                <>
+
+                            {/* Barre de progression pour le score */}
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span>Score de correspondance</span>
+                                <span className="font-medium">{match.matchScore}%</span>
+                              </div>
+                              <Progress value={match.matchScore} className="h-2" />
+                            </div>
+
+                            {/* Actions - Sans planification d'entretien */}
+                            <div className="flex flex-wrap gap-2">
+                              <Button 
+                                variant="secondary" 
+                                size="sm"
+                                onClick={() => handleAnalyzeJob(match.id)}
+                                disabled={analyzingJob === match.id}
+                                className="flex-1"
+                              >
+                                {analyzingJob === match.id ? (
+                                  <>
+                                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                                    Analyse...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Brain className="mr-1 h-4 w-4" />
+                                    Analyser
+                                  </>
+                                )}
+                              </Button>
+                              
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleGenerateApplication(match.id)}
+                                disabled={generatingApplication}
+                                className="flex-1"
+                              >
+                                {generatingApplication ? (
                                   <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                                  Analyse...
-                                </>
-                              ) : (
-                                <>
-                                  <Brain className="mr-1 h-4 w-4" />
-                                  Analyser
-                                </>
-                              )}
-                            </Button>
-                            
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleOpenConversation(match.id)}
-                            >
-                              <MessageSquare className="mr-1 h-4 w-4" />
-                              Simuler Entretien
-                            </Button>
-                            
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleGenerateApplication(match.id)}
-                              disabled={generatingApplication}
-                            >
-                              {generatingApplication ? (
-                                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                              ) : (
-                                <FileText className="mr-1 h-4 w-4" />
-                              )}
-                              Lettre de Motivation
-                            </Button>
-                            
-                            <Button 
-                              variant="default" 
-                              size="sm"
-                              onClick={() => window.open(`/job/${match.id}`, '_blank')}
-                            >
-                              <Briefcase className="mr-1 h-4 w-4" />
-                              Voir l'Emploi
-                            </Button>
-                          </div>
-                          
-                          {match.applied && (
-                            <div className="mt-3 flex items-center text-sm text-green-600">
-                              <CheckCircle2 className="mr-1 h-4 w-4" />
-                              Candidature soumise
+                                ) : (
+                                  <FileText className="mr-1 h-4 w-4" />
+                                )}
+                                Candidature
+                              </Button>
                             </div>
-                          )}
+
+                            <div className="flex gap-2">
+                              <Button 
+                                variant="default" 
+                                size="sm"
+                                onClick={() => window.open(`/job/${match.id}`, '_blank')}
+                                className="flex-1"
+                              >
+                                <Briefcase className="mr-1 h-4 w-4" />
+                                Voir l'Emploi
+                              </Button>
+                            </div>
+                            
+                            {/* Statut de candidature */}
+                            {match.applied && (
+                              <div className="flex items-center text-sm text-green-600 bg-green-50 p-2 rounded">
+                                <CheckCircle2 className="mr-1 h-4 w-4" />
+                                Candidature soumise
+                              </div>
+                            )}
+                            
+                            {/* Analyse IA détaillée */}
+                            {jobAnalysis && selectedJob === match.id && (
+                              <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+                                <h4 className="font-medium mb-3 flex items-center">
+                                  <Brain className="mr-2 h-4 w-4" />
+                                  Analyse IA Détaillée
+                                </h4>
+                                <div className="space-y-3 text-sm">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium">Score final:</span> 
+                                    <Badge variant="outline">{jobAnalysis.score}%</Badge>
+                                  </div>
+                                  
+                                  {jobAnalysis.strengths?.length > 0 && (
+                                    <div>
+                                      <span className="font-medium text-green-600 flex items-center mb-2">
+                                        <CheckCircle2 className="mr-1 h-4 w-4" />
+                                        Points forts
+                                      </span>
+                                      <ul className="ml-4 space-y-1 text-green-700">
+                                        {jobAnalysis.strengths.map((strength: string, index: number) => (
+                                          <li key={index} className="flex items-start">
+                                            <span className="mr-2 text-green-500">•</span>
+                                            {strength}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  
+                                  {jobAnalysis.weaknesses?.length > 0 && (
+                                    <div>
+                                      <span className="font-medium text-orange-600 flex items-center mb-2">
+                                        <XCircle className="mr-1 h-4 w-4" />
+                                        Points d'amélioration
+                                      </span>
+                                      <ul className="ml-4 space-y-1 text-orange-700">
+                                        {jobAnalysis.weaknesses.map((weakness: string, index: number) => (
+                                          <li key={index} className="flex items-start">
+                                            <span className="mr-2 text-orange-500">•</span>
+                                            {weakness}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                  
+                                  {jobAnalysis.recommendation && (
+                                    <div className="p-3 bg-blue-50 rounded border-l-4 border-blue-400">
+                                      <span className="font-medium text-blue-700 flex items-center mb-1">
+                                        <Star className="mr-1 h-4 w-4" />
+                                        Recommandation IA
+                                      </span>
+                                      <p className="text-blue-700">{jobAnalysis.recommendation}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     ))}

@@ -23,6 +23,7 @@ import { useUserRole } from '@/context/UserContext';
 import { useDatabase } from '@/context/DatabaseContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
+import RecruiterApplicationsView from './RecruiterApplicationsView';
 
 interface RecruiterStats {
   totalJobs: number;
@@ -57,6 +58,7 @@ const RecruiterDashboard: React.FC = () => {
   });
   const [jobsWithApplications, setJobsWithApplications] = useState<JobWithApplications[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dbUserId, setDbUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadRecruiterData = async () => {
@@ -77,6 +79,7 @@ const RecruiterDashboard: React.FC = () => {
         }
 
         const dbUserId = userData.id;
+        setDbUserId(dbUserId);
 
         // Get recruiter's jobs
         const { data: recruiterJobs, error: jobsError } = await supabase
@@ -330,90 +333,16 @@ const RecruiterDashboard: React.FC = () => {
         </Card>
       </div>
 
-      {/* Recent Jobs */}
+      {/* Candidatures Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Mes Offres d'Emploi</CardTitle>
+          <CardTitle>Candidatures Reçues</CardTitle>
           <CardDescription>
-            Aperçu de vos offres récentes et de leur performance
+            Gérez les candidatures pour vos offres d'emploi
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {jobsWithApplications.length > 0 ? (
-            <div className="space-y-4">
-              {jobsWithApplications.slice(0, 5).map((job) => (
-                <div key={job.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-medium">{job.title}</h3>
-                      <Badge variant={job.is_active ? "default" : "secondary"}>
-                        {job.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-gray-500">{job.company} • {job.location}</p>
-                    <p className="text-sm text-gray-400">
-                      Publiée le {new Date(job.created_at).toLocaleDateString('fr-FR')}
-                    </p>
-                  </div>
-                  
-                  <div className="flex items-center gap-4">
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-blue-600">
-                        {job.applications_count}
-                      </div>
-                      <div className="text-xs text-gray-500">Candidatures</div>
-                    </div>
-                    
-                    {job.pending_count > 0 && (
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-yellow-600">
-                          {job.pending_count}
-                        </div>
-                        <div className="text-xs text-gray-500">En attente</div>
-                      </div>
-                    )}
-                    
-                    <div className="flex gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link to={`/job/${job.id}`}>
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link to={`/edit-job/${job.id}`}>
-                          <Edit className="w-4 h-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              
-              {jobsWithApplications.length > 5 && (
-                <div className="text-center pt-4">
-                  <Button asChild variant="outline">
-                    <Link to="/jobs">
-                      Voir toutes mes offres ({jobsWithApplications.length})
-                    </Link>
-                  </Button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <Briefcase className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2">Aucune offre d'emploi</h3>
-              <p className="text-gray-500 mb-4">
-                Commencez par publier votre première offre d'emploi
-              </p>
-              <Button asChild>
-                <Link to="/add-job">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Publier une offre
-                </Link>
-              </Button>
-            </div>
-          )}
+          <RecruiterApplicationsView dbUserId={dbUserId || undefined} />
         </CardContent>
       </Card>
     </div>
