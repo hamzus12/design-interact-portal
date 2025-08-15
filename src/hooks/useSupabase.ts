@@ -5,7 +5,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { PostgrestError } from '@supabase/supabase-js';
 
 /**
- * Hook personnalisé pour les opérations Supabase avec gestion des états de chargement et d'erreur
+ * Custom hook for Supabase data operations with loading and error states
  */
 export function useSupabase() {
   const [loading, setLoading] = useState(false);
@@ -23,9 +23,9 @@ export function useSupabase() {
     }
   ) => {
     const {
-      loadingMessage = "Chargement en cours...",
+      loadingMessage,
       successMessage,
-      errorMessage = "Une erreur s'est produite lors de l'opération",
+      errorMessage,
       showSuccessToast = false,
       showErrorToast = true
     } = options || {};
@@ -34,9 +34,9 @@ export function useSupabase() {
       setLoading(true);
       setError(null);
       
-      if (loadingMessage && showSuccessToast) {
+      if (loadingMessage) {
         toast({
-          title: "Chargement",
+          title: "Loading",
           description: loadingMessage,
         });
       }
@@ -44,12 +44,12 @@ export function useSupabase() {
       const { data, error } = await queryFn();
       
       if (error) {
-        const errorMsg = handleSupabaseError(error, errorMessage);
+        const errorMsg = handleSupabaseError(error, errorMessage || "Operation failed");
         setError(errorMsg);
         
         if (showErrorToast) {
           toast({
-            title: "Erreur",
+            title: "Error",
             description: errorMsg,
             variant: "destructive",
           });
@@ -60,19 +60,19 @@ export function useSupabase() {
       
       if (successMessage && showSuccessToast) {
         toast({
-          title: "Succès",
+          title: "Success",
           description: successMessage,
         });
       }
       
       return { data, error: null };
     } catch (err: any) {
-      const errorMsg = err.message || errorMessage;
+      const errorMsg = err.message || errorMessage || "An unexpected error occurred";
       setError(errorMsg);
       
       if (showErrorToast) {
         toast({
-          title: "Erreur",
+          title: "Error",
           description: errorMsg,
           variant: "destructive",
         });
@@ -91,7 +91,7 @@ export function useSupabase() {
   };
 }
 
-// Fonction utilitaire pour créer des opérations communes sur les tables
+// Utility function for creating common query operations
 export function createSupabaseOperations<T>(table: string) {
   const { executeQuery } = useSupabase();
   
@@ -99,14 +99,12 @@ export function createSupabaseOperations<T>(table: string) {
     getById: (id: string | number) => 
       executeQuery<T>(() => {
         return new Promise((resolve) => {
-          supabase.from(table).select('*').eq('id', id).maybeSingle()
+          supabase.from(table).select('*').eq('id', id).single()
             .then(result => resolve({ 
               data: result.data as T | null, 
               error: result.error 
             }));
         });
-      }, {
-        errorMessage: `Impossible de récupérer l'élément avec l'ID ${id}`
       }),
     
     getAll: (options?: { limit?: number, order?: { column: string, ascending?: boolean } }) => 
@@ -130,8 +128,6 @@ export function createSupabaseOperations<T>(table: string) {
             error: result.error 
           }));
         });
-      }, {
-        errorMessage: `Impossible de récupérer les données de la table ${table}`
       }),
     
     create: (data: Partial<T>, options?: { successMessage?: string }) => 
@@ -144,9 +140,8 @@ export function createSupabaseOperations<T>(table: string) {
             }));
         });
       }, { 
-        successMessage: options?.successMessage || "Élément créé avec succès",
-        showSuccessToast: true,
-        errorMessage: "Impossible de créer l'élément"
+        successMessage: options?.successMessage || "Record created successfully",
+        showSuccessToast: true
       }),
     
     update: (id: string | number, data: Partial<T>, options?: { successMessage?: string }) => 
@@ -159,9 +154,8 @@ export function createSupabaseOperations<T>(table: string) {
             }));
         });
       }, {
-        successMessage: options?.successMessage || "Élément mis à jour avec succès",
-        showSuccessToast: true,
-        errorMessage: "Impossible de mettre à jour l'élément"
+        successMessage: options?.successMessage || "Record updated successfully",
+        showSuccessToast: true
       }),
     
     delete: (id: string | number, options?: { successMessage?: string }) => 
@@ -174,9 +168,8 @@ export function createSupabaseOperations<T>(table: string) {
             }));
         });
       }, {
-        successMessage: options?.successMessage || "Élément supprimé avec succès",
-        showSuccessToast: true,
-        errorMessage: "Impossible de supprimer l'élément"
+        successMessage: options?.successMessage || "Record deleted successfully",
+        showSuccessToast: true
       }),
   };
 }

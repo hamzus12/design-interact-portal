@@ -185,41 +185,6 @@ export type Database = {
           },
         ]
       }
-      conversation_history: {
-        Row: {
-          created_at: string
-          id: string
-          job_id: string
-          question: string
-          response: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          job_id: string
-          question: string
-          response: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          job_id?: string
-          question?: string
-          response?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "conversation_history_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       conversations: {
         Row: {
           candidate_id: string
@@ -268,94 +233,6 @@ export type Database = {
             columns: ["recruiter_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      generated_applications: {
-        Row: {
-          application_type: string
-          content: string
-          created_at: string
-          id: string
-          is_submitted: boolean | null
-          job_id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          application_type?: string
-          content: string
-          created_at?: string
-          id?: string
-          is_submitted?: boolean | null
-          job_id: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          application_type?: string
-          content?: string
-          created_at?: string
-          id?: string
-          is_submitted?: boolean | null
-          job_id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "generated_applications_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      job_match_analyses: {
-        Row: {
-          created_at: string
-          detailed_analysis: Json | null
-          id: string
-          job_id: string
-          match_score: number
-          recommendation: string | null
-          strengths: string[] | null
-          updated_at: string
-          user_id: string
-          weaknesses: string[] | null
-        }
-        Insert: {
-          created_at?: string
-          detailed_analysis?: Json | null
-          id?: string
-          job_id: string
-          match_score: number
-          recommendation?: string | null
-          strengths?: string[] | null
-          updated_at?: string
-          user_id: string
-          weaknesses?: string[] | null
-        }
-        Update: {
-          created_at?: string
-          detailed_analysis?: Json | null
-          id?: string
-          job_id?: string
-          match_score?: number
-          recommendation?: string | null
-          strengths?: string[] | null
-          updated_at?: string
-          user_id?: string
-          weaknesses?: string[] | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "job_match_analyses_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]

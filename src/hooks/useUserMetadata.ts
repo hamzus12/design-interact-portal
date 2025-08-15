@@ -5,14 +5,14 @@ import { toast } from '@/components/ui/use-toast';
 import { useAuth } from '@/context/AuthContext';
 
 /**
- * Hook personnalisé pour gérer les métadonnées utilisateur Supabase
+ * Custom hook for managing Supabase user metadata
  */
 export function useUserMetadata() {
   const { user, loading: authLoading } = useAuth();
   const [isUpdating, setIsUpdating] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Définir isLoaded basé sur le statut d'authentification
+  // Set isLoaded based on authentication status
   useEffect(() => {
     if (!authLoading) {
       setIsLoaded(true);
@@ -20,7 +20,7 @@ export function useUserMetadata() {
   }, [authLoading]);
 
   /**
-   * Mettre à jour les métadonnées utilisateur avec gestion automatique des erreurs
+   * Update user metadata with automatic error handling
    */
   const updateMetadata = useCallback(async (
     metadata: Record<string, any>,
@@ -31,8 +31,8 @@ export function useUserMetadata() {
   ) => {
     if (!isLoaded || !user) {
       toast({
-        title: "Erreur",
-        description: "Utilisateur non connecté ou non chargé",
+        title: "Error",
+        description: "User not loaded or not authenticated",
         variant: "destructive"
       });
       return { success: false };
@@ -52,18 +52,18 @@ export function useUserMetadata() {
       
       if (options?.showSuccessToast !== false) {
         toast({
-          title: "Succès",
-          description: options?.successMessage || "Profil utilisateur mis à jour avec succès"
+          title: "Success",
+          description: options?.successMessage || "User profile updated successfully"
         });
       }
       
       return { success: true };
     } catch (error: any) {
-      console.error('Erreur lors de la mise à jour des métadonnées utilisateur:', error);
+      console.error('Error updating user metadata:', error);
       
       toast({
-        title: "Erreur",
-        description: error.message || "Impossible de mettre à jour les métadonnées utilisateur",
+        title: "Error",
+        description: error.message || "Failed to update user metadata",
         variant: "destructive"
       });
       
@@ -74,7 +74,7 @@ export function useUserMetadata() {
   }, [isLoaded, user]);
 
   /**
-   * Récupérer une valeur des métadonnées utilisateur
+   * Get a value from user metadata
    */
   const getMetadata = useCallback((key: string, defaultValue: any = null) => {
     if (!isLoaded || !user) return defaultValue;
@@ -82,56 +82,24 @@ export function useUserMetadata() {
   }, [isLoaded, user]);
 
   /**
-   * Vérifier si l'utilisateur a déjà créé un JobPersona
+   * Check if user has a JobPersona already created
    */
   const hasJobPersona = useCallback(() => {
     return getMetadata('has_job_persona', false);
   }, [getMetadata]);
 
   /**
-   * Récupérer les données JobPersona
+   * Get JobPersona data
    */
   const getJobPersona = useCallback(() => {
     return getMetadata('job_persona', null);
   }, [getMetadata]);
-
-  /**
-   * Récupérer le rôle de l'utilisateur
-   */
-  const getUserRole = useCallback(() => {
-    return getMetadata('role', 'candidate');
-  }, [getMetadata]);
-
-  /**
-   * Vérifier si l'utilisateur est un candidat
-   */
-  const isCandidate = useCallback(() => {
-    return getUserRole() === 'candidate';
-  }, [getUserRole]);
-
-  /**
-   * Vérifier si l'utilisateur est un recruteur
-   */
-  const isRecruiter = useCallback(() => {
-    return getUserRole() === 'recruiter';
-  }, [getUserRole]);
-
-  /**
-   * Vérifier si l'utilisateur est un admin
-   */
-  const isAdmin = useCallback(() => {
-    return getUserRole() === 'admin';
-  }, [getUserRole]);
 
   return {
     updateMetadata,
     getMetadata,
     hasJobPersona,
     getJobPersona,
-    getUserRole,
-    isCandidate,
-    isRecruiter,
-    isAdmin,
     isUpdating,
     isLoaded
   };
