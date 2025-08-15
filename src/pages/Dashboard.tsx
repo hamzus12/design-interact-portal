@@ -1,219 +1,261 @@
-
-import React from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { UserStats } from '@/components/Dashboard/UserStats';
+import { FeedbackForm } from '@/components/Feedback/FeedbackForm';
+import { useAuth } from '@/context/AuthContext';
+import { useJobPersona } from '@/context/JobPersonaContext';
+import { useApplications } from '@/hooks/useApplications';
+import { useJobAnalysis } from '@/hooks/useJobAnalysis';
+import { useNotifications } from '@/hooks/useNotifications';
 import { 
+  User, 
   Briefcase, 
-  Users, 
-  TrendingUp, 
-  Calendar, 
-  Bell,
-  Search,
-  Star,
-  MapPin,
-  Clock,
-  ArrowRight
+  MessageSquare, 
+  Settings, 
+  Plus,
+  TrendingUp,
+  Target
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-const Dashboard = () => {
+export default function Dashboard() {
   const { user } = useAuth();
+  const { persona, hasPersona } = useJobPersona();
+  const { applications, loadApplications } = useApplications();
+  const { calculateJobMatches } = useJobAnalysis();
+  const { success } = useNotifications();
+  
+  const [matches, setMatches] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showFeedback, setShowFeedback] = useState(false);
 
-  if (!user) {
-    return <Navigate to="/sign-in" replace />;
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      if (!hasPersona) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        await loadApplications();
+        
+        // Simulate job matches for demo
+        const demoMatches = [
+          { id: '1', matchScore: 85, title: 'Développeur React', company: 'TechCorp' },
+          { id: '2', matchScore: 78, title: 'Frontend Developer', company: 'StartupXYZ' },
+          { id: '3', matchScore: 92, title: 'UI/UX Developer', company: 'DesignHub' },
+        ];
+        setMatches(demoMatches);
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadDashboardData();
+  }, [hasPersona, loadApplications]);
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Chargement de votre tableau de bord...</p>
+          </div>
+        </div>
+      </Layout>
+    );
   }
 
-  const stats = [
-    { icon: <Briefcase className="h-6 w-6" />, value: '12', label: 'Candidatures Actives', color: 'text-blue-600', bg: 'bg-blue-100' },
-    { icon: <Users className="h-6 w-6" />, value: '5', label: 'Entretiens Programmés', color: 'text-green-600', bg: 'bg-green-100' },
-    { icon: <TrendingUp className="h-6 w-6" />, value: '3', label: 'Offres Reçues', color: 'text-purple-600', bg: 'bg-purple-100' },
-    { icon: <Star className="h-6 w-6" />, value: '4.8', label: 'Score Profil', color: 'text-yellow-600', bg: 'bg-yellow-100' },
-  ];
-
-  const recentActivities = [
-    { type: 'application', title: 'Candidature envoyée', company: 'TechCorp Tunisia', time: '2h', status: 'en cours' },
-    { type: 'interview', title: 'Entretien confirmé', company: 'Digital Solutions', time: '1j', status: 'programmé' },
-    { type: 'offer', title: 'Offre reçue', company: 'StartupTN', time: '3j', status: 'nouveau' },
-  ];
-
-  const recommendedJobs = [
-    { title: 'Développeur Frontend React', company: 'InnovTech', location: 'Tunis', salary: '2500-3500 TND', match: '95%' },
-    { title: 'Designer UX/UI', company: 'CreativeStudio', location: 'Sfax', salary: '2000-3000 TND', match: '88%' },
-    { title: 'Chef de Projet Digital', company: 'WebAgency', location: 'Sousse', salary: '3000-4000 TND', match: '82%' },
-  ];
+  if (!hasPersona) {
+    return (
+      <Layout>
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <Card className="text-center">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-center gap-2">
+                <User className="w-6 h-6" />
+                Bienvenue sur votre tableau de bord !
+              </CardTitle>
+              <CardDescription>
+                Créez votre JobPersona IA pour commencer à découvrir des opportunités personnalisées
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-gray-600">
+                Votre JobPersona IA vous aidera à analyser les offres d'emploi, générer des candidatures 
+                personnalisées et simuler des entretiens.
+              </p>
+              <div className="flex gap-4 justify-center">
+                <Button asChild>
+                  <Link to="/create-job-persona">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Créer mon JobPersona
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link to="/jobs">
+                    <Briefcase className="w-4 h-4 mr-2" />
+                    Parcourir les emplois
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
-        {/* Hero Section */}
-        <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 text-white relative overflow-hidden">
-          <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full mix-blend-overlay filter blur-xl opacity-10 animate-blob"></div>
-          
-          <div className="container mx-auto px-4 py-12 relative z-10">
-            <div className="flex flex-col lg:flex-row items-center justify-between">
-              <div className="text-center lg:text-left mb-8 lg:mb-0">
-                <Badge className="mb-4 bg-white/20 text-white border-white/30">
-                  <Bell className="w-4 h-4 mr-2" />
-                  Tableau de Bord Personnel
-                </Badge>
-                <h1 className="text-4xl md:text-5xl font-bold mb-4">
-                  Bonjour, <span className="bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">{user.email?.split('@')[0]}!</span>
-                </h1>
-                <p className="text-xl text-white/90 mb-6">
-                  Gérez vos candidatures et découvrez de nouvelles opportunités
-                </p>
-                <Button className="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-gray-900 font-semibold px-8 py-3">
-                  <Search className="w-5 h-5 mr-2" />
-                  Rechercher des Emplois
-                </Button>
-              </div>
-              
-              <div className="text-center">
-                <div className="w-32 h-32 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mb-4 mx-auto">
-                  <span className="text-4xl font-bold text-gray-900">
-                    {user.email?.[0]?.toUpperCase()}
-                  </span>
-                </div>
-                <p className="text-white/80">Dernière connexion: Aujourd'hui</p>
-              </div>
-            </div>
-          </div>
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Tableau de bord
+          </h1>
+          <p className="text-gray-600">
+            Gérez vos candidatures et suivez votre progression
+          </p>
         </div>
 
-        <div className="container mx-auto px-4 py-12">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-            {stats.map((stat, index) => (
-              <Card key={index} className="group hover:scale-105 transition-all duration-300 border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 rounded-full ${stat.bg}`}>
-                      <div className={stat.color}>
-                        {stat.icon}
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="text-xs">
-                      +12% ce mois
-                    </Badge>
-                  </div>
-                  <h3 className="text-3xl font-bold text-gray-900 mb-2">{stat.value}</h3>
-                  <p className="text-gray-600 text-sm">{stat.label}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" />
+              Vue d'ensemble
+            </TabsTrigger>
+            <TabsTrigger value="applications" className="flex items-center gap-2">
+              <Briefcase className="w-4 h-4" />
+              Candidatures
+            </TabsTrigger>
+            <TabsTrigger value="matches" className="flex items-center gap-2">
+              <Target className="w-4 h-4" />
+              Correspondances
+            </TabsTrigger>
+            <TabsTrigger value="feedback" className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              Feedback
+            </TabsTrigger>
+          </TabsList>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Recent Activities */}
-            <div className="lg:col-span-2">
-              <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-gray-900">
-                    <Clock className="w-5 h-5 mr-2 text-blue-600" />
-                    Activités Récentes
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {recentActivities.map((activity, index) => (
-                      <div key={index} className="flex items-center p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg hover:shadow-md transition-all duration-300">
-                        <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white mr-4">
-                          {activity.type === 'application' && <Briefcase className="w-6 h-6" />}
-                          {activity.type === 'interview' && <Users className="w-6 h-6" />}
-                          {activity.type === 'offer' && <Star className="w-6 h-6" />}
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">{activity.title}</h4>
-                          <p className="text-sm text-gray-600">{activity.company}</p>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant={activity.status === 'nouveau' ? 'default' : 'secondary'}>
-                            {activity.status}
-                          </Badge>
-                          <p className="text-xs text-gray-500 mt-1">il y a {activity.time}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <Button variant="outline" className="w-full mt-6">
-                    Voir Toutes les Activités
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+          <TabsContent value="overview">
+            <UserStats 
+              applications={applications} 
+              persona={persona} 
+              matches={matches} 
+            />
+          </TabsContent>
 
-            {/* Recommended Jobs */}
-            <div className="lg:col-span-1">
-              <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-gray-900">
-                    <TrendingUp className="w-5 h-5 mr-2 text-green-600" />
-                    Offres Recommandées
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+          <TabsContent value="applications">
+            <Card>
+              <CardHeader>
+                <CardTitle>Mes candidatures</CardTitle>
+                <CardDescription>
+                  Gérez vos candidatures générées et soumises
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {applications.length > 0 ? (
                   <div className="space-y-4">
-                    {recommendedJobs.map((job, index) => (
-                      <div key={index} className="p-4 bg-gradient-to-br from-green-50 to-blue-50 rounded-lg hover:shadow-md transition-all duration-300 cursor-pointer group">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{job.title}</h4>
-                          <Badge className="bg-gradient-to-r from-green-500 to-blue-500 text-white">
-                            {job.match}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-2">{job.company}</p>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center text-xs text-gray-500">
-                            <MapPin className="w-3 h-3 mr-1" />
-                            {job.location}
+                    {applications.map((app, index) => (
+                      <div key={index} className="p-4 border rounded-lg">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-medium">{app.application_type}</h3>
+                            <p className="text-sm text-gray-500">
+                              Créée le {new Date(app.created_at).toLocaleDateString('fr-FR')}
+                            </p>
                           </div>
-                          <div className="text-xs font-medium text-green-600">
-                            {job.salary}
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm">
+                              Voir
+                            </Button>
+                            {!app.is_submitted && (
+                              <Button size="sm">
+                                Soumettre
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <Button className="w-full mt-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                    Voir Plus d'Offres
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Quick Actions */}
-              <Card className="mt-6 shadow-lg border-0 bg-gradient-to-br from-purple-500 to-blue-600 text-white">
-                <CardHeader>
-                  <CardTitle>Actions Rapides</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <Button variant="secondary" className="w-full bg-white/20 hover:bg-white/30 text-white border-white/30">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      Planifier Entretien
-                    </Button>
-                    <Button variant="secondary" className="w-full bg-white/20 hover:bg-white/30 text-white border-white/30">
-                      <Users className="w-4 h-4 mr-2" />
-                      Mettre à Jour Profil
-                    </Button>
-                    <Button variant="secondary" className="w-full bg-white/20 hover:bg-white/30 text-white border-white/30">
-                      <Bell className="w-4 h-4 mr-2" />
-                      Paramètres Notifications
+                ) : (
+                  <div className="text-center py-8">
+                    <Briefcase className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500 mb-4">Aucune candidature générée pour le moment</p>
+                    <Button asChild>
+                      <Link to="/jobs">
+                        Parcourir les emplois
+                      </Link>
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="matches">
+            <Card>
+              <CardHeader>
+                <CardTitle>Correspondances d'emploi</CardTitle>
+                <CardDescription>
+                  Emplois correspondant à votre profil
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {matches.length > 0 ? (
+                  <div className="space-y-4">
+                    {matches.map((match) => (
+                      <div key={match.id} className="p-4 border rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h3 className="font-medium">{match.title}</h3>
+                            <p className="text-sm text-gray-500">{match.company}</p>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <p className="text-sm text-gray-500">Correspondance</p>
+                              <p className="text-lg font-bold text-blue-600">{match.matchScore}%</p>
+                            </div>
+                            <Button size="sm">
+                              Voir l'offre
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">Aucune correspondance trouvée pour le moment</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="feedback">
+            <div className="max-w-2xl mx-auto">
+              <FeedbackForm 
+                onSubmit={() => {
+                  success({ 
+                    title: 'Merci !', 
+                    description: 'Votre feedback nous aide à améliorer l\'expérience' 
+                  });
+                }}
+              />
             </div>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );
-};
-
-export default Dashboard;
+}

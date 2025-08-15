@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Star, Send, Lightbulb, Bug, Heart } from 'lucide-react';
-import { useToastNotifications } from '@/hooks/useToastNotifications';
+import { useNotifications } from '@/hooks/useNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 
@@ -20,7 +20,7 @@ export function FeedbackForm({ jobId, onSubmit }: FeedbackFormProps) {
   const [rating, setRating] = useState<number>(0);
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { success, error } = useToastNotifications();
+  const { success, error } = useNotifications();
   const { user } = useAuth();
 
   const feedbackTypes = [

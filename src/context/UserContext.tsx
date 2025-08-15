@@ -1,8 +1,8 @@
+
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
-import { userIdService } from '@/services/UserIdService';
 
 // Define the possible user roles
 export type UserRole = 'candidate' | 'recruiter' | 'admin' | 'guest';
@@ -67,8 +67,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         description: `Your role has been updated to ${newRole}.`
       });
       
-      // Clear cache and sync with database
-      userIdService.invalidateUserCache(authUser.id);
+      // Sync with database
       await syncUserToDatabase();
     } catch (error: any) {
       console.error('Error updating role:', error);
@@ -85,11 +84,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       await authSignOut();
       
-      // Clear user cache on sign out
-      if (user?.id) {
-        userIdService.invalidateUserCache(user.id);
-      }
-      
       toast({
         title: "Signed Out",
         description: "You have been signed out successfully."
@@ -104,21 +98,58 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
   
-  // Function to sync user data to Supabase database using the centralized service
+  // Function to sync user data to Supabase database
   const syncUserToDatabase = async () => {
-    if (!authUser?.id) return;
+    if (!user?.id) return;
     
     try {
       setIsSyncing(true);
       
-      // Use the centralized service to ensure user exists
-      const dbUserId = await userIdService.ensureUserExists(authUser);
+      // Check if user exists in our users table
+      const { data: existingUser, error: userLookupError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
       
-      if (dbUserId) {
-        console.log("User data synced with database successfully");
-      } else {
-        console.error("Failed to sync user data with database");
+      if (userLookupError) {
+        throw new Error(userLookupError.message);
       }
+      
+      if (existingUser) {
+        // Update existing user
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            email: user.email,
+            first_name: user.firstName,
+            last_name: user.lastName,
+            role: user.role
+          })
+          .eq('user_id', user.id);
+        
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+      } else {
+        // Create new user - this should normally be handled by the database trigger
+        // but we're adding it here as a fallback
+        const { error: createError } = await supabase
+          .from('users')
+          .insert({
+            user_id: user.id,
+            email: user.email,
+            first_name: user.firstName,
+            last_name: user.lastName,
+            role: user.role
+          });
+        
+        if (createError) {
+          throw new Error(createError.message);
+        }
+      }
+      
+      console.log("User data synced with database successfully");
     } catch (error: any) {
       console.error('Error syncing user to database:', error);
     } finally {
@@ -128,10 +159,10 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   // Sync user to database when they are authenticated
   useEffect(() => {
-    if (authUser?.id && !authLoading) {
+    if (user?.id && !authLoading) {
       syncUserToDatabase();
     }
-  }, [authUser?.id, authLoading]);
+  }, [user?.id, authLoading]);
 
   return (
     <UserContext.Provider value={{ 
