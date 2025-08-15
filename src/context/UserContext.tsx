@@ -32,6 +32,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user: authUser, signOut: authSignOut, loading: authLoading } = useAuth();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [dbRole, setDbRole] = useState<UserRole>('guest');
   
   // Map Supabase user to our UserProfile structure
   const user: UserProfile | null = authUser ? {
@@ -39,7 +40,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     email: authUser.email || '',
     firstName: authUser.user_metadata?.first_name || '',
     lastName: authUser.user_metadata?.last_name || '',
-    role: (authUser.user_metadata?.role as UserRole) || 'candidate',
+    role: dbRole, // Use role from database instead of metadata
     profileImage: authUser.user_metadata?.avatar_url,
     bio: authUser.user_metadata?.bio as string,
     resumeUrl: authUser.user_metadata?.resumeUrl as string
@@ -48,19 +49,69 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const isLoading = authLoading || isSyncing;
   const role = user?.role || 'guest';
 
-  // Function to update user role in Supabase user metadata
+  // Fetch user role from database
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!authUser?.id) {
+        setDbRole('guest');
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('role')
+          .eq('user_id', authUser.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching user role:', error);
+          setDbRole('candidate'); // Default to candidate if error
+          return;
+        }
+
+        if (data?.role) {
+          setDbRole(data.role as UserRole);
+          console.log('User role from database:', data.role);
+        } else {
+          setDbRole('candidate');
+        }
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+        setDbRole('candidate');
+      }
+    };
+
+    fetchUserRole();
+  }, [authUser?.id]);
+
+  // Function to update user role in both metadata and database
   const setRole = async (newRole: UserRole) => {
     if (!authUser) return;
     
     try {
-      const { error } = await supabase.auth.updateUser({
+      // Update role in database first
+      const { error: dbError } = await supabase
+        .from('users')
+        .update({ role: newRole })
+        .eq('user_id', authUser.id);
+      
+      if (dbError) throw dbError;
+
+      // Update local state
+      setDbRole(newRole);
+
+      // Also update user metadata for consistency
+      const { error: metaError } = await supabase.auth.updateUser({
         data: {
           ...authUser.user_metadata,
           role: newRole
         }
       });
       
-      if (error) throw error;
+      if (metaError) {
+        console.warn('Failed to update metadata, but database updated successfully:', metaError);
+      }
       
       toast({
         title: "Role Updated",

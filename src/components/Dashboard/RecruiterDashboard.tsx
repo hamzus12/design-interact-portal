@@ -67,7 +67,7 @@ const RecruiterDashboard: React.FC = () => {
       try {
         setLoading(true);
 
-        // Get database user ID
+        // Get database user ID first
         const { data: userData, error: userError } = await supabase
           .from('users')
           .select('id')
@@ -75,10 +75,12 @@ const RecruiterDashboard: React.FC = () => {
           .single();
 
         if (userError || !userData) {
+          console.error('Could not find user profile:', userError);
           throw new Error('Could not find user profile');
         }
 
         const dbUserId = userData.id;
+        console.log('Found database user ID:', dbUserId);
         setDbUserId(dbUserId);
 
         // Get recruiter's jobs

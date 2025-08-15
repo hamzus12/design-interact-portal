@@ -44,10 +44,15 @@ const RecruiterApplicationsView: React.FC<RecruiterApplicationsViewProps> = ({ d
 
   useEffect(() => {
     const fetchApplications = async () => {
-      if (!dbUserId) return;
+      if (!dbUserId) {
+        console.log('No dbUserId provided to RecruiterApplicationsView');
+        setLoading(false);
+        return;
+      }
       
       try {
         setLoading(true);
+        console.log('Fetching applications for recruiter dbUserId:', dbUserId);
         
         const { data, error } = await supabase
           .from('applications')
