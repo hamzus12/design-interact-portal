@@ -42,17 +42,28 @@ import { toast } from '@/components/ui/use-toast';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { role } = useUserRole();
+  const { role, isLoading } = useUserRole();
   const { persona, hasPersona } = useJobPersona();
   const { applications, loadApplications } = useApplications();
   const { calculateJobMatches } = useJobAnalysis();
   const { success } = useToastNotifications();
   const { jobs, loading: loadingJobs, fetchJobs } = useDatabase();
   
-  // Debug logs
-  console.log('Dashboard - Current user:', user);
-  console.log('Dashboard - Current role:', role);
-  console.log('Dashboard - Is recruiter?:', role === 'recruiter' || role === 'admin');
+  // Wait for role to load before rendering
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[500px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Chargement du tableau de bord...</p>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
   
   // If user is a recruiter, show recruiter dashboard
   if (role === 'recruiter' || role === 'admin') {
@@ -87,7 +98,7 @@ export default function Dashboard() {
   } = useConversation();
   
   const [matches, setMatches] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   const [showFeedback, setShowFeedback] = useState(false);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [jobAnalysis, setJobAnalysis] = useState<any>(null);
@@ -101,7 +112,7 @@ export default function Dashboard() {
   useEffect(() => {
     const loadDashboardData = async () => {
       if (!hasPersona) {
-        setIsLoading(false);
+        setIsDashboardLoading(false);
         return;
       }
 
@@ -125,7 +136,7 @@ export default function Dashboard() {
       } catch (error) {
         console.error('Error loading dashboard data:', error);
       } finally {
-        setIsLoading(false);
+        setIsDashboardLoading(false);
       }
     };
 
@@ -211,13 +222,13 @@ export default function Dashboard() {
     }
   };
 
-  if (isLoading) {
+  if (isDashboardLoading) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Chargement de votre tableau de bord...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Chargement de votre tableau de bord...</p>
           </div>
         </div>
       </Layout>

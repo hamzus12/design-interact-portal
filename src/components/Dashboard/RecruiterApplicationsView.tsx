@@ -46,6 +46,7 @@ const RecruiterApplicationsView: React.FC<RecruiterApplicationsViewProps> = ({ d
     const fetchApplications = async () => {
       if (!dbUserId) {
         console.log('No dbUserId provided to RecruiterApplicationsView');
+        setApplications([]);
         setLoading(false);
         return;
       }
@@ -163,10 +164,21 @@ const RecruiterApplicationsView: React.FC<RecruiterApplicationsViewProps> = ({ d
     );
   }
 
+  if (!dbUserId) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-muted-foreground">
+          <h3 className="text-lg font-medium mb-2">Profil en cours de chargement</h3>
+          <p>Veuillez patienter pendant que nous chargeons vos données...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (applications.length === 0) {
     return (
       <div className="text-center py-8">
-        <div className="text-gray-500">
+        <div className="text-muted-foreground">
           <h3 className="text-lg font-medium mb-2">Aucune candidature</h3>
           <p>Aucune candidature n'a été soumise pour vos offres d'emploi.</p>
         </div>

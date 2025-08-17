@@ -49,14 +49,16 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const isLoading = authLoading || isSyncing;
   const role = user?.role || 'guest';
 
-  // Fetch user role from database
+  // Fetch user role from database with improved loading state
   useEffect(() => {
     const fetchUserRole = async () => {
       if (!authUser?.id) {
         setDbRole('guest');
+        setIsSyncing(false);
         return;
       }
 
+      setIsSyncing(true);
       try {
         const { data, error } = await supabase
           .from('users')
@@ -73,12 +75,28 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (data?.role) {
           setDbRole(data.role as UserRole);
           console.log('User role from database:', data.role);
+          
+          // Sync role with user metadata if different
+          if (authUser.user_metadata?.role !== data.role) {
+            try {
+              await supabase.auth.updateUser({
+                data: {
+                  ...authUser.user_metadata,
+                  role: data.role
+                }
+              });
+            } catch (metaError) {
+              console.warn('Failed to sync role to metadata:', metaError);
+            }
+          }
         } else {
           setDbRole('candidate');
         }
       } catch (error) {
         console.error('Error fetching user role:', error);
         setDbRole('candidate');
+      } finally {
+        setIsSyncing(false);
       }
     };
 

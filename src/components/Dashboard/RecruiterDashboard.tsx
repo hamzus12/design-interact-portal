@@ -62,7 +62,10 @@ const RecruiterDashboard: React.FC = () => {
 
   useEffect(() => {
     const loadRecruiterData = async () => {
-      if (!user?.id) return;
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
 
       try {
         setLoading(true);
@@ -76,7 +79,13 @@ const RecruiterDashboard: React.FC = () => {
 
         if (userError || !userData) {
           console.error('Could not find user profile:', userError);
-          throw new Error('Could not find user profile');
+          toast({
+            title: 'Erreur de profil',
+            description: 'Impossible de trouver votre profil utilisateur',
+            variant: 'destructive'
+          });
+          setLoading(false);
+          return;
         }
 
         const dbUserId = userData.id;
