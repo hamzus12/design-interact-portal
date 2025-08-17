@@ -49,6 +49,11 @@ export default function Dashboard() {
   const { success } = useToastNotifications();
   const { jobs, loading: loadingJobs, fetchJobs } = useDatabase();
   
+  // Debug logs
+  console.log('Dashboard - Current user:', user);
+  console.log('Dashboard - Current role:', role);
+  console.log('Dashboard - Is recruiter?:', role === 'recruiter' || role === 'admin');
+  
   // If user is a recruiter, show recruiter dashboard
   if (role === 'recruiter' || role === 'admin') {
     return (
