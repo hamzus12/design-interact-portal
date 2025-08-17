@@ -35,9 +35,9 @@ function App() {
         <BrowserRouter>
           <AuthProvider>
             <UserProvider>
-              <DatabaseProvider>
-                <JobPersonaProvider>
-                  <LanguageProvider>
+              <JobPersonaProvider>
+                <LanguageProvider>
+                  <DatabaseProvider>
                     <Toaster />
                     <Routes>
                       <Route path="/" element={<Index />} />
@@ -57,9 +57,9 @@ function App() {
                       <Route path="/chat/:id" element={<Chat />} />
                       <Route path="/profile" element={<Profile />} />
                     </Routes>
-                  </LanguageProvider>
-                </JobPersonaProvider>
-              </DatabaseProvider>
+                  </DatabaseProvider>
+                </LanguageProvider>
+              </JobPersonaProvider>
             </UserProvider>
           </AuthProvider>
         </BrowserRouter>
