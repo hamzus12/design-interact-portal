@@ -62,13 +62,17 @@ const RecruiterDashboard: React.FC = () => {
 
   useEffect(() => {
     const loadRecruiterData = async () => {
+      console.log('RecruiterDashboard: Starting to load data, user:', user);
+      
       if (!user?.id) {
+        console.log('RecruiterDashboard: No user ID found');
         setLoading(false);
         return;
       }
 
       try {
         setLoading(true);
+        console.log('RecruiterDashboard: Fetching user profile for user_id:', user.id);
 
         // Get database user ID first
         const { data: userData, error: userError } = await supabase
@@ -78,7 +82,7 @@ const RecruiterDashboard: React.FC = () => {
           .single();
 
         if (userError || !userData) {
-          console.error('Could not find user profile:', userError);
+          console.error('RecruiterDashboard: Could not find user profile:', userError);
           toast({
             title: 'Erreur de profil',
             description: 'Impossible de trouver votre profil utilisateur',
@@ -89,8 +93,10 @@ const RecruiterDashboard: React.FC = () => {
         }
 
         const dbUserId = userData.id;
-        console.log('Found database user ID:', dbUserId);
+        console.log('RecruiterDashboard: Found database user ID:', dbUserId);
         setDbUserId(dbUserId);
+
+        console.log('RecruiterDashboard: Fetching jobs for recruiter:', dbUserId);
 
         // Get recruiter's jobs
         const { data: recruiterJobs, error: jobsError } = await supabase
@@ -99,20 +105,33 @@ const RecruiterDashboard: React.FC = () => {
           .eq('recruiter_id', dbUserId)
           .order('created_at', { ascending: false });
 
-        if (jobsError) throw jobsError;
+        if (jobsError) {
+          console.error('RecruiterDashboard: Error fetching jobs:', jobsError);
+          throw jobsError;
+        }
+
+        console.log('RecruiterDashboard: Found jobs:', recruiterJobs?.length || 0);
 
         // Get applications for recruiter's jobs
         const jobIds = recruiterJobs?.map(job => job.id) || [];
+        console.log('RecruiterDashboard: Job IDs:', jobIds);
         
         let applications = [];
         if (jobIds.length > 0) {
+          console.log('RecruiterDashboard: Fetching applications for jobs:', jobIds);
           const { data: applicationsData, error: applicationsError } = await supabase
             .from('applications')
             .select('*')
             .in('job_id', jobIds);
 
-          if (applicationsError) throw applicationsError;
+          if (applicationsError) {
+            console.error('RecruiterDashboard: Error fetching applications:', applicationsError);
+            throw applicationsError;
+          }
           applications = applicationsData || [];
+          console.log('RecruiterDashboard: Found applications:', applications.length);
+        } else {
+          console.log('RecruiterDashboard: No jobs found, skipping applications fetch');
         }
 
         // Calculate stats
@@ -150,15 +169,25 @@ const RecruiterDashboard: React.FC = () => {
         }) || [];
 
         setJobsWithApplications(jobsWithAppCounts);
+        
+        console.log('RecruiterDashboard: Final stats:', {
+          totalJobs,
+          activeJobs,
+          totalApplications,
+          pendingApplications,
+          acceptedApplications,
+          rejectedApplications
+        });
 
       } catch (error: any) {
-        console.error('Error loading recruiter data:', error);
+        console.error('RecruiterDashboard: Error loading recruiter data:', error);
         toast({
           title: 'Erreur de chargement',
-          description: 'Impossible de charger les données du recruteur',
+          description: 'Impossible de charger les données du recruteur: ' + (error.message || 'Erreur inconnue'),
           variant: 'destructive'
         });
       } finally {
+        console.log('RecruiterDashboard: Finished loading, setting loading to false');
         setLoading(false);
       }
     };
