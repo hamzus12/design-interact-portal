@@ -155,7 +155,8 @@ const Navbar = () => {
     ...(user ? [
       { path: '/chat', label: 'Messages', badge: unreadMessages },
       ...(role === 'candidate' ? [
-        { path: '/my-applications', label: 'Applications', badge: applicationCount }
+        { path: '/my-applications', label: 'Applications', badge: applicationCount },
+        { path: '/interview-practice', label: 'Simulation' }
       ] : []),
       ...(role === 'recruiter' || role === 'admin' ? [
         { path: '/candidates', label: 'Candidates' }

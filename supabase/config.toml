@@ -47,3 +47,6 @@ verify_jwt = true
 
 [functions.update-learning-profile]
 verify_jwt = true
+
+[functions.interview-simulation]
+verify_jwt = true

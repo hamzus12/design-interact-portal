@@ -20,6 +20,7 @@ import Profile from '@/pages/Profile';
 import AdminLogin from '@/pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import NotFound from '@/pages/NotFound';
+import InterviewPractice from '@/pages/InterviewPractice';
 import AdminRoute from '@/components/AdminRoute';
 import { AuthProvider } from '@/context/AuthContext';
 import { UserProvider } from '@/context/UserContext';
@@ -56,6 +57,7 @@ function App() {
                       <Route path="/create-job-persona" element={<CreateJobPersona />} />
                       <Route path="/edit-job-persona" element={<EditJobPersona />} />
                       <Route path="/my-applications" element={<MyApplications />} />
+                      <Route path="/interview-practice" element={<InterviewPractice />} />
                       <Route path="/admin-login" element={<AdminLogin />} />
                       <Route path="/admin-dashboard" element={<AdminDashboard />} />
                       <Route path="/chat" element={<Chat />} />

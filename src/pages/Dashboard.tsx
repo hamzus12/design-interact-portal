@@ -32,7 +32,8 @@ import {
   Send,
   Loader2,
   RefreshCcw,
-  Edit
+  Edit,
+  Bot
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Textarea } from '@/components/ui/textarea';
@@ -395,6 +396,70 @@ export default function Dashboard() {
               persona={persona} 
               matches={matches} 
             />
+            
+            {/* Actions rapides */}
+            <Card className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="w-6 h-6 text-blue-600" />
+                  Actions rapides
+                </CardTitle>
+                <CardDescription>
+                  Optimisez votre recherche d'emploi avec nos outils IA
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <Button 
+                    asChild 
+                    className="h-auto p-4 flex flex-col items-start bg-white hover:bg-gray-50 text-left border"
+                    variant="outline"
+                  >
+                    <Link to="/interview-practice">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Bot className="w-5 h-5 text-blue-600" />
+                        <span className="font-semibold">Simulation d'entretien</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Pratiquez vos entretiens avec notre IA spécialisée
+                      </p>
+                    </Link>
+                  </Button>
+                  
+                  <Button 
+                    asChild 
+                    className="h-auto p-4 flex flex-col items-start bg-white hover:bg-gray-50 text-left border"
+                    variant="outline"
+                  >
+                    <Link to="/jobs">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Target className="w-5 h-5 text-green-600" />
+                        <span className="font-semibold">Découvrir des emplois</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Parcourez les dernières offres d'emploi
+                      </p>
+                    </Link>
+                  </Button>
+                  
+                  <Button 
+                    asChild 
+                    className="h-auto p-4 flex flex-col items-start bg-white hover:bg-gray-50 text-left border"
+                    variant="outline"
+                  >
+                    <Link to="/edit-job-persona">
+                      <div className="flex items-center gap-2 mb-2">
+                        <User className="w-5 h-5 text-purple-600" />
+                        <span className="font-semibold">Améliorer le profil</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Optimisez votre JobPersona IA
+                      </p>
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="matches">
