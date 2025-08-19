@@ -5,6 +5,8 @@ import { Toaster } from '@/components/ui/toaster';
 import Index from '@/pages/Index';
 import Jobs from '@/pages/Jobs';
 import JobDetail from '@/pages/JobDetail';
+import AddJob from '@/pages/AddJob';
+import EditJob from '@/pages/EditJob';
 import Dashboard from '@/pages/Dashboard';
 import Candidates from '@/pages/Candidates';
 import About from '@/pages/About';
@@ -17,6 +19,7 @@ import Chat from '@/pages/Chat';
 import Profile from '@/pages/Profile';
 import AdminLogin from '@/pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
+import NotFound from '@/pages/NotFound';
 import AdminRoute from '@/components/AdminRoute';
 import { AuthProvider } from '@/context/AuthContext';
 import { UserProvider } from '@/context/UserContext';
@@ -45,6 +48,8 @@ function App() {
                       <Route path="/signup" element={<SignUp />} />
                       <Route path="/jobs" element={<Jobs />} />
                       <Route path="/job/:id" element={<JobDetail />} />
+                      <Route path="/add-job" element={<AddJob />} />
+                      <Route path="/edit-job/:id" element={<EditJob />} />
                       <Route path="/dashboard" element={<Dashboard />} />
                       <Route path="/candidates" element={<Candidates />} />
                       <Route path="/about" element={<About />} />
@@ -56,6 +61,7 @@ function App() {
                       <Route path="/chat" element={<Chat />} />
                       <Route path="/chat/:id" element={<Chat />} />
                       <Route path="/profile" element={<Profile />} />
+                      <Route path="*" element={<NotFound />} />
                     </Routes>
                   </DatabaseProvider>
                 </LanguageProvider>

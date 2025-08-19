@@ -24,6 +24,7 @@ import { useDatabase } from '@/context/DatabaseContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import RecruiterApplicationsView from './RecruiterApplicationsView';
+import LoadingDashboard from '@/components/common/LoadingDashboard';
 
 interface RecruiterStats {
   totalJobs: number;
@@ -210,12 +211,10 @@ const RecruiterDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement du tableau de bord recruteur...</p>
-        </div>
-      </div>
+      <LoadingDashboard 
+        title="Chargement du tableau de bord recruteur"
+        subtitle="Récupération de vos offres d'emploi et candidatures"
+      />
     );
   }
 

@@ -49,15 +49,18 @@ export default function Dashboard() {
   const { success } = useToastNotifications();
   const { jobs, loading: loadingJobs, fetchJobs } = useDatabase();
   
-  // Wait for role to load before rendering
+  // Wait for role to load before rendering anything
   if (isLoading) {
     return (
       <Layout>
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="flex items-center justify-center min-h-[500px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Chargement du tableau de bord...</p>
+            <div className="text-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <div>
+                <p className="text-lg font-medium">Chargement du tableau de bord...</p>
+                <p className="text-sm text-muted-foreground">Vérification de vos permissions</p>
+              </div>
             </div>
           </div>
         </div>

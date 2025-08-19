@@ -12,6 +12,7 @@ import {
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Clock, CheckCircle, XCircle, MessageSquare, Eye } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface Application {
   id: string;
@@ -260,9 +261,9 @@ const RecruiterApplicationsView: React.FC<RecruiterApplicationsViewProps> = ({ d
       {applications.length === 10 && (
         <div className="p-4 text-center border-t">
           <Button variant="outline" asChild>
-            <a href="/candidate-applications">
+            <Link to="/my-applications">
               Voir toutes les candidatures
-            </a>
+            </Link>
           </Button>
         </div>
       )}
