@@ -80,13 +80,24 @@ const RecruiterDashboard: React.FC = () => {
           .from('users')
           .select('id')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (userError || !userData) {
-          console.error('RecruiterDashboard: Could not find user profile:', userError);
+        if (userError) {
+          console.error('RecruiterDashboard: Error fetching user profile:', userError);
           toast({
-            title: 'Erreur de profil',
-            description: 'Impossible de trouver votre profil utilisateur',
+            title: 'Erreur de connexion',
+            description: 'Erreur lors de la récupération des données. Veuillez réessayer.',
+            variant: 'destructive'
+          });
+          setLoading(false);
+          return;
+        }
+
+        if (!userData) {
+          console.error('RecruiterDashboard: Could not find user profile');
+          toast({
+            title: 'Profil introuvable',
+            description: 'Votre profil utilisateur n\'a pas été trouvé. Veuillez contacter le support.',
             variant: 'destructive'
           });
           setLoading(false);
