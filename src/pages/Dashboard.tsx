@@ -49,37 +49,8 @@ export default function Dashboard() {
   const { calculateJobMatches } = useJobAnalysis();
   const { success } = useToastNotifications();
   const { jobs, loading: loadingJobs, fetchJobs } = useDatabase();
-  
-  // Wait for role to load before rendering anything
-  if (isLoading) {
-    return (
-      <Layout>
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="flex items-center justify-center min-h-[500px]">
-            <div className="text-center space-y-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-              <div>
-                <p className="text-lg font-medium">Chargement du tableau de bord...</p>
-                <p className="text-sm text-muted-foreground">Vérification de vos permissions</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-  
-  // If user is a recruiter, show recruiter dashboard
-  if (role === 'recruiter' || role === 'admin') {
-    return (
-      <Layout>
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <RecruiterDashboard />
-        </div>
-      </Layout>
-    );
-  }
 
+  // TOUS LES HOOKS DOIVENT ÊTRE APPELÉS ICI EN PREMIER
   const { 
     loadingMatches, 
     analyzingJob, 
@@ -112,6 +83,36 @@ export default function Dashboard() {
   const [conversationDialogOpen, setConversationDialogOpen] = useState(false);
   const [generatedApplication, setGeneratedApplication] = useState('');
   const [currentQuestion, setCurrentQuestion] = useState('');
+  
+  // Wait for role to load before rendering anything
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="flex items-center justify-center min-h-[500px]">
+            <div className="text-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <div>
+                <p className="text-lg font-medium">Chargement du tableau de bord...</p>
+                <p className="text-sm text-muted-foreground">Vérification de vos permissions</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+  
+  // If user is a recruiter, show recruiter dashboard
+  if (role === 'recruiter' || role === 'admin') {
+    return (
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <RecruiterDashboard />
+        </div>
+      </Layout>
+    );
+  }
 
   useEffect(() => {
     const loadDashboardData = async () => {
