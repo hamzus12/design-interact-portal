@@ -45,24 +45,24 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { role, isLoading } = useUserRole();
   const { persona, hasPersona } = useJobPersona();
-  const { applications, loadApplications } = useApplications();
-  const { calculateJobMatches } = useJobAnalysis();
-  const { success } = useToastNotifications();
-  const { jobs, loading: loadingJobs, fetchJobs } = useDatabase();
-
-  // TOUS LES HOOKS DOIVENT ÊTRE APPELÉS ICI EN PREMIER
   const { 
-    loadingMatches, 
-    analyzingJob, 
-    analyzeJobWithLoading, 
-  } = useJobAnalysis();
-  
-  const {
+    applications, 
+    loadApplications,
     generatingApplication,
     submittingApplication,
     generateApplicationWithLoading,
     submitApplicationWithLoading,
   } = useApplications();
+  
+  const { 
+    calculateJobMatches,
+    loadingMatches, 
+    analyzingJob, 
+    analyzeJobWithLoading, 
+  } = useJobAnalysis();
+  
+  const { success } = useToastNotifications();
+  const { jobs, loading: loadingJobs, fetchJobs } = useDatabase();
 
   const {
     messages,
