@@ -205,10 +205,10 @@ const RecruiterApplicationsView: React.FC<RecruiterApplicationsViewProps> = ({ d
               <TableCell>
                 <div>
                   <div className="font-medium">
-                    {application.candidate.first_name} {application.candidate.last_name}
+                    {application.candidate?.first_name || 'N/A'} {application.candidate?.last_name || ''}
                   </div>
                   <div className="text-sm text-gray-500">
-                    {application.candidate.email}
+                    {application.candidate?.email || 'Email non disponible'}
                   </div>
                 </div>
               </TableCell>
