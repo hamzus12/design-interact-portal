@@ -125,28 +125,36 @@ export default function Dashboard() {
         await loadApplications();
         await fetchJobs();
         
-        // Calculate job matches using real data
-        if (jobs.length > 0 && persona) {
-          const jobMatches = await calculateJobMatches(jobs, persona);
-          setMatches(jobMatches);
-        } else {
-          // Fallback demo matches
-          const demoMatches = [
-            { id: '1', matchScore: 85, title: 'Développeur React', company: 'TechCorp' },
-            { id: '2', matchScore: 78, title: 'Frontend Developer', company: 'StartupXYZ' },
-            { id: '3', matchScore: 92, title: 'UI/UX Developer', company: 'DesignHub' },
-          ];
-          setMatches(demoMatches);
-        }
+        // Use a small delay to ensure jobs state is updated
+        setTimeout(async () => {
+          // Calculate job matches using real data
+          if (jobs.length > 0 && persona) {
+            const jobMatches = await calculateJobMatches(jobs, persona);
+            setMatches(jobMatches);
+          } else {
+            // Fallback demo matches
+            const demoMatches = [
+              { id: '1', matchScore: 85, title: 'Développeur React', company: 'TechCorp' },
+              { id: '2', matchScore: 78, title: 'Frontend Developer', company: 'StartupXYZ' },
+              { id: '3', matchScore: 92, title: 'UI/UX Developer', company: 'DesignHub' },
+            ];
+            setMatches(demoMatches);
+          }
+        }, 500);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
+        toast({
+          title: "Erreur de chargement",
+          description: "Impossible de charger les données du tableau de bord",
+          variant: "destructive"
+        });
       } finally {
         setIsDashboardLoading(false);
       }
     };
 
     loadDashboardData();
-  }, [hasPersona, loadApplications, fetchJobs, jobs, persona, calculateJobMatches]);
+  }, [hasPersona, persona, jobs, calculateJobMatches]);
 
   const handleAnalyzeJob = async (jobId: string) => {
     setSelectedJob(jobId);
@@ -215,14 +223,43 @@ export default function Dashboard() {
   };
 
   const handleRefreshMatches = async () => {
-    await fetchJobs();
-    if (persona && jobs.length > 0) {
-      const jobMatches = await calculateJobMatches(jobs, persona);
-      setMatches(jobMatches);
+    try {
+      // D'abord actualiser les jobs
+      await fetchJobs();
+      await loadApplications();
       
+      // Attendre un peu pour que les états soient mis à jour
+      setTimeout(async () => {
+        try {
+          if (persona && jobs.length > 0) {
+            const jobMatches = await calculateJobMatches(jobs, persona);
+            setMatches(jobMatches);
+            
+            toast({
+              title: "Correspondances actualisées",
+              description: `${jobMatches.length} correspondances d'emploi mises à jour`
+            });
+          } else {
+            toast({
+              title: "Actualisation terminée",
+              description: "Aucune nouvelle correspondance trouvée"
+            });
+          }
+        } catch (error) {
+          console.error('Error calculating matches:', error);
+          toast({
+            title: "Erreur",
+            description: "Impossible de calculer les correspondances",
+            variant: "destructive"
+          });
+        }
+      }, 1000);
+    } catch (error) {
+      console.error('Error refreshing matches:', error);
       toast({
-        title: "Correspondances actualisées",
-        description: "Vos correspondances d'emploi ont été mises à jour"
+        title: "Erreur",
+        description: "Impossible d'actualiser les données",
+        variant: "destructive"
       });
     }
   };
