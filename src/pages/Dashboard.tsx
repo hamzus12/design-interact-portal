@@ -127,10 +127,9 @@ export default function Dashboard() {
         setIsDashboardLoading(false);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
-        toast({
+        error({
           title: "Erreur de chargement",
-          description: "Impossible de charger les données du tableau de bord",
-          variant: "destructive"
+          description: "Impossible de charger les données du tableau de bord"
         });
         setIsDashboardLoading(false);
       }
@@ -237,24 +236,32 @@ export default function Dashboard() {
   };
 
   const handleRefreshMatches = async () => {
+    const startTime = startTimer();
+    setIsRefreshing(true);
+    
     try {
-      // Actualiser les données
-      await Promise.all([
-        fetchJobs(),
-        loadApplications()
-      ]);
+      // Actualiser les données avec monitoring de performance
+      await measureAsync('dashboard_refresh', async () => {
+        await Promise.all([
+          fetchJobs(),
+          loadApplications()
+        ]);
+      });
       
-      toast({
+      endTimer(startTime, 'refresh_total');
+      
+      success({
         title: "Données actualisées",
-        description: "Vos données ont été mises à jour"
+        description: `Vos données ont été mises à jour (${endTimer(startTime, 'refresh_display')}ms)`
       });
     } catch (error) {
       console.error('Error refreshing data:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible d'actualiser les données",
-        variant: "destructive"
+      error({
+        title: "Erreur d'actualisation",
+        description: "Impossible d'actualiser les données. Veuillez réessayer."
       });
+    } finally {
+      setIsRefreshing(false);
     }
   };
 

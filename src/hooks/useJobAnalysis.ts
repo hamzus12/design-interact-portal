@@ -1,7 +1,9 @@
 
 import { useState, useCallback } from 'react';
 import { useJobPersona } from '@/context/JobPersonaContext';
-import { toast } from '@/components/ui/use-toast';
+import { useToastNotifications } from '@/hooks/useToastNotifications';
+import { useSmartCache } from '@/hooks/useSmartCache';
+import { useDebugLogger } from '@/hooks/useDebugLogger';
 
 export interface JobMatch {
   id: string;
@@ -21,25 +23,29 @@ export function useJobAnalysis() {
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [analyzingJob, setAnalyzingJob] = useState<string | null>(null);
   const { analyzeJobMatch, getStoredAnalysis } = useJobPersona();
+  const { success, error } = useToastNotifications();
+  const cache = useSmartCache<any>({ ttl: 10 * 60 * 1000 }); // 10 minutes cache
+  const logger = useDebugLogger('JobAnalysis');
 
   const analyzeJobWithLoading = useCallback(async (jobId: string) => {
     setAnalyzingJob(jobId);
     
     try {
+      logger.info(`Starting job analysis for job ${jobId}`);
       const analysis = await analyzeJobMatch(jobId);
       
-      toast({
+      success({
         title: "Analyse terminée",
         description: `Score de correspondance : ${analysis.score}%`,
       });
       
+      logger.info(`Job analysis completed for job ${jobId}`, { score: analysis.score });
       return analysis;
     } catch (error) {
-      console.error("Error analyzing job:", error);
-      toast({
+      logger.error("Error analyzing job:", error);
+      error({
         title: "Erreur d'analyse",
         description: "Impossible d'analyser la correspondance avec ce poste",
-        variant: "destructive"
       });
       throw error;
     } finally {
@@ -59,7 +65,20 @@ export function useJobAnalysis() {
   const calculateJobMatches = useCallback(async (jobs: any[], persona: any): Promise<JobMatch[]> => {
     if (!jobs.length || !persona) return [];
     
+    const cacheKey = cache.getCacheKey('job_matches', { 
+      jobCount: jobs.length, 
+      personaId: persona.id || 'default' 
+    });
+    
+    // Check cache first
+    const cachedMatches = cache.get(cacheKey);
+    if (cachedMatches) {
+      logger.debug('Using cached job matches', { cacheKey });
+      return cachedMatches;
+    }
+    
     setLoadingMatches(true);
+    logger.info('Calculating job matches', { jobCount: jobs.length });
     
     try {
       const matches: JobMatch[] = [];
@@ -113,19 +132,22 @@ export function useJobAnalysis() {
       // Sort by match score (highest first)
       matches.sort((a, b) => b.matchScore - a.matchScore);
       
+      // Cache the results
+      cache.set(cacheKey, matches);
+      logger.info('Job matches calculated and cached', { matchCount: matches.length });
+      
       return matches;
     } catch (error) {
-      console.error("Error calculating job matches:", error);
-      toast({
+      logger.error("Error calculating job matches:", error);
+      error({
         title: "Erreur",
         description: "Impossible de calculer les correspondances d'emploi",
-        variant: "destructive"
       });
       return [];
     } finally {
       setLoadingMatches(false);
     }
-  }, [getStoredAnalysis]);
+  }, [getStoredAnalysis, cache, logger]);
 
   return {
     loadingMatches,
