@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useJobPersona } from '@/context/JobPersonaContext';
 import { useToastNotifications } from '@/hooks/useToastNotifications';
@@ -51,7 +50,7 @@ export function useJobAnalysis() {
     } finally {
       setAnalyzingJob(null);
     }
-  }, [analyzeJobMatch]);
+  }, [analyzeJobMatch, success, error, logger]);
 
   const getJobAnalysis = useCallback(async (jobId: string) => {
     try {
@@ -147,7 +146,7 @@ export function useJobAnalysis() {
     } finally {
       setLoadingMatches(false);
     }
-  }, [getStoredAnalysis, cache, logger]);
+  }, [getStoredAnalysis, cache, logger, success, error]);
 
   return {
     loadingMatches,

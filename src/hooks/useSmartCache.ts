@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 interface CacheEntry<T> {
   data: T;
@@ -12,93 +11,91 @@ interface CacheOptions {
   maxSize?: number;
 }
 
-export function useSmartCache<T>(key: string, options: CacheOptions = {}) {
-  const { ttl = 5 * 60 * 1000, maxSize = 50 } = options; // Default 5 minutes TTL
-  
-  const [cache, setCache] = useState<Map<string, CacheEntry<T>>>(new Map());
+export function useSmartCache<T>(options: CacheOptions = {}) {
+  const { ttl = 5 * 60 * 1000, maxSize = 100 } = options; // Default 5 minutes TTL
+  const cache = useRef<Map<string, CacheEntry<T>>>(new Map());
+  const [cacheStats, setCacheStats] = useState({
+    hits: 0,
+    misses: 0,
+    size: 0
+  });
 
-  const isExpired = useCallback((entry: CacheEntry<T>): boolean => {
-    return Date.now() > entry.timestamp + entry.expiry;
+  const isExpired = useCallback((entry: CacheEntry<T>) => {
+    return Date.now() > entry.expiry;
   }, []);
 
   const cleanupExpired = useCallback(() => {
-    setCache(currentCache => {
-      const newCache = new Map(currentCache);
-      for (const [key, entry] of newCache.entries()) {
-        if (isExpired(entry)) {
-          newCache.delete(key);
-        }
-      }
-      return newCache;
-    });
-  }, [isExpired]);
-
-  const enforceMaxSize = useCallback(() => {
-    setCache(currentCache => {
-      if (currentCache.size <= maxSize) return currentCache;
-      
-      const entries = Array.from(currentCache.entries());
-      entries.sort((a, b) => a[1].timestamp - b[1].timestamp); // Sort by timestamp (oldest first)
-      
-      const newCache = new Map();
-      const keepCount = Math.floor(maxSize * 0.8); // Keep 80% when cleaning
-      
-      for (let i = entries.length - keepCount; i < entries.length; i++) {
-        const [key, entry] = entries[i];
-        newCache.set(key, entry);
-      }
-      
-      return newCache;
-    });
-  }, [maxSize]);
-
-  const get = useCallback((cacheKey: string): T | null => {
-    const entry = cache.get(cacheKey);
+    const now = Date.now();
+    const entries = Array.from(cache.current.entries());
     
-    if (!entry) return null;
+    entries.forEach(([key, entry]) => {
+      if (now > entry.expiry) {
+        cache.current.delete(key);
+      }
+    });
     
-    if (isExpired(entry)) {
-      setCache(currentCache => {
-        const newCache = new Map(currentCache);
-        newCache.delete(cacheKey);
-        return newCache;
-      });
+    updateStats();
+  }, []);
+
+  const updateStats = useCallback(() => {
+    setCacheStats(prev => ({
+      ...prev,
+      size: cache.current.size
+    }));
+  }, []);
+
+  const get = useCallback((key: string): T | null => {
+    const entry = cache.current.get(key);
+    
+    if (!entry) {
+      setCacheStats(prev => ({ ...prev, misses: prev.misses + 1 }));
       return null;
     }
     
+    if (isExpired(entry)) {
+      cache.current.delete(key);
+      setCacheStats(prev => ({ ...prev, misses: prev.misses + 1 }));
+      updateStats();
+      return null;
+    }
+    
+    setCacheStats(prev => ({ ...prev, hits: prev.hits + 1 }));
     return entry.data;
-  }, [cache, isExpired]);
+  }, [isExpired, updateStats]);
 
-  const set = useCallback((cacheKey: string, data: T, customTtl?: number) => {
+  const set = useCallback((key: string, data: T, customTtl?: number) => {
+    const effectiveTtl = customTtl || ttl;
     const entry: CacheEntry<T> = {
       data,
       timestamp: Date.now(),
-      expiry: customTtl || ttl
+      expiry: Date.now() + effectiveTtl
     };
+    
+    // Enforce max size
+    if (cache.current.size >= maxSize) {
+      // Remove oldest entry
+      const firstKey = cache.current.keys().next().value;
+      if (firstKey) {
+        cache.current.delete(firstKey);
+      }
+    }
+    
+    cache.current.set(key, entry);
+    updateStats();
+  }, [ttl, maxSize, updateStats]);
 
-    setCache(currentCache => {
-      const newCache = new Map(currentCache);
-      newCache.set(cacheKey, entry);
-      return newCache;
-    });
-
-    // Cleanup after setting
-    setTimeout(() => {
-      cleanupExpired();
-      enforceMaxSize();
-    }, 0);
-  }, [ttl, cleanupExpired, enforceMaxSize]);
-
-  const remove = useCallback((cacheKey: string) => {
-    setCache(currentCache => {
-      const newCache = new Map(currentCache);
-      newCache.delete(cacheKey);
-      return newCache;
-    });
-  }, []);
+  const remove = useCallback((key: string) => {
+    cache.current.delete(key);
+    updateStats();
+  }, [updateStats]);
 
   const clear = useCallback(() => {
-    setCache(new Map());
+    cache.current.clear();
+    setCacheStats({ hits: 0, misses: 0, size: 0 });
+  }, []);
+
+  const getCacheKey = useCallback((prefix: string, params: Record<string, any>): string => {
+    return `${prefix}_${JSON.stringify(params)}`;
   }, []);
 
   const fetchWithCache = useCallback(async <R>(
@@ -106,25 +103,19 @@ export function useSmartCache<T>(key: string, options: CacheOptions = {}) {
     fetchFn: () => Promise<R>,
     customTtl?: number
   ): Promise<R> => {
-    // Try to get from cache first
     const cached = get(cacheKey) as unknown as R | null;
     if (cached) {
       return cached;
     }
-
-    // Fetch new data
-    const freshData = await fetchFn();
-    set(cacheKey, freshData as unknown as T, customTtl);
     
-    return freshData;
+    const result = await fetchFn();
+    set(cacheKey, result as unknown as T, customTtl);
+    return result;
   }, [get, set]);
 
-  // Periodic cleanup
-  useEffect(() => {
-    const interval = setInterval(() => {
-      cleanupExpired();
-    }, 60 * 1000); // Cleanup every minute
-
+  // Auto cleanup expired entries periodically
+  const startCleanupTimer = useCallback(() => {
+    const interval = setInterval(cleanupExpired, 60000); // Cleanup every minute
     return () => clearInterval(interval);
   }, [cleanupExpired]);
 
@@ -133,8 +124,11 @@ export function useSmartCache<T>(key: string, options: CacheOptions = {}) {
     set,
     remove,
     clear,
+    getCacheKey,
     fetchWithCache,
-    size: cache.size,
-    keys: Array.from(cache.keys())
+    cacheStats,
+    startCleanupTimer,
+    size: cache.current.size,
+    keys: Array.from(cache.current.keys())
   };
 }

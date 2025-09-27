@@ -562,6 +562,85 @@ export type Database = {
           },
         ]
       }
+      performance_metrics: {
+        Row: {
+          component: string
+          created_at: string
+          duration_ms: number
+          id: string
+          metadata: Json | null
+          operation: string
+          user_id: string | null
+        }
+        Insert: {
+          component: string
+          created_at?: string
+          duration_ms: number
+          id?: string
+          metadata?: Json | null
+          operation: string
+          user_id?: string | null
+        }
+        Update: {
+          component?: string
+          created_at?: string
+          duration_ms?: number
+          id?: string
+          metadata?: Json | null
+          operation?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_metrics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      security_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          ip_address: unknown | null
+          resource: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          resource: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: unknown | null
+          resource?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_audit_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           bio: string | null
@@ -663,6 +742,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_old_performance_metrics: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       create_notification: {
         Args: {
           notification_action_url?: string
@@ -676,6 +759,10 @@ export type Database = {
       get_current_user_id: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      log_security_action: {
+        Args: { p_action: string; p_details?: Json; p_resource: string }
+        Returns: undefined
       }
       mark_notification_as_read: {
         Args: { notification_id: string }

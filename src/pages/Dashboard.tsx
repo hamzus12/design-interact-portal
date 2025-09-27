@@ -5,14 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { useToastNotifications } from '@/hooks/useToastNotifications';
+import { usePerformance } from '@/hooks/usePerformance';
 import { UserStats } from '@/components/Dashboard/UserStats';
+import { ValidationDashboard } from '@/components/Dashboard/ValidationDashboard';
 import { FeedbackForm } from '@/components/Feedback/FeedbackForm';
 import RecruiterDashboard from '@/components/Dashboard/RecruiterDashboard';
 import { useAuth } from '@/context/AuthContext';
 import { useJobPersona } from '@/context/JobPersonaContext';
 import { useApplications } from '@/hooks/useApplications';
 import { useJobAnalysis } from '@/hooks/useJobAnalysis';
-import { useToastNotifications } from '@/hooks/useToastNotifications';
 import { useConversation } from '@/hooks/useConversation';
 import { useDatabase } from '@/context/DatabaseContext';
 import { useUserRole } from '@/context/UserContext';
@@ -61,7 +63,8 @@ export default function Dashboard() {
     analyzeJobWithLoading, 
   } = useJobAnalysis();
   
-  const { success } = useToastNotifications();
+  const { success, error, info } = useToastNotifications();
+  const { startTimer, endTimer, measureAsync, metrics } = usePerformance();
   const { jobs, loading: loadingJobs, fetchJobs } = useDatabase();
 
   const {
@@ -74,6 +77,8 @@ export default function Dashboard() {
   
   const [matches, setMatches] = useState<any[]>([]);
   const [isDashboardLoading, setIsDashboardLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState<number | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [jobAnalysis, setJobAnalysis] = useState<any>(null);
@@ -335,13 +340,24 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleRefreshMatches} disabled={loadingMatches}>
-                {loadingMatches ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <RefreshCcw className="w-4 h-4 mr-2" />
-                )}
-                Actualiser
+              <Button 
+                onClick={() => {
+                  const now = Date.now();
+                  if (lastRefreshTime && now - lastRefreshTime < 3000) {
+                    info({
+                      title: "Actualisation récente",
+                      description: "Veuillez attendre quelques secondes avant d'actualiser à nouveau"
+                    });
+                    return;
+                  }
+                  setLastRefreshTime(now);
+                  handleRefreshMatches();
+                }}
+                variant="outline"
+                disabled={loadingMatches || isRefreshing}
+              >
+                <RefreshCcw className={`h-4 w-4 mr-2 ${loadingMatches || isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Actualisation...' : 'Actualiser'}
               </Button>
               <Button variant="outline" asChild>
                 <Link to="/edit-job-persona">
@@ -354,7 +370,7 @@ export default function Dashboard() {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4" />
               Vue d'ensemble
@@ -374,6 +390,10 @@ export default function Dashboard() {
             <TabsTrigger value="feedback" className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4" />
               Feedback
+            </TabsTrigger>
+            <TabsTrigger value="validation" className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4" />
+              Validation
             </TabsTrigger>
           </TabsList>
 
@@ -821,6 +841,13 @@ export default function Dashboard() {
                 }}
               />
             </div>
+          </TabsContent>
+          <TabsContent value="validation">
+            <ValidationDashboard 
+              applications={applications}
+              persona={persona}
+              matches={matches}
+            />
           </TabsContent>
         </Tabs>
       </div>
