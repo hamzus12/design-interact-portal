@@ -88,29 +88,36 @@ const InterviewPractice: React.FC = () => {
   if (showSimulation) {
     return (
       <Layout>
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className="mb-6">
-            <Button 
-              variant="ghost" 
-              onClick={() => setShowSimulation(false)}
-              className="mb-4"
-            >
-              ← Retour à la sélection
-            </Button>
-            <h1 className="text-2xl font-bold">
-              {selectedJob ? `Entretien - ${selectedJob.title}` : 'Entretien Général'}
-            </h1>
-            {selectedJob && (
-              <p className="text-muted-foreground">{selectedJob.company} • {selectedJob.location}</p>
-            )}
+        <div className="h-[calc(100vh-4rem)] flex flex-col">
+          <div className="flex-shrink-0 border-b bg-background px-4 py-3">
+            <div className="max-w-6xl mx-auto flex items-center justify-between">
+              <Button 
+                variant="ghost" 
+                onClick={() => setShowSimulation(false)}
+                size="sm"
+              >
+                ← Retour
+              </Button>
+              <div className="text-center flex-1">
+                <h1 className="text-lg font-semibold">
+                  {selectedJob ? selectedJob.title : 'Entretien Général'}
+                </h1>
+                {selectedJob && (
+                  <p className="text-sm text-muted-foreground">{selectedJob.company} • {selectedJob.location}</p>
+                )}
+              </div>
+              <div className="w-20" /> {/* Spacer pour centrer le titre */}
+            </div>
           </div>
           
-          <InterviewSimulation
-            jobId={selectedJob?.id}
-            jobTitle={selectedJob?.title || 'Entretien général'}
-            company={selectedJob?.company || 'Simulation'}
-            onComplete={handleInterviewComplete}
-          />
+          <div className="flex-1 overflow-hidden">
+            <InterviewSimulation
+              jobId={selectedJob?.id}
+              jobTitle={selectedJob?.title || 'Entretien général'}
+              company={selectedJob?.company || 'Simulation'}
+              onComplete={handleInterviewComplete}
+            />
+          </div>
         </div>
       </Layout>
     );

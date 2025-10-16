@@ -43,10 +43,22 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isStarted, setIsStarted] = useState(false);
-  const [interviewStatus, setInterviewStatus] = useState<'waiting' | 'active' | 'completed'>('waiting');
+  const [isStarted, setIsStarted] = useState(true);
+  const [interviewStatus, setInterviewStatus] = useState<'waiting' | 'active' | 'completed'>('active');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isStarted && messages.length === 0) {
+      const welcomeMessage: Message = {
+        id: `assistant-welcome-${Date.now()}`,
+        role: 'assistant',
+        content: `Bonjour ! Je suis ravi(e) de vous rencontrer pour cet entretien concernant le poste de ${jobTitle} chez ${company}. Pourriez-vous commencer par vous présenter brièvement ?`,
+        timestamp: new Date()
+      };
+      setMessages([welcomeMessage]);
+    }
+  }, [isStarted]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -121,12 +133,6 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({
     }
   };
 
-  const startInterview = async () => {
-    setIsStarted(true);
-    setInterviewStatus('active');
-    
-    await sendMessage('Bonjour, je suis prêt(e) pour l\'entretien. Pouvez-vous commencer?');
-  };
 
   const endInterview = () => {
     setInterviewStatus('completed');
@@ -159,155 +165,133 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({
   };
 
   return (
-    <Card className="w-full h-[600px] flex flex-col">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
+    <div className="h-full flex flex-col bg-background">
+      {/* Header fixe */}
+      <div className="flex-shrink-0 border-b bg-card">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
               <Bot className="w-5 h-5 text-primary" />
-              Simulation d'entretien
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              {jobTitle} - {company}
-            </p>
+            </div>
+            <div>
+              <h2 className="font-semibold text-base">{jobTitle}</h2>
+              <p className="text-sm text-muted-foreground">{company}</p>
+            </div>
           </div>
           {getStatusBadge()}
         </div>
-        <Separator />
-      </CardHeader>
+      </div>
 
-      <CardContent className="flex-1 flex flex-col p-0">
-        {!isStarted ? (
-          <div className="flex-1 flex items-center justify-center p-6">
-            <div className="text-center space-y-4">
-              <Bot className="w-16 h-16 text-primary mx-auto" />
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Prêt pour votre entretien ?</h3>
-                <p className="text-muted-foreground mb-4 max-w-md">
-                  Cette simulation vous permettra de pratiquer un entretien d'embauche 
-                  avec un recruteur virtuel expérimenté.
-                </p>
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-4">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>L'entretien sera adapté au poste et à votre profil</span>
+      {/* Zone de messages avec scroll */}
+      <ScrollArea className="flex-1 p-4">
+        <div className="max-w-3xl mx-auto space-y-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex gap-3 ${
+                message.role === 'user' ? 'justify-end' : 'justify-start'
+              }`}
+            >
+              <div
+                className={`flex gap-3 max-w-[85%] ${
+                  message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                }`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    message.role === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted'
+                  }`}
+                >
+                  {message.role === 'user' ? (
+                    <User className="w-4 h-4" />
+                  ) : (
+                    <Bot className="w-4 h-4" />
+                  )}
+                </div>
+                <div
+                  className={`rounded-2xl px-4 py-3 shadow-sm ${
+                    message.role === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-card border'
+                  }`}
+                >
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                  <span className="text-xs opacity-60 mt-1.5 block">
+                    {message.timestamp.toLocaleTimeString('fr-FR', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </span>
                 </div>
               </div>
-              <Button onClick={startInterview} size="lg" className="px-8">
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Commencer l'entretien
+            </div>
+          ))}
+          
+          {isLoading && (
+            <div className="flex gap-3 justify-start">
+              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                <Bot className="w-4 h-4" />
+              </div>
+              <div className="bg-card border rounded-2xl px-4 py-3 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">Le recruteur réfléchit...</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        <div ref={messagesEndRef} />
+      </ScrollArea>
+
+      {/* Zone d'input fixe en bas */}
+      <div className="flex-shrink-0 border-t bg-background p-4">
+        <div className="max-w-3xl mx-auto">
+          {interviewStatus === 'active' && (
+            <div className="flex justify-end mb-3">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={endInterview}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                Terminer l'entretien
               </Button>
             </div>
+          )}
+          
+          <div className="flex gap-2">
+            <Input
+              ref={inputRef}
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder={
+                interviewStatus === 'active' 
+                  ? "Tapez votre réponse..." 
+                  : "L'entretien est terminé"
+              }
+              disabled={isLoading || interviewStatus === 'completed'}
+              className="flex-1 rounded-full"
+            />
+            <Button
+              onClick={() => sendMessage(inputMessage)}
+              disabled={!inputMessage.trim() || isLoading || interviewStatus === 'completed'}
+              size="icon"
+              className="rounded-full"
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </Button>
           </div>
-        ) : (
-          <>
-            <ScrollArea className="flex-1 p-4">
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex gap-3 ${
-                      message.role === 'user' ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
-                    <div
-                      className={`flex gap-3 max-w-[80%] ${
-                        message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                      }`}
-                    >
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          message.role === 'user'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted text-muted-foreground'
-                        }`}
-                      >
-                        {message.role === 'user' ? (
-                          <User className="w-4 h-4" />
-                        ) : (
-                          <Bot className="w-4 h-4" />
-                        )}
-                      </div>
-                      <div
-                        className={`rounded-lg px-4 py-3 ${
-                          message.role === 'user'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted'
-                        }`}
-                      >
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                        <span className="text-xs opacity-70 mt-1 block">
-                          {message.timestamp.toLocaleTimeString('fr-FR', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                
-                {isLoading && (
-                  <div className="flex gap-3 justify-start">
-                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                      <Bot className="w-4 h-4" />
-                    </div>
-                    <div className="bg-muted rounded-lg px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="text-sm">Le recruteur réfléchit...</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div ref={messagesEndRef} />
-            </ScrollArea>
-
-            <div className="p-4 border-t">
-              <div className="flex gap-2 mb-3">
-                {interviewStatus === 'active' && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={endInterview}
-                    className="text-red-600 border-red-200 hover:bg-red-50"
-                  >
-                    Terminer l'entretien
-                  </Button>
-                )}
-              </div>
-              
-              <div className="flex gap-2">
-                <Input
-                  ref={inputRef}
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder={
-                    interviewStatus === 'active' 
-                      ? "Tapez votre réponse..." 
-                      : "L'entretien est terminé"
-                  }
-                  disabled={isLoading || interviewStatus === 'completed'}
-                  className="flex-1"
-                />
-                <Button
-                  onClick={() => sendMessage(inputMessage)}
-                  disabled={!inputMessage.trim() || isLoading || interviewStatus === 'completed'}
-                  size="icon"
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      </div>
+    </div>
   );
 };
 
