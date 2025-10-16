@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { 
   Bot, 
   User, 
@@ -12,10 +11,9 @@ import {
   Loader2, 
   MessageCircle,
   Clock,
-  CheckCircle,
-  AlertCircle
+  CheckCircle
 } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 
@@ -147,9 +145,11 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
       e.preventDefault();
-      sendMessage(inputMessage);
+      if (inputMessage.trim()) {
+        sendMessage(inputMessage);
+      }
     }
   };
 
@@ -165,130 +165,157 @@ const InterviewSimulation: React.FC<InterviewSimulationProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-background">
-      {/* Header fixe */}
-      <div className="flex-shrink-0 border-b bg-card">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-primary" />
+    <div className="h-full flex flex-col bg-gradient-to-b from-background to-muted/20">
+      {/* Header élégant avec gradient */}
+      <div className="flex-shrink-0 bg-gradient-to-r from-primary/10 via-primary/5 to-background border-b shadow-sm">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Avatar className="h-12 w-12 border-2 border-primary/20">
+                <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60 text-primary-foreground">
+                  <Bot className="h-6 w-6" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-background"></div>
             </div>
             <div>
-              <h2 className="font-semibold text-base">{jobTitle}</h2>
-              <p className="text-sm text-muted-foreground">{company}</p>
+              <h2 className="font-bold text-lg">{jobTitle}</h2>
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <span>{company}</span>
+                <span className="text-xs">• Recruteur IA</span>
+              </p>
             </div>
           </div>
           {getStatusBadge()}
         </div>
       </div>
 
-      {/* Zone de messages avec scroll */}
-      <ScrollArea className="flex-1 p-4">
-        <div className="max-w-3xl mx-auto space-y-4">
-          {messages.map((message) => (
+      {/* Zone de messages scrollable avec padding adapté */}
+      <ScrollArea className="flex-1 px-4 py-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {messages.map((message, index) => (
             <div
               key={message.id}
-              className={`flex gap-3 ${
+              className={`flex gap-3 animate-fade-in ${
                 message.role === 'user' ? 'justify-end' : 'justify-start'
               }`}
+              style={{ animationDelay: `${index * 0.1}s` }}
             >
-              <div
-                className={`flex gap-3 max-w-[85%] ${
-                  message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-                }`}
-              >
+              {message.role === 'assistant' && (
+                <Avatar className="h-10 w-10 flex-shrink-0 border-2 border-muted">
+                  <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10">
+                    <Bot className="h-5 w-5 text-primary" />
+                  </AvatarFallback>
+                </Avatar>
+              )}
+              
+              <div className={`flex flex-col gap-1 max-w-[75%] ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  className={`rounded-2xl px-5 py-3 shadow-sm ${
                     message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
+                      ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-tr-sm'
+                      : 'bg-card border-2 border-muted rounded-tl-sm'
                   }`}
                 >
-                  {message.role === 'user' ? (
-                    <User className="w-4 h-4" />
-                  ) : (
-                    <Bot className="w-4 h-4" />
-                  )}
+                  <p className="text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+                    {message.content}
+                  </p>
                 </div>
-                <div
-                  className={`rounded-2xl px-4 py-3 shadow-sm ${
-                    message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-card border'
-                  }`}
-                >
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                  <span className="text-xs opacity-60 mt-1.5 block">
-                    {message.timestamp.toLocaleTimeString('fr-FR', {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </span>
-                </div>
+                <span className="text-xs text-muted-foreground px-2">
+                  {message.timestamp.toLocaleTimeString('fr-FR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
               </div>
+
+              {message.role === 'user' && (
+                <Avatar className="h-10 w-10 flex-shrink-0 border-2 border-primary/20">
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
+                    <User className="h-5 w-5" />
+                  </AvatarFallback>
+                </Avatar>
+              )}
             </div>
           ))}
           
           {isLoading && (
-            <div className="flex gap-3 justify-start">
-              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                <Bot className="w-4 h-4" />
-              </div>
-              <div className="bg-card border rounded-2xl px-4 py-3 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            <div className="flex gap-3 justify-start animate-fade-in">
+              <Avatar className="h-10 w-10 border-2 border-muted">
+                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10">
+                  <Bot className="h-5 w-5 text-primary" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="bg-card border-2 border-muted rounded-2xl rounded-tl-sm px-5 py-3 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
                   <span className="text-sm text-muted-foreground">Le recruteur réfléchit...</span>
                 </div>
               </div>
+            </div>
+          )}
+          
+          {messages.length === 0 && !isLoading && (
+            <div className="text-center py-12 animate-fade-in">
+              <Bot className="h-16 w-16 text-muted-foreground/40 mx-auto mb-4" />
+              <p className="text-muted-foreground">La conversation va commencer...</p>
             </div>
           )}
         </div>
         <div ref={messagesEndRef} />
       </ScrollArea>
 
-      {/* Zone d'input fixe en bas */}
-      <div className="flex-shrink-0 border-t bg-background p-4">
-        <div className="max-w-3xl mx-auto">
-          {interviewStatus === 'active' && (
+      {/* Zone d'input moderne avec boutons */}
+      <div className="flex-shrink-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="max-w-4xl mx-auto px-6 py-4">
+          {interviewStatus === 'active' && messages.length > 2 && (
             <div className="flex justify-end mb-3">
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={endInterview}
-                className="text-muted-foreground hover:text-destructive"
+                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               >
                 Terminer l'entretien
               </Button>
             </div>
           )}
           
-          <div className="flex gap-2">
-            <Input
-              ref={inputRef}
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={
-                interviewStatus === 'active' 
-                  ? "Tapez votre réponse..." 
-                  : "L'entretien est terminé"
-              }
-              disabled={isLoading || interviewStatus === 'completed'}
-              className="flex-1 rounded-full"
-            />
+          <div className="flex items-center gap-3">
+            <div className="flex-1 relative">
+              <Input
+                ref={inputRef}
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder={
+                  interviewStatus === 'active' 
+                    ? "Écrivez votre réponse..." 
+                    : "L'entretien est terminé"
+                }
+                disabled={isLoading || interviewStatus === 'completed'}
+                className="pr-12 h-12 rounded-full border-2 focus:border-primary transition-all"
+              />
+            </div>
             <Button
               onClick={() => sendMessage(inputMessage)}
               disabled={!inputMessage.trim() || isLoading || interviewStatus === 'completed'}
               size="icon"
-              className="rounded-full"
+              className="h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all"
             >
               {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                <Send className="w-4 h-4" />
+                <Send className="w-5 h-5" />
               )}
             </Button>
           </div>
+          
+          {interviewStatus === 'active' && (
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Appuyez sur Entrée pour envoyer • Shift + Entrée pour une nouvelle ligne
+            </p>
+          )}
         </div>
       </div>
     </div>
