@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -20,8 +20,8 @@ serve(async (req) => {
   try {
     console.log('Starting interview simulation request');
     
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+    if (!lovableApiKey) {
+      throw new Error('Lovable AI API key not configured');
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -81,34 +81,33 @@ ${candidateProfile ? `Profil du candidat: ${JSON.stringify(candidateProfile)}` :
       }
     ];
 
-    console.log('Sending request to OpenAI with', messages.length, 'messages');
+    console.log('Sending request to Lovable AI with', messages.length, 'messages');
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'google/gemini-2.5-flash',
         messages: messages,
         max_tokens: 800,
-        temperature: 0.7,
         stream: false
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('OpenAI API error:', errorData);
-      throw new Error(`OpenAI API error: ${response.status} - ${errorData}`);
+      console.error('Lovable AI API error:', errorData);
+      throw new Error(`Lovable AI API error: ${response.status} - ${errorData}`);
     }
 
     const data = await response.json();
-    console.log('OpenAI response received successfully');
+    console.log('Lovable AI response received successfully');
 
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      throw new Error('Invalid response from OpenAI');
+      throw new Error('Invalid response from Lovable AI');
     }
 
     const aiResponse = data.choices[0].message.content;
