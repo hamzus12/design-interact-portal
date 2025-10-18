@@ -12,11 +12,11 @@ const VideoDemo: React.FC = () => {
       <Button 
         variant="outline"
         size="lg"
-        className="border-2 border-white/30 text-white hover:bg-white/20 backdrop-blur-sm px-8 py-4 rounded-xl font-semibold transition-all duration-300"
+        className="group border-2 border-white/40 text-white hover:bg-white/20 hover:border-white/60 backdrop-blur-xl px-10 py-7 rounded-2xl font-bold transition-all duration-500 hover:scale-110 shadow-xl hover:shadow-2xl text-lg"
         onClick={() => setVideoDemoOpen(true)}
       >
-        <Play className="mr-2 h-5 w-5" />
-        Voir la Démo
+        <Play className="mr-3 h-6 w-6 group-hover:scale-125 transition-transform duration-300" />
+        <span>Voir la Démo</span>
       </Button>
       
       <VideoDemoModal 
