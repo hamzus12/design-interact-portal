@@ -95,7 +95,7 @@ const SignUp = () => {
     }
   };
 
-  // Redirect if already signed in
+  // Redirect if already signed in - AFTER all hooks
   if (user) {
     return <Navigate to="/dashboard" replace />;
   }
