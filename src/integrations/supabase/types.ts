@@ -606,7 +606,7 @@ export type Database = {
           created_at: string
           details: Json | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           resource: string
           user_agent: string | null
           user_id: string | null
@@ -616,7 +616,7 @@ export type Database = {
           created_at?: string
           details?: Json | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           resource: string
           user_agent?: string | null
           user_id?: string | null
@@ -626,7 +626,7 @@ export type Database = {
           created_at?: string
           details?: Json | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           resource?: string
           user_agent?: string | null
           user_id?: string | null
@@ -742,10 +742,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cleanup_old_performance_metrics: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      cleanup_old_performance_metrics: { Args: never; Returns: undefined }
       create_notification: {
         Args: {
           notification_action_url?: string
@@ -756,10 +753,7 @@ export type Database = {
         }
         Returns: string
       }
-      get_current_user_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_current_user_id: { Args: never; Returns: string }
       log_security_action: {
         Args: { p_action: string; p_details?: Json; p_resource: string }
         Returns: undefined
