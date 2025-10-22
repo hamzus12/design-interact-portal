@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 import { 
   Users, 
   Briefcase, 
@@ -23,6 +24,7 @@ import AdminStats from '@/components/Admin/AdminStats';
 const AdminDashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalJobs: 0,
@@ -32,7 +34,6 @@ const AdminDashboard = () => {
     activeJobs: 0
   });
   const [loadingStats, setLoadingStats] = useState(true);
-  const adminEmail = localStorage.getItem('adminEmail');
 
   useEffect(() => {
     fetchStats();
@@ -74,9 +75,8 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('isAdmin');
-    localStorage.removeItem('adminEmail');
+  const handleLogout = async () => {
+    await signOut();
     toast({
       title: "Déconnexion réussie",
       description: "Vous avez été déconnecté du dashboard admin",
@@ -95,7 +95,7 @@ const AdminDashboard = () => {
                 Tableau de Bord Administrateur
               </h1>
               <p className="text-gray-600">
-                Connecté en tant que: {adminEmail}
+                Connecté en tant que: {user?.email}
               </p>
             </div>
             <Button 
