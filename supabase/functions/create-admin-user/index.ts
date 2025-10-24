@@ -42,19 +42,28 @@ Deno.serve(async (req) => {
       throw new Error('User creation failed');
     }
 
-    // Insérer dans public.users
-    const { error: userError } = await supabaseAdmin
+    // Vérifier si l'utilisateur existe déjà dans public.users
+    const { data: existingUser } = await supabaseAdmin
       .from('users')
-      .upsert({
-        user_id: authUser.user.id,
-        email: 'admin@demo.com',
-        first_name: 'Admin',
-        last_name: 'Demo',
-        role: 'admin'
-      });
+      .select('id')
+      .eq('user_id', authUser.user.id)
+      .single();
 
-    if (userError) {
-      console.error('Error creating user record:', userError);
+    // Insérer dans public.users seulement s'il n'existe pas
+    if (!existingUser) {
+      const { error: userError } = await supabaseAdmin
+        .from('users')
+        .insert({
+          user_id: authUser.user.id,
+          email: 'admin@demo.com',
+          first_name: 'Admin',
+          last_name: 'Demo',
+          role: 'admin'
+        });
+
+      if (userError) {
+        console.error('Error creating user record:', userError);
+      }
     }
 
     // Attribuer le rôle admin
