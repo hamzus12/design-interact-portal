@@ -21,6 +21,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import NotFound from '@/pages/NotFound';
 import InterviewPractice from '@/pages/InterviewPractice';
 import AdminRoute from '@/components/AdminRoute';
+import CreateAdmin from '@/pages/CreateAdmin';
 import { AuthProvider } from '@/context/AuthContext';
 import { UserProvider } from '@/context/UserContext';
 import { JobPersonaProvider } from '@/context/JobPersonaContext';
@@ -46,6 +47,7 @@ function App() {
                       <Route path="/" element={<Index />} />
                       <Route path="/signin" element={<SignIn />} />
                       <Route path="/signup" element={<SignUp />} />
+                      <Route path="/create-admin" element={<CreateAdmin />} />
                       <Route path="/jobs" element={<Jobs />} />
                       <Route path="/job/:id" element={<JobDetail />} />
                       <Route path="/add-job" element={<AddJob />} />
