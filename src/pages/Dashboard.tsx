@@ -37,7 +37,7 @@ import {
   Edit,
   Bot
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
@@ -175,10 +175,10 @@ export default function Dashboard() {
     );
   }
   
-  // If user is admin, redirect to admin dashboard
+  // If user is admin, they shouldn't be on this page - admins use /admin-dashboard
+  // This page is for candidates only
   if (role === 'admin') {
-    window.location.href = '/admin-dashboard';
-    return null;
+    return <Navigate to="/admin-dashboard" replace />;
   }
 
   const handleAnalyzeJob = async (jobId: string) => {
