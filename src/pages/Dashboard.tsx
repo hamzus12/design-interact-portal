@@ -165,7 +165,7 @@ export default function Dashboard() {
   }
   
   // If user is a recruiter, show recruiter dashboard
-  if (role === 'recruiter' || role === 'admin') {
+  if (role === 'recruiter') {
     return (
       <Layout>
         <div className="max-w-7xl mx-auto px-4 py-8">
@@ -173,6 +173,12 @@ export default function Dashboard() {
         </div>
       </Layout>
     );
+  }
+  
+  // If user is admin, redirect to admin dashboard
+  if (role === 'admin') {
+    window.location.href = '/admin-dashboard';
+    return null;
   }
 
   const handleAnalyzeJob = async (jobId: string) => {
