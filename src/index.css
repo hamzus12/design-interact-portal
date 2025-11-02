@@ -6,65 +6,83 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Soft, modern color palette - Sky blue, turquoise, mint green */
+    --background: 210 40% 98%;
+    --foreground: 215 25% 27%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 215 25% 27%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.75rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --popover-foreground: 215 25% 27%;
     
-    /* Hero gradient colors */
-    --hero-from: 221 83% 53%;
-    --hero-via: 271 91% 65%;
-    --hero-to: 262 83% 58%;
-    --hero-accent: 45 93% 47%;
-    --hero-accent-light: 43 96% 56%;
+    /* Primary - Soft Sky Blue */
+    --primary: 200 95% 62%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 200 95% 85%;
+    --primary-dark: 200 85% 45%;
+    
+    /* Secondary - Soft Turquoise */
+    --secondary: 185 65% 90%;
+    --secondary-foreground: 185 85% 25%;
+    
+    /* Accent - Mint Green */
+    --accent: 160 65% 88%;
+    --accent-foreground: 160 85% 25%;
+    
+    --muted: 210 30% 94%;
+    --muted-foreground: 215 15% 55%;
+    
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 215 20% 88%;
+    --input: 215 20% 92%;
+    --ring: 200 95% 62%;
+    --radius: 0.75rem;
+    
+    --chart-1: 200 95% 62%;
+    --chart-2: 185 65% 65%;
+    --chart-3: 160 65% 65%;
+    --chart-4: 220 85% 65%;
+    --chart-5: 280 65% 65%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 215 28% 17%;
     --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
+    --card: 215 25% 20%;
     --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
+    --popover: 215 25% 20%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 84% 4.9%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 94.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    
+    /* Primary - Bright Sky Blue for dark mode */
+    --primary: 200 90% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 200 80% 70%;
+    --primary-dark: 200 85% 40%;
+    
+    /* Secondary - Turquoise for dark mode */
+    --secondary: 185 50% 30%;
+    --secondary-foreground: 185 65% 90%;
+    
+    /* Accent - Mint for dark mode */
+    --accent: 160 45% 30%;
+    --accent-foreground: 160 65% 88%;
+    
+    --muted: 215 25% 25%;
+    --muted-foreground: 215 15% 65%;
+    
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 215 25% 30%;
+    --input: 215 25% 25%;
+    --ring: 200 90% 55%;
+    
+    --chart-1: 200 90% 55%;
+    --chart-2: 185 65% 50%;
+    --chart-3: 160 65% 50%;
+    --chart-4: 220 85% 60%;
+    --chart-5: 280 65% 60%;
   }
 }
 
@@ -74,7 +92,25 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+  
+  h1 {
+    @apply text-4xl md:text-5xl lg:text-6xl;
+  }
+  
+  h2 {
+    @apply text-3xl md:text-4xl;
+  }
+  
+  h3 {
+    @apply text-2xl md:text-3xl;
   }
 }
 
